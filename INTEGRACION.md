@@ -4,6 +4,16 @@ Este paquete contiene el módulo **RV** extraído de EnRuta, para integrarlo
 en otra app HT (ya tenéis una "casi igual" a la nuestra). Ningún archivo
 de aquí se ha reescrito — son extracciones literales o copias exactas.
 
+**Demo standalone incluida**: `index.html` + `manifest.webmanifest` + `sw.js`
++ los 2 iconos son un shell mínimo, no forman parte del módulo RV en sí —
+se han añadido para que el repo funcione como PWA de un vistazo (mismo PIN
+de acceso que EnRuta, aterriza directo en Calendario, mismas pestañas
+Registro/Calendario + sub-nav Calendario/Estadísticas/Ajustes) sin depender
+de ninguna HT. Sin Libro de Horarios propio (no hay `<script id="data">"),
+así que el campo "Servicio Comercial" cae a texto libre — para integrarlo
+en VUESTRA HT de verdad, seguid las instrucciones de más abajo con vuestro
+propio `index.html`, no el de esta demo.
+
 ## Archivos de este paquete
 
 | Archivo | Qué es | ¿Tocar algo? |
@@ -13,6 +23,7 @@ de aquí se ha reescrito — son extracciones literales o copias exactas.
 | `registro.css` | Todo el CSS visual de RV, extraído de `index.html`. | Revisar la sección final ("pegamento de integración") si vuestro sistema de pestañas es distinto al nuestro. |
 | `app-modal.js` | Los diálogos de confirmación/aviso propios (`appModal.confirm/alert`) que usa `registro.js` en vez de `confirm()`/`alert()` nativos. Archivo autocontenido (inyecta su propio CSS). | No. |
 | `informe-logo.png`, `informe-decorativo.jpg`, `carlito-regular.ttf`, `carlito-bold.ttf` | Assets del PDF "Informe de incidencia" (logo, imagen decorativa, tipografía de la empresa). `registro.js` los carga con `fetch('informe-logo.png')` etc. — **rutas relativas**, deben estar en el mismo directorio que `index.html`/`registro.js`. | No, pero deben copiarse tal cual (binarios). |
+| `index.html`, `manifest.webmanifest`, `sw.js`, `icon-192.png`, `icon-512.png` | La demo standalone descrita arriba (PIN, nav, sin HT). NO es parte del módulo — es solo para ver RV funcionando sin montar nada. | Sustituir por vuestro propio shell al integrar de verdad. |
 
 ## Qué necesita vuestra HT para que RV arranque
 

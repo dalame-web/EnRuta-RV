@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>EnRuta RV — Registro de Viajes</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#e8201c">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel-2:#1f242c; --border:#30363d;
+  --fg:#e6edf3; --fg-dim:#9ba3ad; --accent:#58a6ff; --warn:#f0883e;
+  --ok:#3fb950; --bad:#f85149; --iryo:#e8201c;
+}
+body.light{
+  --bg:#f6f8fa; --panel:#ffffff; --panel-2:#f0f3f6; --border:#b1bac4;
+  --fg:#0d1117; --fg-dim:#3d434b; --accent:#0550ae; --warn:#9a3412;
+  --ok:#15803d; --bad:#b91c1c; --iryo:#e8201c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;padding-top:44px}
+
+/* Tabs — mismo aspecto que EnRuta (fijas arriba, nunca se ocultan) */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--panel);
+  position:fixed;top:0;left:0;right:0;z-index:1000;height:44px;
+  box-shadow:0 1px 4px rgba(0,0,0,.4);
+  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+@media (max-width:760px){ .tabs{height:38px} body{padding-top:38px} }
+@media (max-width:480px){ .tabs{height:36px} body{padding-top:36px} }
+.tab{padding:10px 22px;cursor:pointer;color:var(--fg-dim);border:none;background:transparent;
+  font-family:Poppins,sans-serif;font-size:14px;font-weight:600;
+  border-bottom:3px solid transparent;border-radius:0}
+.tab:hover{color:var(--fg);background:rgba(232,32,28,.06)}
+.tab.active{color:#e8201c;border-bottom-color:#e8201c;background:var(--bg)}
+.pane{display:none}
+.pane.active{display:block}
+
+/* Login overlay — calcado del de EnRuta, mismo PIN de acceso */
+body.locked{overflow:hidden}
+body.locked > *:not(#login-overlay){display:none!important}
+#login-overlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;
+  background-color:#000;
+  background-image:linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.65)),
+    url('https://iryo.eu/sites/default/files/styles/wide/public/image/footer/conectividad-sostenible/alta%20velocidad%20iryo.jpg');
+  background-size:cover;background-position:center center;background-repeat:no-repeat}
+body.locked #login-overlay{display:flex}
+.login-card{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;padding:32px 36px;min-width:320px;max-width:90%;
+  box-shadow:0 8px 40px rgba(0,0,0,.7);text-align:center;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.login-card h1{margin:0 0 6px 0;font-family:Poppins,sans-serif;font-weight:800;
+  font-size:48px;letter-spacing:-1px;color:#fff;
+  background:linear-gradient(135deg,#ff3a35 0%,#e8201c 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.login-card .login-sub{color:#fff;font-size:13px;margin-bottom:22px;
+  font-family:Poppins,sans-serif;font-weight:500;letter-spacing:.5px}
+.login-card input{width:100%;padding:10px 12px;font-size:18px;text-align:center;
+  background:rgba(255,255,255,.10);color:#fff;border:1px solid rgba(255,255,255,.20);
+  border-radius:8px;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  letter-spacing:6px;box-sizing:border-box;outline:none}
+.login-card input::placeholder{color:rgba(255,255,255,.45);letter-spacing:0}
+.login-card input:focus{border-color:#e8201c;box-shadow:0 0 0 2px rgba(232,32,28,.30);background:rgba(255,255,255,.14)}
+.login-card button{margin-top:14px;width:100%;padding:10px 12px;font-size:13px;
+  background:linear-gradient(135deg,#ff3a35 0%,#e8201c 100%);
+  color:#fff;border:0;border-radius:8px;font-weight:700;cursor:pointer;
+  font-family:Poppins,sans-serif;letter-spacing:1px;transition:all .15s ease}
+.login-card button:hover{background:linear-gradient(135deg,#ff5550 0%,#ff3a35 100%)}
+.login-error{color:#ff8a85;font-size:12px;margin-top:10px;min-height:14px;font-weight:600}
+@media (max-width:760px){ .login-card{min-width:280px;padding:24px 22px} .login-card h1{font-size:36px} }
+</style>
+<link rel="stylesheet" href="registro.css">
+</head>
+<body class="locked tab-calendario">
+
+<div class="tabs">
+  <button class="tab" data-tab="registro">📋 Registro</button>
+  <button class="tab active" data-tab="calendario">📅 Calendario</button>
+</div>
+
+<nav id="cal-subnav" aria-label="Sub-navegación Calendario">
+  <button class="cal-sub-btn active" data-cal-sub="calendario">📅 Calendario</button>
+  <button class="cal-sub-btn" data-cal-sub="estadisticas">📊 Estadísticas</button>
+  <button class="cal-sub-btn" data-cal-sub="ajustes">⚙ Ajustes</button>
+</nav>
+
+<section id="registro-pane" class="pane"></section>
+<section id="calendario-pane" class="pane active"></section>
+<section id="estadisticas-pane" class="pane"></section>
+<section id="ajustes-pane" class="pane"></section>
+<div class="save-flash" id="save-flash">Guardado</div>
+
+<div id="login-overlay">
+  <form class="login-card" id="login-form" autocomplete="off" data-form-type="other" novalidate>
+    <h1>EnRuta</h1>
+    <div class="login-sub">Acceso restringido</div>
+    <input type="text" id="login-pass" inputmode="numeric"
+      autocomplete="one-time-code" pattern="[0-9]*"
+      name="pin" maxlength="12" placeholder="Contraseña" autofocus
+      data-lpignore="true" data-1p-ignore="true" data-form-type="other"
+      style="-webkit-text-security:disc;text-security:disc">
+    <button type="submit">ENTRAR</button>
+    <div class="login-error" id="login-error"></div>
+  </form>
+</div>
+
+<script>
+/* Mismo PIN y mismo mecanismo que EnRuta (sessionStorage, sin backend). */
+(function(){
+  var KEY='rv_auth_v1', PASS='8412';
+  function removeLoginOverlay(){
+    try{
+      var ov = document.getElementById('login-overlay');
+      if(ov && ov.parentNode) ov.parentNode.removeChild(ov);
+    }catch(e){}
+  }
+  try{
+    if(sessionStorage.getItem(KEY)==='1'){
+      document.body.classList.remove('locked');
+      removeLoginOverlay();
+      document.addEventListener('DOMContentLoaded', removeLoginOverlay);
+      return;
+    }
+  }catch(e){}
+  document.addEventListener('DOMContentLoaded', function(){
+    var f=document.getElementById('login-form');
+    var inp=document.getElementById('login-pass');
+    var err=document.getElementById('login-error');
+    if(!f) return;
+    setTimeout(function(){ try{inp.focus();}catch(e){} }, 50);
+    f.addEventListener('submit', function(ev){
+      ev.preventDefault();
+      if(inp.value===PASS){
+        try{ sessionStorage.setItem(KEY,'1'); }catch(e){}
+        inp.value = '';
+        inp.setAttribute('autocomplete','off');
+        document.body.classList.remove('locked');
+        err.textContent='';
+        removeLoginOverlay();
+      } else {
+        err.textContent='Contraseña incorrecta';
+        inp.value=''; inp.focus();
+      }
+    });
+  });
+})();
+</script>
+
+<script>
+/* Sincroniza el tema ANTES de que registro.js arranque: su init() lee la
+ * clase body.light asumiendo que alguien externo ya la ha puesto (en
+ * EnRuta ese "alguien" es HT; aquí, este bloque). Es una lectura única al
+ * cargar, no un segundo listener — el único que escribe el tema sigue
+ * siendo el propio RV desde su pantalla de Ajustes. */
+(function(){
+  try{
+    var s = JSON.parse(localStorage.getItem('rviryo_settings_v1') || '{}');
+    if(s.theme === 'light') document.body.classList.add('light');
+  }catch(e){}
+})();
+</script>
+
+<script>
+/* Nav mínimo: pestañas Registro/Calendario + sub-nav Calendario/Estadísticas/
+ * Ajustes. Mismas clases que usa EnRuta (body.tab-X, .tab.active,
+ * .pane.active) para que registro.css funcione sin tocarlo. */
+(function(){
+  function clearTabClasses(){
+    document.body.className = document.body.className.replace(/\btab-\w+\b/g, '').trim();
+  }
+  function syncSubnav(tab){
+    var subActive = (tab === 'estadisticas') ? 'estadisticas'
+                  : (tab === 'ajustes') ? 'ajustes' : 'calendario';
+    document.querySelectorAll('.cal-sub-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.calSub === subActive);
+    });
+  }
+  function goTab(name){
+    document.querySelectorAll('.tab[data-tab]').forEach(function(t){
+      t.classList.toggle('active', t.dataset.tab === name);
+    });
+    clearTabClasses();
+    document.body.classList.add('tab-' + name);
+    syncSubnav(name);
+    if(window.REGISTRO) window.REGISTRO.switchTo(name);
+  }
+  document.querySelectorAll('.tab[data-tab]').forEach(function(b){
+    b.addEventListener('click', function(){ goTab(b.dataset.tab); });
+  });
+  document.querySelectorAll('.cal-sub-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var sub = b.dataset.calSub;
+      if(sub === 'calendario'){ goTab('calendario'); return; }
+      document.querySelectorAll('.tab[data-tab]').forEach(function(t){ t.classList.remove('active'); });
+      clearTabClasses();
+      document.body.classList.add('tab-' + sub);
+      syncSubnav(sub);
+      if(window.REGISTRO) window.REGISTRO.switchTo(sub);
+    });
+  });
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      window.location.reload();
+    });
+  }
+})();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="app-modal.js"></script>
+<script src="data.js"></script>
+<script src="registro.js"></script>
+</body>
+</html>
