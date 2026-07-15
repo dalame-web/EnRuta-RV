@@ -196,6 +196,37 @@
       paradas: [
         { nombre: 'CORDOBA-JULIO ANGUITA', hora: '21:29', tParada: 2 }
       ]
+    },
+    {
+      servicio: '6091',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '9:12',
+      hDestino: '12:29',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '10:48', tParada: 1 }
+      ]
+    },
+    {
+      servicio: '6350',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '14:12',
+      hDestino: '17:27',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '15:40', tParada: 1 }
+      ]
+    },
+    {
+      servicio: '6381',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '18:19',
+      hDestino: '21:44',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '19:55', tParada: 1 },
+        { nombre: 'CAMP DE TARRAGONA', hora: '21:02', tParada: 2 }
+      ]
     }
   ];
 })();
