@@ -584,12 +584,23 @@
   function legKey(servicio, origen, destino) {
     return servicio + '|' + origen + '|' + destino;
   }
+  // Nombre corto solo para la etiqueta del <select> (el <select> nativo recorta
+  // el texto de las opciones contra el borde de la ventana con nombres largos).
+  // origen/destino reales no cambian, solo lo que se ve en el desplegable.
+  var SHORT_STATION = {
+    'MADRID-P.ATOCHA-ALMUDENA GRANDES': 'MADRID-ATOCHA',
+    'MALAGA MARIA ZAMBRANO': 'MALAGA',
+    'BARCELONA-SANTS': 'BARCELONA'
+  };
+  function shortStation(nombre) {
+    return SHORT_STATION[nombre] || nombre;
+  }
   function horarioOptions(s) {
     var cur = s.servicioComercial ? legKey(s.servicioComercial, s.origen, s.destino) : '';
     var h = '<option value="">— elegir servicio —</option>';
     horarios.forEach(function (hr, i) {
       var key = legKey(hr.servicio, hr.origen, hr.destino);
-      var label = hr.servicio + ' · ' + hr.origen + ' → ' + hr.destino;
+      var label = hr.servicio + ' · ' + shortStation(hr.origen) + ' → ' + shortStation(hr.destino);
       h += '<option value="' + esc(key) + '" data-idx="' + i + '"' +
         (key === cur ? ' selected' : '') + '>' + esc(label) + '</option>';
     });
