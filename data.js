@@ -1,231 +1,22 @@
-/* EnRuta-RV — data.js
- * Libro de Horarios: expone window.RV_HORARIOS directamente, extraído de las
- * fichas de circulación Adif (Horario 306). Ya no depende de HT_DATA/HT.
- *
- * Fuente: Horario 306 - Anejo n.º 13 (vigor 17/07/2026), marchas 6020, 6021,
- * 6078, 6088, 6089, 6108, 6118, 6139, 6149, 6158, 6159, 6168, 6189, 6199, 6208,
- * 6209. Es un anejo parcial — faltan el resto de servicios del horario base;
- * se irán añadiendo al incorporar más anejos.
- *
- * Los trenes 6020/6021 (Barcelona-Málaga) se dividen en dos servicios
- * comerciales cada uno, partidos en MADRID-P.ATOCHA-ALMUDENA GRANDES (cambio
- * de turno habitual), igual que hacía la versión anterior basada en HT_DATA.
+/* EnRuta-RV — data.js (GENERADO, no editar a mano)
+ * Libro de Horarios: expone window.RV_HORARIOS directamente, extraido de
+ * las fichas de circulacion Adif. Este fichero se genera con
+ * tools/build_data_js.py a partir de horarios.json — para cambiar datos,
+ * edita horarios.json (via tools/merge_horario.py) y vuelve a generar.
  */
 (function () {
   'use strict';
 
   window.RV_HORARIOS = [
     {
-      servicio: '6020',
-      origen: 'BARCELONA-SANTS',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '11:18',
-      hDestino: '14:42',
-      paradas: [
-        { nombre: 'CAMP DE TARRAGONA', hora: '11:51', tParada: 2 },
-        { nombre: 'ZARAGOZA-DELICIAS', hora: '12:53', tParada: 1 }
-      ]
-    },
-    {
-      servicio: '6020',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'MALAGA MARIA ZAMBRANO',
-      hSalida: '15:05',
-      hDestino: '17:54',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '16:51', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6021',
-      origen: 'MALAGA MARIA ZAMBRANO',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '11:34',
-      hDestino: '14:22',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '12:28', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6021',
+      servicio: '6011',
       origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
       destino: 'BARCELONA-SANTS',
-      hSalida: '14:42',
-      hDestino: '18:13',
+      hSalida: '9:57',
+      hDestino: '13:21',
       paradas: [
-        { nombre: 'ZARAGOZA-DELICIAS', hora: '16:21', tParada: 1 },
-        { nombre: 'CAMP DE TARRAGONA', hora: '17:29', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6078',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'MALAGA MARIA ZAMBRANO',
-      hSalida: '7:36',
-      hDestino: '10:25',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '9:22', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6088',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'MALAGA MARIA ZAMBRANO',
-      hSalida: '8:55',
-      hDestino: '11:44',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '10:41', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6089',
-      origen: 'MALAGA MARIA ZAMBRANO',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '8:00',
-      hDestino: '10:48',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '8:54', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6108',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'MALAGA MARIA ZAMBRANO',
-      hSalida: '9:50',
-      hDestino: '12:39',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '11:36', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6118',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'MALAGA MARIA ZAMBRANO',
-      hSalida: '11:55',
-      hDestino: '14:44',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '13:41', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6139',
-      origen: 'MALAGA MARIA ZAMBRANO',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '12:50',
-      hDestino: '15:39',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '13:44', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6149',
-      origen: 'MALAGA MARIA ZAMBRANO',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '13:50',
-      hDestino: '16:39',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '14:44', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6158',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'MALAGA MARIA ZAMBRANO',
-      hSalida: '16:18',
-      hDestino: '19:07',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '18:04', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6159',
-      origen: 'MALAGA MARIA ZAMBRANO',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '15:26',
-      hDestino: '18:15',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '16:20', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6168',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'MALAGA MARIA ZAMBRANO',
-      hSalida: '16:55',
-      hDestino: '19:46',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '18:41', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6189',
-      origen: 'MALAGA MARIA ZAMBRANO',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '18:35',
-      hDestino: '21:23',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '19:29', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6199',
-      origen: 'MALAGA MARIA ZAMBRANO',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '19:53',
-      hDestino: '22:41',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '20:47', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6208',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'MALAGA MARIA ZAMBRANO',
-      hSalida: '20:55',
-      hDestino: '23:44',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '22:41', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6209',
-      origen: 'MALAGA MARIA ZAMBRANO',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '20:35',
-      hDestino: '23:23',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '21:29', tParada: 2 }
-      ]
-    },
-    {
-      servicio: '6091',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'BARCELONA-SANTS',
-      hSalida: '9:12',
-      hDestino: '12:29',
-      paradas: [
-        { nombre: 'ZARAGOZA-DELICIAS', hora: '10:48', tParada: 1 }
-      ]
-    },
-    {
-      servicio: '6350',
-      origen: 'BARCELONA-SANTS',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '14:12',
-      hDestino: '17:27',
-      paradas: [
-        { nombre: 'ZARAGOZA-DELICIAS', hora: '15:40', tParada: 1 }
-      ]
-    },
-    {
-      servicio: '6381',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'BARCELONA-SANTS',
-      hSalida: '18:19',
-      hDestino: '21:44',
-      paradas: [
-        { nombre: 'ZARAGOZA-DELICIAS', hora: '19:55', tParada: 1 },
-        { nombre: 'CAMP DE TARRAGONA', hora: '21:02', tParada: 2 }
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '11:35', tParada: 1 },
+        { nombre: 'CAMP DE TARRAGONA', hora: '12:41', tParada: 2 },
       ]
     },
     {
@@ -238,17 +29,6 @@
         { nombre: 'CORDOBA-JULIO ANGUITA', hora: '7:30', tParada: 2 },
         { nombre: 'PUERTOLLANO', hora: '8:12', tParada: 2 },
         { nombre: 'CIUDAD REAL', hora: '8:26', tParada: 2 },
-      ]
-    },
-    {
-      servicio: '6011',
-      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      destino: 'BARCELONA-SANTS',
-      hSalida: '9:57',
-      hDestino: '13:21',
-      paradas: [
-        { nombre: 'ZARAGOZA-DELICIAS', hora: '11:35', tParada: 1 },
-        { nombre: 'CAMP DE TARRAGONA', hora: '12:41', tParada: 2 },
       ]
     },
     {
@@ -276,22 +56,22 @@
     },
     {
       servicio: '6013',
-      origen: 'SEVILLA-SANTA JUSTA',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '16:26',
-      hDestino: '19:04',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '17:09', tParada: 2 },
-      ]
-    },
-    {
-      servicio: '6013',
       origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
       destino: 'BARCELONA-SANTS',
       hSalida: '19:29',
       hDestino: '22:46',
       paradas: [
         { nombre: 'ZARAGOZA-DELICIAS', hora: '21:05', tParada: 1 },
+      ]
+    },
+    {
+      servicio: '6013',
+      origen: 'SEVILLA-SANTA JUSTA',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '16:26',
+      hDestino: '19:04',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '17:09', tParada: 2 },
       ]
     },
     {
@@ -317,22 +97,22 @@
     },
     {
       servicio: '6015',
-      origen: 'SEVILLA-SANTA JUSTA',
-      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '16:26',
-      hDestino: '19:04',
-      paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '17:09', tParada: 2 },
-      ]
-    },
-    {
-      servicio: '6015',
       origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
       destino: 'BARCELONA-SANTS',
       hSalida: '19:29',
       hDestino: '22:50',
       paradas: [
         { nombre: 'ZARAGOZA-DELICIAS', hora: '21:05', tParada: 1 },
+      ]
+    },
+    {
+      servicio: '6015',
+      origen: 'SEVILLA-SANTA JUSTA',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '16:26',
+      hDestino: '19:04',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '17:09', tParada: 2 },
       ]
     },
     {
@@ -356,6 +136,58 @@
       ]
     },
     {
+      servicio: '6020',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '11:18',
+      hDestino: '14:42',
+      paradas: [
+        { nombre: 'CAMP DE TARRAGONA', hora: '11:51', tParada: 2 },
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '12:53', tParada: 1 },
+      ]
+    },
+    {
+      servicio: '6020',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'MALAGA MARIA ZAMBRANO',
+      hSalida: '15:05',
+      hDestino: '17:54',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '16:51', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6021',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '14:42',
+      hDestino: '18:13',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '16:21', tParada: 1 },
+        { nombre: 'CAMP DE TARRAGONA', hora: '17:29', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6021',
+      origen: 'MALAGA MARIA ZAMBRANO',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '11:34',
+      hDestino: '14:22',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '12:28', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6060',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '5:45',
+      hDestino: '9:02',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '7:13', tParada: 1 },
+      ]
+    },
+    {
       servicio: '6063',
       origen: 'VALENCIA-JOAQUIN SOROLLA',
       destino: 'MADRID-CHAMARTIN-CLARA CAMP.',
@@ -376,6 +208,22 @@
       ]
     },
     {
+      servicio: '6070',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '7:05',
+      hDestino: '10:07',
+      paradas: []
+    },
+    {
+      servicio: '6071',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '7:22',
+      hDestino: '10:24',
+      paradas: []
+    },
+    {
       servicio: '6072',
       origen: 'MADRID-CHAMARTIN-CLARA CAMP.',
       destino: 'VALENCIA-JOAQUIN SOROLLA',
@@ -394,6 +242,35 @@
         { nombre: 'PUERTOLLANO', hora: '9:10', tParada: 2 },
         { nombre: 'CORDOBA-JULIO ANGUITA', hora: '9:53', tParada: 2 },
       ]
+    },
+    {
+      servicio: '6078',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'MALAGA MARIA ZAMBRANO',
+      hSalida: '7:36',
+      hDestino: '10:25',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '9:22', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6080',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '7:50',
+      hDestino: '11:15',
+      paradas: [
+        { nombre: 'CAMP DE TARRAGONA', hora: '8:23', tParada: 2 },
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '9:26', tParada: 1 },
+      ]
+    },
+    {
+      servicio: '6081',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '8:22',
+      hDestino: '11:24',
+      paradas: []
     },
     {
       servicio: '6083',
@@ -424,6 +301,46 @@
       hDestino: '10:48',
       paradas: [
         { nombre: 'CORDOBA-JULIO ANGUITA', hora: '8:54', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6088',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'MALAGA MARIA ZAMBRANO',
+      hSalida: '8:55',
+      hDestino: '11:44',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '10:41', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6089',
+      origen: 'MALAGA MARIA ZAMBRANO',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '8:00',
+      hDestino: '10:48',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '8:54', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6090',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '8:45',
+      hDestino: '12:02',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '10:11', tParada: 1 },
+      ]
+    },
+    {
+      servicio: '6091',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '9:12',
+      hDestino: '12:29',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '10:48', tParada: 1 },
       ]
     },
     {
@@ -487,6 +404,34 @@
       ]
     },
     {
+      servicio: '6108',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'MALAGA MARIA ZAMBRANO',
+      hSalida: '9:50',
+      hDestino: '12:39',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '11:36', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6110',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '10:45',
+      hDestino: '13:49',
+      paradas: []
+    },
+    {
+      servicio: '6111',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '11:22',
+      hDestino: '14:39',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '12:58', tParada: 1 },
+      ]
+    },
+    {
       servicio: '6115',
       origen: 'ALACANT-TERMINAL',
       destino: 'MADRID-CHAMARTIN-CLARA CAMP.',
@@ -505,6 +450,26 @@
       hDestino: '14:34',
       paradas: [
         { nombre: 'CORDOBA-JULIO ANGUITA', hora: '13:40', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6118',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'MALAGA MARIA ZAMBRANO',
+      hSalida: '11:55',
+      hDestino: '14:44',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '13:41', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6121',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '12:22',
+      hDestino: '15:39',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '13:58', tParada: 1 },
       ]
     },
     {
@@ -547,6 +512,16 @@
       ]
     },
     {
+      servicio: '6130',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '13:06',
+      hDestino: '16:23',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '14:34', tParada: 1 },
+      ]
+    },
+    {
       servicio: '6132',
       origen: 'MADRID-CHAMARTIN-CLARA CAMP.',
       destino: 'VALENCIA-JOAQUIN SOROLLA',
@@ -562,6 +537,26 @@
       hDestino: '16:34',
       paradas: [
         { nombre: 'CORDOBA-JULIO ANGUITA', hora: '15:40', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6139',
+      origen: 'MALAGA MARIA ZAMBRANO',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '12:50',
+      hDestino: '15:39',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '13:44', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6141',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '14:02',
+      hDestino: '17:19',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '15:40', tParada: 1 },
       ]
     },
     {
@@ -591,6 +586,32 @@
       ]
     },
     {
+      servicio: '6149',
+      origen: 'MALAGA MARIA ZAMBRANO',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '13:50',
+      hDestino: '16:39',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '14:44', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6150',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '14:50',
+      hDestino: '17:52',
+      paradas: []
+    },
+    {
+      servicio: '6151',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '15:52',
+      hDestino: '18:54',
+      paradas: []
+    },
+    {
       servicio: '6154',
       origen: 'MADRID-CHAMARTIN-CLARA CAMP.',
       destino: 'ALACANT-TERMINAL',
@@ -600,6 +621,44 @@
         { nombre: 'CUENCA - FERNANDO ZOBEL', hora: '16:49', tParada: 2 },
         { nombre: 'ALBACETE - LOS LLANOS', hora: '17:22', tParada: 2 },
       ]
+    },
+    {
+      servicio: '6158',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'MALAGA MARIA ZAMBRANO',
+      hSalida: '16:18',
+      hDestino: '19:07',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '18:04', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6159',
+      origen: 'MALAGA MARIA ZAMBRANO',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '15:26',
+      hDestino: '18:15',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '16:20', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6160',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '15:55',
+      hDestino: '19:12',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '17:23', tParada: 1 },
+      ]
+    },
+    {
+      servicio: '6161',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '16:37',
+      hDestino: '19:39',
+      paradas: []
     },
     {
       servicio: '6162',
@@ -641,6 +700,26 @@
       ]
     },
     {
+      servicio: '6168',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'MALAGA MARIA ZAMBRANO',
+      hSalida: '16:55',
+      hDestino: '19:46',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '18:41', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6171',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '17:22',
+      hDestino: '20:42',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '18:58', tParada: 1 },
+      ]
+    },
+    {
       servicio: '6177',
       origen: 'SEVILLA-SANTA JUSTA',
       destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
@@ -651,12 +730,50 @@
       ]
     },
     {
+      servicio: '6180',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '17:20',
+      hDestino: '20:22',
+      paradas: []
+    },
+    {
+      servicio: '6181',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '18:32',
+      hDestino: '21:44',
+      paradas: [
+        { nombre: 'CAMP DE TARRAGONA', hora: '21:02', tParada: 2 },
+      ]
+    },
+    {
       servicio: '6183',
       origen: 'VALENCIA-JOAQUIN SOROLLA',
       destino: 'MADRID-CHAMARTIN-CLARA CAMP.',
       hSalida: '17:57',
       hDestino: '19:53',
       paradas: []
+    },
+    {
+      servicio: '6189',
+      origen: 'MALAGA MARIA ZAMBRANO',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '18:35',
+      hDestino: '21:23',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '19:29', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6190',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '18:53',
+      hDestino: '22:10',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '20:21', tParada: 1 },
+      ]
     },
     {
       servicio: '6192',
@@ -685,6 +802,34 @@
       hDestino: '21:44',
       paradas: [
         { nombre: 'CORDOBA-JULIO ANGUITA', hora: '20:50', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6199',
+      origen: 'MALAGA MARIA ZAMBRANO',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '19:53',
+      hDestino: '22:41',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '20:47', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6200',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '19:40',
+      hDestino: '22:42',
+      paradas: []
+    },
+    {
+      servicio: '6201',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '20:22',
+      hDestino: '23:39',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '22:00', tParada: 1 },
       ]
     },
     {
@@ -727,6 +872,45 @@
       ]
     },
     {
+      servicio: '6208',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'MALAGA MARIA ZAMBRANO',
+      hSalida: '20:55',
+      hDestino: '23:44',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '22:41', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6209',
+      origen: 'MALAGA MARIA ZAMBRANO',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '20:35',
+      hDestino: '23:23',
+      paradas: [
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '21:29', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6210',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '20:28',
+      hDestino: '23:52',
+      paradas: [
+        { nombre: 'CAMP DE TARRAGONA', hora: '21:01', tParada: 2 },
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '22:03', tParada: 1 },
+      ]
+    },
+    {
+      servicio: '6211',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '20:56',
+      hDestino: '23:58',
+      paradas: []
+    },
+    {
       servicio: '6217',
       origen: 'SEVILLA-SANTA JUSTA',
       destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
@@ -736,6 +920,87 @@
         { nombre: 'CORDOBA-JULIO ANGUITA', hora: '21:11', tParada: 2 },
         { nombre: 'PUERTOLLANO', hora: '21:53', tParada: 2 },
         { nombre: 'CIUDAD REAL', hora: '22:07', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6261',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '6:09',
+      hDestino: '9:35',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '7:45', tParada: 1 },
+        { nombre: 'CAMP DE TARRAGONA', hora: '8:52', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6281',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '8:50',
+      hDestino: '11:52',
+      paradas: []
+    },
+    {
+      servicio: '6291',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '9:22',
+      hDestino: '12:46',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '10:58', tParada: 1 },
+        { nombre: 'CAMP DE TARRAGONA', hora: '12:03', tParada: 1 },
+      ]
+    },
+    {
+      servicio: '6320',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '12:14',
+      hDestino: '15:16',
+      paradas: []
+    },
+    {
+      servicio: '6341',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '14:02',
+      hDestino: '17:24',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '15:40', tParada: 1 },
+        { nombre: 'CAMP DE TARRAGONA', hora: '16:47', tParada: 2 },
+      ]
+    },
+    {
+      servicio: '6350',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '14:12',
+      hDestino: '17:27',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '15:40', tParada: 1 },
+      ]
+    },
+    {
+      servicio: '6360',
+      origen: 'BARCELONA-SANTS',
+      destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      hSalida: '15:52',
+      hDestino: '19:16',
+      paradas: [
+        { nombre: 'CAMP DE TARRAGONA', hora: '16:25', tParada: 2 },
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '17:27', tParada: 1 },
+      ]
+    },
+    {
+      servicio: '6381',
+      origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
+      destino: 'BARCELONA-SANTS',
+      hSalida: '18:19',
+      hDestino: '21:44',
+      paradas: [
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '19:55', tParada: 1 },
+        { nombre: 'CAMP DE TARRAGONA', hora: '21:02', tParada: 2 },
       ]
     }
   ];
