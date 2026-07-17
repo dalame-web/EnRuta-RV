@@ -279,9 +279,7 @@
       destino: 'MADRID-CHAMARTIN-CLARA CAMP.',
       hSalida: '8:12',
       hDestino: '10:08',
-      paradas: [
-        { nombre: 'CUENCA - FERNANDO ZOBEL', hora: '9:06', tParada: 2 },
-      ]
+      paradas: []
     },
     {
       servicio: '6084',
@@ -380,9 +378,7 @@
       destino: 'MADRID-CHAMARTIN-CLARA CAMP.',
       hSalida: '10:57',
       hDestino: '12:53',
-      paradas: [
-        { nombre: 'CUENCA - FERNANDO ZOBEL', hora: '11:51', tParada: 2 },
-      ]
+      paradas: []
     },
     {
       servicio: '6106',
