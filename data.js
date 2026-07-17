@@ -103,6 +103,7 @@
       hDestino: '22:50',
       paradas: [
         { nombre: 'ZARAGOZA-DELICIAS', hora: '21:05', tParada: 1 },
+        { nombre: 'CAMP DE TARRAGONA', hora: '22:10', tParada: 1 },
       ]
     },
     {
