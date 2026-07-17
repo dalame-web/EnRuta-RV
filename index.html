@@ -23,7 +23,7 @@ body.light{
 body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;padding-top:44px}
 
 /* Tabs — mismo aspecto que EnRuta (fijas arriba, nunca se ocultan) */
-.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--panel);
+.tabs{display:flex;align-items:center;gap:0;border-bottom:1px solid var(--border);background:var(--panel);
   position:fixed;top:0;left:0;right:0;z-index:1000;height:44px;
   box-shadow:0 1px 4px rgba(0,0,0,.4);
   overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -37,6 +37,23 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,s
 .tab.active{color:#e8201c;border-bottom-color:#e8201c;background:var(--bg)}
 .pane{display:none}
 .pane.active{display:block}
+
+/* Toggle claro/oscuro — un solo botón, icono intercambiable, lado derecho */
+.theme-btn{margin-left:auto;margin-right:10px;flex:none;
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  background:var(--panel-2);border:1px solid var(--border);border-radius:50%;
+  cursor:pointer;font-size:16px;line-height:1;padding:0}
+.theme-btn:hover{border-color:var(--iryo)}
+.theme-btn .theme-icon{display:none}
+body.light .theme-btn .theme-icon-moon{display:inline}
+body:not(.light) .theme-btn .theme-icon-sun{display:inline}
+
+/* Versión de la app — discreta, esquina inferior derecha, solo en Calendario */
+#app-version-badge{display:none;position:fixed;right:10px;bottom:6px;z-index:5;
+  font-size:11px;color:var(--fg-dim);opacity:.5;pointer-events:none;
+  font-family:Inter,system-ui,sans-serif}
+body.tab-calendario #app-version-badge{display:block}
+body.locked #app-version-badge{display:none}
 
 /* Login overlay — calcado del de EnRuta, mismo PIN de acceso */
 body.locked{overflow:hidden}
@@ -76,21 +93,22 @@ body.locked #login-overlay{display:flex}
 <body class="locked tab-calendario">
 
 <div class="tabs">
-  <button class="tab" data-tab="registro">📋 Registro</button>
   <button class="tab active" data-tab="calendario">📅 Calendario</button>
+  <button class="tab" data-tab="registro">📋 Registro</button>
+  <button class="tab" data-tab="estadisticas">📊 Estadísticas</button>
+  <button class="tab" data-tab="ajustes">⚙ Ajustes</button>
+  <button class="theme-btn" data-action="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema">
+    <span class="theme-icon theme-icon-moon">🌙</span>
+    <span class="theme-icon theme-icon-sun">☀️</span>
+  </button>
 </div>
-
-<nav id="cal-subnav" aria-label="Sub-navegación Calendario">
-  <button class="cal-sub-btn active" data-cal-sub="calendario">📅 Calendario</button>
-  <button class="cal-sub-btn" data-cal-sub="estadisticas">📊 Estadísticas</button>
-  <button class="cal-sub-btn" data-cal-sub="ajustes">⚙ Ajustes</button>
-</nav>
 
 <section id="registro-pane" class="pane"></section>
 <section id="calendario-pane" class="pane active"></section>
 <section id="estadisticas-pane" class="pane"></section>
 <section id="ajustes-pane" class="pane"></section>
 <div class="save-flash" id="save-flash">Guardado</div>
+<div id="app-version-badge"></div>
 
 <div id="login-overlay">
   <form class="login-card" id="login-form" autocomplete="off" data-form-type="other" novalidate>
@@ -163,19 +181,12 @@ body.locked #login-overlay{display:flex}
 </script>
 
 <script>
-/* Nav mínimo: pestañas Registro/Calendario + sub-nav Calendario/Estadísticas/
- * Ajustes. Mismas clases que usa EnRuta (body.tab-X, .tab.active,
+/* Nav mínimo: 4 pestañas (Calendario/Registro/Estadísticas/Ajustes) en una
+ * única barra. Mismas clases que usa EnRuta (body.tab-X, .tab.active,
  * .pane.active) para que registro.css funcione sin tocarlo. */
 (function(){
   function clearTabClasses(){
     document.body.className = document.body.className.replace(/\btab-\w+\b/g, '').trim();
-  }
-  function syncSubnav(tab){
-    var subActive = (tab === 'estadisticas') ? 'estadisticas'
-                  : (tab === 'ajustes') ? 'ajustes' : 'calendario';
-    document.querySelectorAll('.cal-sub-btn').forEach(function(b){
-      b.classList.toggle('active', b.dataset.calSub === subActive);
-    });
   }
   function goTab(name){
     document.querySelectorAll('.tab[data-tab]').forEach(function(t){
@@ -183,22 +194,22 @@ body.locked #login-overlay{display:flex}
     });
     clearTabClasses();
     document.body.classList.add('tab-' + name);
-    syncSubnav(name);
     if(window.REGISTRO) window.REGISTRO.switchTo(name);
   }
   document.querySelectorAll('.tab[data-tab]').forEach(function(b){
     b.addEventListener('click', function(){ goTab(b.dataset.tab); });
   });
-  document.querySelectorAll('.cal-sub-btn').forEach(function(b){
-    b.addEventListener('click', function(){
-      var sub = b.dataset.calSub;
-      if(sub === 'calendario'){ goTab('calendario'); return; }
-      document.querySelectorAll('.tab[data-tab]').forEach(function(t){ t.classList.remove('active'); });
-      clearTabClasses();
-      document.body.classList.add('tab-' + sub);
-      syncSubnav(sub);
-      if(window.REGISTRO) window.REGISTRO.switchTo(sub);
+  /* registro.js puede cambiar de vista internamente (botón "‹ Calendario",
+   * cerrar/borrar turno...) sin pasar por goTab — sincroniza la barra
+   * cuando eso ocurra, sin volver a llamar a switchTo (evita re-render). */
+  window.addEventListener('iryo:setView', function(ev){
+    var name = ev.detail && ev.detail.view;
+    if(!name) return;
+    document.querySelectorAll('.tab[data-tab]').forEach(function(t){
+      t.classList.toggle('active', t.dataset.tab === name);
     });
+    clearTabClasses();
+    document.body.classList.add('tab-' + name);
   });
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(function(){});
@@ -213,5 +224,11 @@ body.locked #login-overlay{display:flex}
 <script src="app-modal.js"></script>
 <script src="data.js"></script>
 <script src="registro.js"></script>
+<script>
+(function(){
+  var b = document.getElementById('app-version-badge');
+  if(b && window.REGISTRO) b.textContent = window.REGISTRO.version;
+})();
+</script>
 </body>
 </html>

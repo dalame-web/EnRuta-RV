@@ -355,6 +355,7 @@
       if (el) el.classList.toggle('active', p === v);
     });
     window.scrollTo(0, 0);
+    try { window.dispatchEvent(new CustomEvent('iryo:setView', { detail: { view: v } })); } catch (e) {}
   }
 
   // ===== Calendario =====
@@ -1302,21 +1303,11 @@
     var pane = $('ajustes-pane');
     var h = '<h2>Ajustes</h2>';
 
-    // 1. Apariencia
-    h += '<div class="card"><div class="card-title">Apariencia</div>' +
-      '<div class="btn-row" style="margin:0">' +
-      '<button class="btn" data-action="theme-dark">Tema oscuro</button>' +
-      '<button class="btn" data-action="theme-light">Tema claro</button>' +
-      '</div></div>';
-
-    // 2. Teléfono de referencia
-    h += '<div class="card"><div class="card-title">Teléfono de referencia</div>' +
-      '<div class="field"><input type="text" id="set-tel" value="' + esc(settings.telefono) +
+    // 2. Teléfono de referencia + datos personales (informe de incidencia)
+    h += '<div class="card"><div class="card-title">Teléfono de referencia y datos personales</div>' +
+      '<div class="field"><label>Teléfono de referencia</label>' +
+      '<input type="text" id="set-tel" value="' + esc(settings.telefono) +
       '" placeholder="Ej. 651 450 000"></div>' +
-      '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-tel">Guardar teléfono</button></div></div>';
-
-    // 2b. Datos personales (para el informe de incidencia)
-    h += '<div class="card"><div class="card-title">Datos personales (informe de incidencia)</div>' +
       '<div class="field-grid">' +
       '<div class="field"><label>Nombre</label>' +
       '<input type="text" id="set-nombre" value="' + esc(settings.nombre) + '"></div>' +
@@ -1333,13 +1324,6 @@
       '<textarea id="set-ramas" style="min-height:120px">' +
       esc(settings.ramas.join('\n')) + '</textarea></div>' +
       '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-ramas">Guardar ramas</button></div></div>';
-
-    // 5. Guardar registros en la tablet
-    h += '<div class="card"><div class="card-title">Guardar registros en la tablet</div>' +
-      '<div class="hint" style="line-height:1.5">' +
-      'Los turnos se guardan dentro de la app y sobreviven a las actualizaciones. ' +
-      'Usa "Copia de seguridad" para exportar un archivo manualmente cuando lo necesites.' +
-      '</div></div>';
 
     // 6. Exportar a PDF (multi-select)
     var sortedT = turnos.slice().sort(function (a, b) {
@@ -1393,7 +1377,7 @@
     h += '<div class="card"><div class="card-title">Borrar todo</div>' +
       '<div class="btn-row" style="margin:0"><button class="btn danger" data-action="wipe">Borrar todos los datos</button></div></div>';
 
-    h += '<div class="hint" style="text-align:center;margin-top:8px">RV Iryo · datos guardados solo en esta tablet</div>';
+    h += '<div class="hint" style="text-align:center;margin-top:8px">Datos guardados solo en esta tablet</div>';
     pane.innerHTML = h;
   }
 
@@ -2356,12 +2340,12 @@
       });
       return;
     }
-    if (act === 'theme-dark') { settings.theme = 'dark'; saveSettings(); applyTheme(); return; }
-    if (act === 'theme-light') { settings.theme = 'light'; saveSettings(); applyTheme(); return; }
-    if (act === 'save-tel') {
-      settings.telefono = $('set-tel').value.trim(); saveSettings(); flashSaved(); return;
+    if (act === 'theme-toggle') {
+      settings.theme = (settings.theme === 'light') ? 'dark' : 'light';
+      saveSettings(); applyTheme(); return;
     }
     if (act === 'save-datos-personales') {
+      settings.telefono = $('set-tel').value.trim();
       settings.nombre = $('set-nombre').value.trim();
       settings.apellidos = $('set-apellidos').value.trim();
       settings.idEmpleado = $('set-id-empleado').value.trim();
@@ -2479,6 +2463,7 @@
     init();
   }
   window.REGISTRO = {
+    version: APP_VERSION,
     getActiveTurno: function () {
       return turnos.find(function (t) { return t.estado === 'en_curso'; }) || null;
     },

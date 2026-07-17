@@ -503,30 +503,6 @@ input[type=number]::-webkit-inner-spin-button{
 #calendario-pane,#registro-pane,#estadisticas-pane,#ajustes-pane{display:none}
 #calendario-pane.active,#registro-pane.active,#estadisticas-pane.active,#ajustes-pane.active{display:block}
 
-/* sub-nav Calendario / Estadísticas / Ajustes */
-#cal-subnav{display:none}
-body.tab-calendario #cal-subnav,
-body.tab-estadisticas #cal-subnav,
-body.tab-ajustes #cal-subnav,
-body.tab-registro #cal-subnav{
-  display:flex;position:fixed;left:0;right:0;
-  top:38px;z-index:990;
-  background:var(--panel);border-top:1px solid var(--border);
-  border-bottom:1px solid var(--border);
-  height:46px;padding:0 4px;
-}
-body.locked #cal-subnav{display:none!important}
-.cal-sub-btn{
-  flex:1;background:none;border:none;border-bottom:2px solid transparent;
-  color:var(--fg-dim);font:inherit;font-size:13px;cursor:pointer;
-  padding:10px 4px;
-}
-.cal-sub-btn.active{border-bottom-color:#e8201c;color:#e8201c;font-weight:600}
-
-/* Panes RV: padding-top para nav (38px) + sub-nav (46px) — ajusta estos
- * 38px/46px/84px a la altura real de TU nav si es distinta. */
-body.tab-registro,body.tab-calendario,body.tab-estadisticas,body.tab-ajustes{padding-top:84px}
-
 /* PMR icon en parada (silla de ruedas) */
 .pmr-warn{color:var(--accent);font-size:26px;font-weight:700;line-height:1;vertical-align:middle;margin-left:6px}
 
