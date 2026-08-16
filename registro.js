@@ -12,7 +12,7 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v20';
+  var APP_VERSION = 'enruta-v21';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -139,6 +139,98 @@
             { t: 'text', v: ', seleccione el Nivel ' },
             { t: 'campo', id: 'nivel', label: 'Nivel', hint: '2, 1' },
             { t: 'text', v: ' y reanude la marcha al amparo del BCA/BSL/BA/BLA con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'LZB', catLabel: 'LZB', color: 'rc',
+      nombre: 'Telefonemas LZB',
+      variantes: [
+        {
+          codigo: 'LZB1', nombre: 'Rebase de punto de parada',
+          guia: 'Cuando sea necesario autorizar el rebase de un punto de parada',
+          viaBanalizada: true,
+          advertencias: [
+            'Cuando se trate de una señal que da acceso a una *vía doble banalizada*, se indicara la vía (I, II, etc) por la que el tren va ha circular.',
+            'Se prescribirá "*marcha a la vista*" hasta la siguiente pantalla o señal que pueda dar parada, salvo que exista total seguridad de estar el cantón libre.',
+            'Cuando se recupere la transmisión, se tiene que validar en la siguiente pantalla o señal que pueda dar parada.',
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Autorizo al Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' para rebasar el punto de parada de ' },
+            { t: 'campo', id: 'punto', label: 'Punto', hint: 'km, señal, punto kilométrico, estación, puesto, bifurcación, etc.' },
+            { t: 'text', v: ' con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'LZB2', nombre: 'Reanudación tras rebase de punto de parada',
+          guia: 'Para la reanudación de la marcha tras el rebase de un punto de parada',
+          advertencias: [
+            'Se prescribirá "*marcha a la vista*" y/u otras indicaciones hasta la siguiente pantalla o señal que pueda dar parada.',
+            'Cuando se recupere la transmisión, se tiene que validar en la siguiente pantalla o señal que pueda dar parada.',
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Autorizo al Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' a reanudar la marcha/retroceder con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: ' hasta ' },
+            { t: 'campo', id: 'hasta', label: 'Hasta (punto)' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'LZB3', nombre: 'Fallo de transmisión Vmeta=0',
+          guia: 'Para reanudar la marcha tras un fallo de transmisión en bloqueo parcial (Vmeta=0)',
+          advertencias: [
+            'Cuando se recupere la transmisión, se tiene que validar en la siguiente pantalla o señal que pueda dar parada.',
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Autorizo al Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' a reanudar la marcha con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: ' hasta ' },
+            { t: 'campo', id: 'hasta', label: 'Hasta (punto)' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'LZB4', nombre: 'Desconecte/conecte LZB',
+          guia: 'Cuando ordene el Responsable de Circulación por avería del sistema LZB o necesidades de explotación u otras causas.',
+          advertencias: [
+            'Cuando el testigo de *"TRANS"* o el icono *"S"* se apaguen y no se produzca un fallo de magnitudes, efectuar detención inmediata y comunicar al RC.',
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' desconecte/conecte el LZB y reanude marcha al amparo del BSL/BA/BLA con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'LZB5', nombre: 'Disolución de itinerario',
+          guia: 'Cuando sea necesario establecer un itinerario diferente a un tren.',
+          advertencias: [
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ', se disuelve el itinerario establecido en ' },
+            { t: 'campo', id: 'punto', label: 'Punto', hint: 'km, señal, punto kilométrico, estación, puesto, bifurcación, etc.' },
+            { t: 'text', v: ' con ' },
             { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
             { t: 'text', v: '.' }
           ]
@@ -1443,7 +1535,7 @@
       var ti = s.telefonemas.length - 1;
       autosave();
       refreshServicioCard(si);
-      abrirTelefonemaVentana(si, ti);
+      abrirTelefonemaVentana(si, ti, true);
     });
   }
 
@@ -1481,7 +1573,7 @@
   // TELEFONEMA:" se rellena con la frase de la variante con sus huecos en
   // línea, en vez de dejarse en blanco para escritura manual. Edita
   // s.telefonemas[ti] en el sitio — reabrible tantas veces como haga falta.
-  function abrirTelefonemaVentana(si, ti) {
+  function abrirTelefonemaVentana(si, ti, esNuevo) {
     var t0 = getTurno(editId);
     var s0 = t0 && t0.servicios[si];
     var tel = s0 && s0.telefonemas[ti];
@@ -1491,6 +1583,7 @@
     var categoria = found.categoria, variante = found.variante;
     var fechaNice = tel.fecha ? ymdNice(tel.fecha) : '';
     var dirty = false;
+    var guardado = false;
 
     appModal.custom({
       // backdropClose queda en false a propósito: el cierre por clic fuera lo
@@ -1764,11 +1857,24 @@
         var overlayEl = box.parentNode;
         function onOverlayClick(e) {
           if (e.target !== overlayEl) return;
-          if (!dirty) { cleanup(); resolveWith(null); return; }
+          if (!dirty) { descartarSiVacio(); cleanup(); resolveWith(null); return; }
           box.classList.remove('tel-shake'); void box.offsetWidth; box.classList.add('tel-shake');
         }
         overlayEl.addEventListener('click', onOverlayClick);
         function cleanup() { overlayEl.removeEventListener('click', onOverlayClick); }
+
+        // Si el telefonema se acaba de crear (recién elegida la variante) y
+        // se cierra sin pulsar Guardar, no debe quedar el botón vacío en el
+        // Registro — se borra el registro en blanco igual que si nunca se
+        // hubiera abierto.
+        function descartarSiVacio() {
+          if (!esNuevo || guardado) return;
+          var t = getTurno(editId);
+          var s = t && t.servicios[si];
+          if (s) s.telefonemas.splice(ti, 1);
+          autosave();
+          refreshServicioCard(si);
+        }
 
         function guardar() {
           variante.partes.forEach(function (p) {
@@ -1801,6 +1907,7 @@
             if (ta) ta.value = s0.observaciones;
           }
 
+          guardado = true;
           autosave();
           refreshServicioCard(si);
           cleanup();
@@ -1829,6 +1936,7 @@
         );
         btnX.addEventListener('click', function () {
           if (dirty && !confirmCerrar()) return;
+          descartarSiVacio();
           cleanup();
           resolveWith(null);
         });
@@ -1874,8 +1982,6 @@
         var acts = document.createElement('div'); acts.className = 'modal-actions tel-anexo-actions';
         acts.appendChild(btnDel); acts.appendChild(btnOk);
         box.appendChild(acts);
-
-        try { cNumTel.input.focus(); } catch (e) {}
       }
     });
   }
