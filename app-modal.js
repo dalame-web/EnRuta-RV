@@ -11,6 +11,7 @@
  *   window.appModal.confirm({title, message, buttons:[{label,value,kind}], dismissValue, backdropClose})
  *     → Promise<value> (value del botón pulsado; dismissValue en ESC/click fuera)
  *   window.appModal.alert({title, message, button}) → Promise<void>
+ *   window.appModal.custom({render(box,resolveWith), className, backdropClose, dismissValue}) → Promise<any>
  *   kind de cada botón: 'primary' (resaltado y enfocado) | 'danger' (rojo) | 'neutral'
  *
  * CSS: usa las variables --panel,--fg,--border,--panel-2,--accent. Si tu
@@ -40,7 +41,8 @@
     '.modal-btn.danger{background:#e8201c;border-color:#e8201c;color:#fff}' +
     '.modal-btn.neutral{background:var(--panel-2);color:var(--fg)}' +
     'body.modal-open{overflow:hidden}' +
-    '@media (max-width:520px){ .modal-btn{flex-basis:100%} }';
+    '@media (max-width:520px){ .modal-btn{flex-basis:100%} }' +
+    '.modal-box.wide{max-width:760px;max-height:90vh;overflow-y:auto;text-align:left}';
   var styleEl = document.createElement('style');
   styleEl.textContent = css;
   document.head.appendChild(styleEl);
@@ -84,8 +86,6 @@
     });
     if (!focusBtn) focusBtn = acts.querySelector('.modal-btn');
     box.appendChild(acts);
-    overlay.classList.add('open');
-    document.body.classList.add('modal-open');
     if (focusBtn) { try { focusBtn.focus(); } catch (e) {} }
   }
   function resolveWith(value) {
@@ -97,7 +97,14 @@
     try { res(value); } catch (e) {}
     if (queue.length) { var next = queue.shift(); start(next); }
   }
-  function start(item) { current = item; build(); render(item.opts); }
+  function start(item) {
+    current = item;
+    build();
+    box.className = 'modal-box' + (item.className ? ' ' + item.className : '');
+    if (item.mode === 'custom') item.opts.render(box, resolveWith); else render(item.opts);
+    overlay.classList.add('open');
+    document.body.classList.add('modal-open');
+  }
   function open(opts) {
     return new Promise(function (resolve) {
       var dv = opts.dismissValue;
@@ -109,6 +116,15 @@
       if (current) { queue.push(item); } else { start(item); }
     });
   }
+  function openCustom(opts) {
+    return new Promise(function (resolve) {
+      var item = {
+        opts: opts, resolve: resolve, mode: 'custom', className: opts.className,
+        backdropClose: !!opts.backdropClose, dismissValue: opts.dismissValue
+      };
+      if (current) { queue.push(item); } else { start(item); }
+    });
+  }
   window.appModal = {
     confirm: function (opts) { return open(opts); },
     alert: function (opts) {
@@ -117,6 +133,13 @@
         buttons: [{ label: (opts.button || 'Entendido'), value: true, kind: 'primary' }],
         backdropClose: true
       });
-    }
+    },
+    // custom({render(box, resolveWith), className, backdropClose, dismissValue})
+    //   → Promise<any>. render() recibe el <div class="modal-box"> vacío y debe
+    //   construir su propio contenido (usa .modal-title/.modal-msg/.modal-actions/
+    //   .modal-btn para heredar el estilo) y llamar a resolveWith(valor) cuando
+    //   el usuario termine — null/undefined para "cancelado". El overlay, la cola,
+    //   ESC y el cierre por backdrop los sigue gestionando este módulo.
+    custom: function (opts) { return openCustom(opts); }
   };
 })();

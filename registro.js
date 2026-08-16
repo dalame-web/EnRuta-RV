@@ -24,6 +24,129 @@
   var DEFAULT_RAMAS = [];
   for (var r = 1; r <= 23; r++) DEFAULT_RAMAS.push(r < 10 ? '0' + r : '' + r);
 
+  // ===== Telefonemas (Libro de Telefonemas del Maquinista, LNM-ILSA_AP2) =====
+  // Cada variante se compone de "partes": texto fijo, campos a rellenar (con
+  // pista opcional de las opciones entre paréntesis del original) y bloques
+  // opcionales (corchetes en el original) que se incluyen o no con una casilla.
+  // Añadir más categorías/variantes aquí sigue el mismo patrón.
+  var TELEFONEMAS = [
+    {
+      cat: 'ETC', catLabel: 'ETCS', color: 'rc',
+      nombre: 'Autorización de rebase y reanudación de la marcha en ETCS',
+      variantes: [
+        {
+          codigo: 'ETC1', nombre: 'Rebase de EoA',
+          guia: 'Cuando sea necesario autorizar el rebase de una EoA',
+          viaBanalizada: true,
+          advertencias: [
+            'Cuando se trate de una señal que da acceso a una *vía doble banalizada*, se indicara la vía (I, II, etc) por la que el tren va ha circular.',
+            'Siempre se prescribirá *marcha a la vista* hasta la siguiente señal que pueda ordenar parada, salvo el RC tenga seguridad de que la vía no se encuentra ocupada.',
+            'En ETCS Nivel 2, aunque se transite tras el rebase a FS no se considerara circulando en dicho modo hasta rebasar la siguiente pantalla o señal que pueda dar parada y esta autorice su paso.',
+            'Si circulando en N0+ASFA en la señal a rebasar se produce la *transición* a Nivel 1, se deberá actuar sobre el rebase del ASFA y del ETCS.',
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Autorizo al Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' para rebasar el EoA de ' },
+            { t: 'campo', id: 'punto', label: 'Punto', hint: 'km, señal, pantalla ETCS, estación, puesto, bifurcación, etc.' },
+            { t: 'text', v: ' con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'ETC2', nombre: 'Rebase indebido EoA',
+          guia: 'Para la reanudación de la marcha tras el rebase indebido de una EoA',
+          advertencias: [
+            'Cumplimentar el telefonema hasta donde se haya notificado.',
+            'En ETCS Nivel 2, aunque se transite tras el rebase a FS no se considerara circulando en dicho modo hasta rebasar la siguiente pantalla o señal que pueda dar parada. Una vez rebasado alguno de los puntos mencionados, si continua en FS, el telefonema perderá su validez y se informara al RC.',
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Autorizo al Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' a reanudar la marcha/retroceder con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: ' hasta ' },
+            { t: 'campo', id: 'hasta', label: 'Hasta (punto)' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'ETC3', nombre: 'Desconexión y circule en BSL',
+          guia: 'Cuando ordene el Responsable de Circulación por avería del sistema ETCS o necesidades de explotación u otras causas.',
+          advertencias: [
+            'Se circula con señalización lateral, *BSL.*',
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' desconecte el ETCS y reanude marcha al amparo del BSL/BA/BLA con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'ETC4', nombre: 'Desconexión/conexión ETCS + nivel',
+          guia: 'Por fallo del ETCS del equipo embarcado a de la infraestructura, o cuando se produzca una transición no programada a otro nivel inferior',
+          advertencias: [
+            'Comunicar al RC cuando se produzcan transiciones a modos o niveles no esperados.',
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' ' },
+            { t: 'campo', id: 'sel', label: 'Seleccione el / continúe en', hint: 'seleccione el, continúe en' },
+            { t: 'text', v: ' Nivel ' },
+            { t: 'campo', id: 'nivel', label: 'Nivel' },
+            { t: 'opcional', id: 'reanude', label: 'Incluir "y reanude la marcha al amparo del BCA/BSL/BA/BLA"', v: ' y reanude la marcha al amparo del BCA/BSL/BA/BLA' },
+            { t: 'text', v: ' con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'ETC5', nombre: 'Fallo transición de LZB a ETCS',
+          guia: 'Fallo de transición de ETCS a LZB o viceversa',
+          advertencias: [
+            'Si en el ETCS *se puede seleccionar* el Nivel 1 o LZB, avisar al RC y circular con "Marcha a la vista" hasta la señal siguiente con señalización lateral.',
+            'En el caso de *no poder seleccionar* el Nivel 1 o LZB, seguir las condiciones de circulación del RC.',
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ', desconecte y vuelva a conectar el ETCS. Seleccione el Nivel ' },
+            { t: 'campo', id: 'nivel', label: 'Nivel', hint: '0+ASFA, 0' },
+            { t: 'text', v: ' y reanude la marcha al amparo del BSL/BA/BLA con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'ETC6', nombre: 'Transición no planificada de N2 a N0+ASFA',
+          guia: 'Transición no planificada de Nivel 2 a Nivel 0+ASFA',
+          advertencias: [
+            'Aplicar freno de servicio y comunicar al RC, quien ordenara las condiciones de circulación.',
+            '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
+          ],
+          partes: [
+            { t: 'text', v: 'Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ', seleccione el Nivel ' },
+            { t: 'campo', id: 'nivel', label: 'Nivel', hint: '2, 1' },
+            { t: 'text', v: ' y reanude la marcha al amparo del BCA/BSL/BA/BLA con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    }
+  ];
+
   var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
     'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   var DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
@@ -179,7 +302,7 @@
       n1: '', viajeros: '', asistencias: '', plazasH: '', pmr: [],
       comprobaciones: COMPROBACIONES.map(function () { return false; }),
       observaciones: '', dibujos: [],
-      incidencias: []
+      incidencias: [], telefonemas: []
     };
   }
   // ¿Tiene este servicio al menos un informe de incidencia ya generado?
@@ -225,6 +348,7 @@
       // Migración LTV global → servicio 0
       if (si === 0 && !s.horaLTV && t.horaLTV) s.horaLTV = t.horaLTV;
       if (!s.paradas) s.paradas = [];
+      if (!s.telefonemas) s.telefonemas = [];
       // Recuperar tParada del Libro de Horarios si está a 0 (turnos guardados
       // antes de que autofillServicio lo mapeara). Sin esto, las paradas
       // intermedias comerciales no muestran H. Llegada.
@@ -503,10 +627,11 @@
       if (fechas.length > 1 && fechas[1] && fechas[1] !== fechas[0]) rng += ' · ' + fechas[1];
       h += '<div class="list-row" data-action="open-turno" data-id="' + t.id + '">';
       h += '<div class="lr-head">' +
-        '<div class="lr-date">' + esc(rng) + '</div>' +
+        '<div class="lr-date">' + esc(rng) +
+        (turnoConInformeGenerado(t) ? '<span class="inc-badge" title="Informe de incidencia generado">📋</span>' : '') +
+        '</div>' +
         '<span class="badge ' + t.estado + '">' +
         (t.estado === 'cerrado' ? 'Cerrado' : 'En curso') + '</span>' +
-        (turnoConInformeGenerado(t) ? '<span class="inc-badge" title="Informe de incidencia generado">📋</span>' : '') +
         '<span class="lr-chev">›</span>' +
         '</div>';
       h += '<div class="lr-svc-list">';
@@ -950,11 +1075,39 @@
     });
     h += '</div>';
 
+    // Observaciones a ancho completo; telefonemas ya recibidos en este
+    // servicio justo debajo, también a ancho completo.
     h += '<div class="field" style="margin-top:12px">' +
       '<label style="color:#a371f7">Observaciones durante el trayecto</label>' +
       '<div class="obs-wrapper" data-svc="' + si + '">' +
       '<textarea data-bind="srv.' + si + '.observaciones">' + esc(s.observaciones) + '</textarea>' +
-      '</div>';
+      '</div></div>';
+    if (s.telefonemas && s.telefonemas.length) {
+      h += '<div class="tel-list">';
+      s.telefonemas.forEach(function (tel, ti) {
+        var punto = (tel.campos && tel.campos.punto) ? tel.campos.punto : '';
+        h += '<div class="tel-chip color-' + esc(tel.color || 'rc') + '" data-action="telefonema-abrir" data-svc="' + si + '" data-tel="' + ti + '">' +
+          '<div class="tel-chip-head"><b>' + esc(tel.codigo) + '</b><span>' + esc(tel.hora || '') + '</span></div>' +
+          (tel.numTel || punto ? '<div class="tel-chip-sub">' +
+            (tel.numTel ? 'nº ' + esc(tel.numTel) : '') +
+            (tel.numTel && punto ? ' · ' : '') + esc(punto) +
+            '</div>' : '') +
+          (tel.cumplimentado || tel.transferido ?
+            '<div class="tel-chip-flags">' +
+            '<span class="tel-flag on">✓ ' + (tel.cumplimentado ? 'Cumplimentado' : 'Transferido') + '</span>' +
+            '</div>' : '') +
+          '</div>';
+      });
+      h += '</div>';
+    }
+    if (TELEFONEMAS.length) {
+      h += '<div class="tel-cats">';
+      TELEFONEMAS.forEach(function (c) {
+        h += '<button class="btn ghost" data-action="telefonema-cat" data-svc="' + si +
+          '" data-cat="' + esc(c.cat) + '">' + esc(c.catLabel) + '</button>';
+      });
+      h += '</div>';
+    }
     h += '<div class="obs-actions">' +
       '<button class="btn ghost" data-action="dictar" data-svc="' + si + '">🎤 Dictar</button>' +
       '<button type="button" class="btn ghost" data-action="incidencia" data-svc="' + si +
@@ -1198,6 +1351,531 @@
         b.classList.remove('rec');
         b.classList.add('ghost');
         b.textContent = '🎤 Dictar';
+      }
+    });
+  }
+
+  // ===== Telefonemas =====
+  // Categoría → elegir variante (código) → se crea un registro persistido en
+  // s.telefonemas[] (sobrevive al cerrar y se puede reabrir/completar más
+  // tarde — recibir el telefonema y cumplimentarlo no siempre es el mismo
+  // instante). Observaciones solo recibe una línea corta de referencia.
+  function buscarVarianteTelefonema(cat, codigo) {
+    var categoria = TELEFONEMAS.find(function (c) { return c.cat === cat; });
+    var variante = categoria && categoria.variantes.find(function (v) { return v.codigo === codigo; });
+    return variante ? { categoria: categoria, variante: variante } : null;
+  }
+  function blankTelefonema(categoria, variante, s0, nombreCompleto, horaActual) {
+    var campos = {}, opcionales = {};
+    variante.partes.forEach(function (p) {
+      if (p.t === 'campo') campos[p.id] = (p.id === 'tren' && s0.servicioComercial) ? s0.servicioComercial : '';
+      else if (p.t === 'opcional') opcionales[p.id] = false;
+    });
+    return {
+      cat: categoria.cat, codigo: variante.codigo, color: categoria.color || 'rc',
+      fecha: s0.fecha, numTel: '', hora: horaActual, de: '', a: s0.servicioComercial || '',
+      campos: campos, opcionales: opcionales,
+      info: '', emisor: '', firma: nombreCompleto,
+      cumplimentado: false, transferido: false, matricula: '', firmaEntrante: ''
+    };
+  }
+  // Línea de Observaciones para un telefonema guardado: acrónimo, hora, el
+  // texto completo (huecos vacíos como "___") y si se ha transferido.
+  function composeObsLineTelefonema(tel, variante) {
+    var texto = variante.partes.map(function (p) {
+      if (p.t === 'text') return p.v;
+      if (p.t === 'campo') return tel.campos[p.id] || '___';
+      if (p.t === 'opcional') return tel.opcionales[p.id] ? p.v : '';
+      return '';
+    }).join('');
+    var linea = tel.codigo + ' · ' + (tel.hora || '') + ' — ' + texto;
+    if (tel.transferido) linea += ' · Transferido';
+    return linea;
+  }
+  function abrirTelefonemaCategoria(cat, si) {
+    var categoria = TELEFONEMAS.find(function (c) { return c.cat === cat; });
+    if (!categoria) return;
+    // Ventana propia (no appModal.confirm) para poder mostrar dos líneas por
+    // botón — código + a qué telefonema corresponde — y un color de fondo
+    // discreto (franja, no relleno sólido) en vez de botones muy verdes.
+    appModal.custom({
+      className: 'narrow',
+      backdropClose: true,
+      dismissValue: null,
+      render: function (box, resolveWith) {
+        box.innerHTML = '';
+        var ttl = document.createElement('div'); ttl.className = 'modal-title';
+        ttl.style.textAlign = 'center';
+        ttl.textContent = categoria.catLabel;
+        box.appendChild(ttl);
+
+        var list = document.createElement('div'); list.className = 'tel-picker';
+        categoria.variantes.forEach(function (v) {
+          var b = document.createElement('button'); b.type = 'button';
+          b.className = 'tel-picker-btn color-' + (v.color || categoria.color || 'rc');
+          var code = document.createElement('div'); code.className = 'tel-picker-code'; code.textContent = v.codigo;
+          var name = document.createElement('div'); name.className = 'tel-picker-name'; name.textContent = v.nombre || '';
+          b.appendChild(code); b.appendChild(name);
+          b.addEventListener('click', function () { resolveWith(v.codigo); });
+          list.appendChild(b);
+        });
+        box.appendChild(list);
+
+        var acts = document.createElement('div'); acts.className = 'modal-actions';
+        var btnCancel = document.createElement('button'); btnCancel.type = 'button';
+        btnCancel.className = 'modal-btn neutral'; btnCancel.textContent = 'Cancelar';
+        btnCancel.addEventListener('click', function () { resolveWith(null); });
+        acts.appendChild(btnCancel);
+        box.appendChild(acts);
+      }
+    }).then(function (codigo) {
+      if (!codigo) return;
+      var variante = categoria.variantes.find(function (v) { return v.codigo === codigo; });
+      if (!variante) return;
+      var t = getTurno(editId);
+      var s = t && t.servicios[si];
+      if (!s) return;
+      var nombreCompleto = ((settings.nombre || '') + ' ' + (settings.apellidos || '')).trim();
+      var now = new Date();
+      var horaActual = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
+      var tel = blankTelefonema(categoria, variante, s, nombreCompleto, horaActual);
+      s.telefonemas.push(tel);
+      var ti = s.telefonemas.length - 1;
+      autosave();
+      refreshServicioCard(si);
+      abrirTelefonemaVentana(si, ti);
+    });
+  }
+
+  // Crece en altura con el contenido (Información Complementaria) — nunca
+  // oculta texto largo.
+  function autosizeTextareaH(ta) {
+    function resize() { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+    ta.addEventListener('input', resize);
+    setTimeout(resize, 0);
+  }
+  // Ensancha un input en línea con lo que se escribe — como si fuera texto
+  // normal, no un campo de formulario con ancho fijo.
+  function autosizeCh(el, minCh) {
+    function resize() { el.style.width = Math.max(minCh || 4, el.value.length + 1) + 'ch'; }
+    el.addEventListener('input', resize);
+    resize();
+  }
+  // Interpreta *palabra* como negrita y añade el resultado a un contenedor
+  // — usado en los textos de Guía y uso / Advertencias de los telefonemas.
+  function appendConNegritas(container, texto) {
+    String(texto || '').split(/\*(.+?)\*/).forEach(function (parte, i) {
+      if (!parte) return;
+      if (i % 2 === 1) {
+        var b = document.createElement('b'); b.textContent = parte;
+        container.appendChild(b);
+      } else {
+        container.appendChild(document.createTextNode(parte));
+      }
+    });
+  }
+
+  // Réplica exacta del formulario "ANEXO I - Formato de uso de telefonemas"
+  // (página 37 del Libro de Telefonemas, LNM-ILSA_AP2): misma disposición de
+  // celdas y mismos textos literales. La única libertad es que "TEXTO
+  // TELEFONEMA:" se rellena con la frase de la variante con sus huecos en
+  // línea, en vez de dejarse en blanco para escritura manual. Edita
+  // s.telefonemas[ti] en el sitio — reabrible tantas veces como haga falta.
+  function abrirTelefonemaVentana(si, ti) {
+    var t0 = getTurno(editId);
+    var s0 = t0 && t0.servicios[si];
+    var tel = s0 && s0.telefonemas[ti];
+    if (!tel) return;
+    var found = buscarVarianteTelefonema(tel.cat, tel.codigo);
+    if (!found) return;
+    var categoria = found.categoria, variante = found.variante;
+    var fechaNice = tel.fecha ? ymdNice(tel.fecha) : '';
+    var dirty = false;
+
+    appModal.custom({
+      // backdropClose queda en false a propósito: el cierre por clic fuera lo
+      // gestiona onOverlayClick() más abajo, para poder preguntar antes si
+      // hay cambios sin guardar (app-modal.js no soporta un guard aquí).
+      className: 'wide',
+      backdropClose: false,
+      dismissValue: null,
+      render: function (box, resolveWith) {
+        box.innerHTML = '';
+        box.style.position = 'relative';
+
+        var ttl = document.createElement('div'); ttl.className = 'modal-title';
+        ttl.style.textAlign = 'center';
+        ttl.textContent = variante.codigo + (variante.nombre ? ' - ' + variante.nombre : '');
+        box.appendChild(ttl);
+
+        if (variante.guia) {
+          var guia = document.createElement('div'); guia.className = 'tel-guia';
+          var guiaB = document.createElement('b'); guiaB.textContent = 'Guía y uso: ';
+          guia.appendChild(guiaB);
+          appendConNegritas(guia, variante.guia);
+          box.appendChild(guia);
+        }
+
+        var anexo = document.createElement('div'); anexo.className = 'tel-anexo';
+        box.appendChild(anexo);
+
+        var body = document.createElement('div'); body.className = 'tel-anexo-body';
+
+        // ---- fila-celda helpers ----
+        // cell(): "ETIQUETA:" fija + input/valor. flex define el reparto
+        // horizontal cuando va emparejada con otra celda en la misma fila.
+        function cell(labelTxt, opts) {
+          opts = opts || {};
+          var c = document.createElement('div'); c.className = 'tel-anexo-cell';
+          if (opts.flex) c.style.flex = opts.flex;
+          var b = document.createElement('b'); b.textContent = labelTxt;
+          c.appendChild(b);
+          var el;
+          if (opts.display) {
+            el = document.createElement('span'); el.className = 'tel-anexo-fixed';
+            el.textContent = opts.value || '';
+          } else {
+            el = document.createElement('input'); el.type = 'text';
+            if (opts.value) el.value = opts.value;
+            if (opts.placeholder) el.placeholder = opts.placeholder;
+            if (opts.numeric) {
+              el.inputMode = 'numeric'; el.pattern = '[0-9]*';
+              el.addEventListener('input', function () {
+                var digits = el.value.replace(/[^0-9]/g, '');
+                if (digits !== el.value) el.value = digits;
+              });
+            }
+            el.addEventListener('input', function () { dirty = true; });
+          }
+          c.appendChild(el);
+          return { el: c, input: el };
+        }
+        function row(cells) {
+          var r = document.createElement('div'); r.className = 'tel-anexo-row';
+          cells.forEach(function (c) { r.appendChild(c.el); });
+          body.appendChild(r);
+          return r;
+        }
+        function fullRow(headerTxt, colorClass) {
+          var r = document.createElement('div'); r.className = 'tel-anexo-row tel-anexo-full' + (colorClass ? ' ' + colorClass : '');
+          var h = document.createElement('div'); h.className = 'tel-anexo-header'; h.textContent = headerTxt;
+          r.appendChild(h);
+          body.appendChild(r);
+          var content = document.createElement('div'); content.className = 'tel-anexo-content';
+          var r2 = document.createElement('div'); r2.className = 'tel-anexo-row tel-anexo-full' + (colorClass ? ' ' + colorClass : '');
+          r2.appendChild(content);
+          body.appendChild(r2);
+          content.headerEl = h;
+          return content;
+        }
+
+        // Fila 1: CODIGO TELEFONEMA: / FECHA:  (valores fijos, no editables)
+        var cCodigo = cell('CODIGO TELEFONEMA:', { display: true, value: variante.codigo, flex: '0 0 58%' });
+        var cFecha = cell('FECHA:', { display: true, value: fechaNice, flex: '1' });
+        row([cCodigo, cFecha]);
+
+        // Fila 2: Nº TELEFONEMA: / HORA:
+        var cNumTel = cell('Nº TELEFONEMA:', { value: tel.numTel, flex: '0 0 58%', numeric: true });
+        var cHora = cell('HORA:', { value: tel.hora, flex: '1' });
+        row([cNumTel, cHora]);
+
+        // Fila 3: De: (emisor) / a: (receptor)
+        var deWrap = document.createElement('div'); deWrap.className = 'tel-anexo-cell tel-anexo-deacell';
+        deWrap.style.flex = '0 0 58%';
+        var deLine = document.createElement('div'); deLine.className = 'tel-anexo-deline';
+        var deB = document.createElement('b'); deB.textContent = 'De:';
+        var deInp = document.createElement('input'); deInp.type = 'text'; deInp.value = tel.de || '';
+        deInp.addEventListener('input', function () { dirty = true; });
+        deLine.appendChild(deB); deLine.appendChild(deInp);
+        var deCap = document.createElement('div'); deCap.className = 'tel-anexo-cap'; deCap.textContent = '(emisor)';
+        deWrap.appendChild(deLine); deWrap.appendChild(deCap);
+
+        var aWrap = document.createElement('div'); aWrap.className = 'tel-anexo-cell tel-anexo-deacell';
+        aWrap.style.flex = '1';
+        var aLine = document.createElement('div'); aLine.className = 'tel-anexo-deline';
+        var aB = document.createElement('b'); aB.textContent = 'a:';
+        var aInp = document.createElement('input'); aInp.type = 'text'; aInp.value = tel.a || '';
+        aInp.addEventListener('input', function () { dirty = true; });
+        aLine.appendChild(aB); aLine.appendChild(aInp);
+        var aCap = document.createElement('div'); aCap.className = 'tel-anexo-cap'; aCap.textContent = '(receptor)';
+        aWrap.appendChild(aLine); aWrap.appendChild(aCap);
+        row([{ el: deWrap }, { el: aWrap }]);
+
+        // TEXTO TELEFONEMA: — la frase con sus huecos en línea, como texto
+        // normal que se ensancha con lo que se escribe (no un campo de
+        // formulario aparte). Única sección con la franja de color RC/Mtro.
+        var textoContent = fullRow('TEXTO TELEFONEMA:', 'tel-color-' + tel.color);
+        var sentence = document.createElement('div'); sentence.className = 'tel-sentence';
+        var campoInputs = {};
+        variante.partes.forEach(function (p) {
+          if (p.t === 'text') {
+            sentence.appendChild(document.createTextNode(p.v));
+          } else if (p.t === 'campo') {
+            var inp = document.createElement('input'); inp.type = 'text';
+            inp.placeholder = p.hint || p.label;
+            inp.value = tel.campos[p.id] || '';
+            // Ancho mínimo = la pista completa, para que se vea entera en
+            // vez de recortada mientras el campo está vacío.
+            autosizeCh(inp, (p.hint || p.label || '').length || 6);
+            inp.addEventListener('input', function () { dirty = true; });
+            campoInputs[p.id] = inp;
+            sentence.appendChild(inp);
+          } else if (p.t === 'opcional') {
+            var olbl = document.createElement('label'); olbl.className = 'tel-opt';
+            var ocb = document.createElement('input'); ocb.type = 'checkbox';
+            ocb.checked = !!tel.opcionales[p.id];
+            ocb.addEventListener('change', function () { dirty = true; });
+            olbl.appendChild(ocb);
+            olbl.appendChild(document.createTextNode(p.label));
+            campoInputs[p.id] = ocb;
+            sentence.appendChild(olbl);
+          }
+        });
+        textoContent.appendChild(sentence);
+
+        // Vía doble banalizada — solo en variantes que lo requieren (ETC1).
+        // En el encabezado "TEXTO TELEFONEMA:", a la derecha, discreto. El
+        // texto elegido se añade/quita del campo "Condiciones de
+        // circulación" como un sufijo controlado (lastSuffix), para no
+        // pisar lo que el maquinista haya escrito a mano ahí.
+        if (variante.viaBanalizada && campoInputs.cond) {
+          var viaBox = document.createElement('div'); viaBox.className = 'tel-via-ban';
+          var viaCb = document.createElement('input'); viaCb.type = 'checkbox';
+          viaCb.checked = !!tel.viaBanalizada;
+          var viaLbl = document.createElement('label');
+          viaLbl.appendChild(viaCb);
+          viaLbl.appendChild(document.createTextNode(' Vía doble banalizada'));
+          var viaSel = document.createElement('select');
+          ['I', 'II'].forEach(function (v) {
+            var o = document.createElement('option'); o.value = v; o.textContent = 'Vía ' + v;
+            viaSel.appendChild(o);
+          });
+          viaSel.value = tel.via || 'I';
+          viaSel.disabled = !viaCb.checked;
+          viaBox.appendChild(viaLbl); viaBox.appendChild(viaSel);
+          textoContent.headerEl.appendChild(viaBox);
+
+          var lastSuffix = '';
+          function sufijoVia(via) { return ', circulando por vía ' + via; }
+          function aplicarVia() {
+            var condInp = campoInputs.cond;
+            var val = condInp.value;
+            if (lastSuffix && val.slice(val.length - lastSuffix.length) === lastSuffix) {
+              val = val.slice(0, val.length - lastSuffix.length);
+            }
+            lastSuffix = viaCb.checked ? sufijoVia(viaSel.value) : '';
+            condInp.value = val + lastSuffix;
+            condInp.dispatchEvent(new Event('input'));
+          }
+          if (viaCb.checked) { lastSuffix = sufijoVia(viaSel.value); }
+          viaCb.addEventListener('change', function () {
+            dirty = true; viaSel.disabled = !viaCb.checked; aplicarVia();
+          });
+          viaSel.addEventListener('change', function () { dirty = true; aplicarVia(); });
+        }
+
+        // Información Complementaria:
+        var infoContent = fullRow('Información Complementaria:');
+        var fInfo = document.createElement('textarea'); fInfo.rows = 1; fInfo.value = tel.info || '';
+        autosizeTextareaH(fInfo);
+        fInfo.addEventListener('input', function () { dirty = true; });
+        infoContent.appendChild(fInfo);
+
+        // EMISOR: / Cumplimentado:
+        var cEmisor = cell('EMISOR:', { value: tel.emisor, flex: '0 0 78%' });
+        var checkCump = document.createElement('div'); checkCump.className = 'tel-anexo-cell tel-anexo-check';
+        checkCump.style.flex = '1';
+        var bCump = document.createElement('b'); bCump.textContent = 'Cumplimentado:';
+        var cbCump = document.createElement('input'); cbCump.type = 'checkbox'; cbCump.checked = !!tel.cumplimentado;
+        checkCump.appendChild(bCump); checkCump.appendChild(cbCump);
+        row([cEmisor, { el: checkCump }]);
+
+        // FIRMA: / Transferido:
+        var cFirma = cell('FIRMA:', { value: tel.firma, flex: '0 0 78%' });
+        var checkTrans = document.createElement('div'); checkTrans.className = 'tel-anexo-cell tel-anexo-check';
+        checkTrans.style.flex = '1';
+        var bTrans = document.createElement('b'); bTrans.textContent = 'Transferido:';
+        var cbTrans = document.createElement('input'); cbTrans.type = 'checkbox'; cbTrans.checked = !!tel.transferido;
+        checkTrans.appendChild(bTrans); checkTrans.appendChild(cbTrans);
+        row([cFirma, { el: checkTrans }]);
+
+        // Cumplimentado y Transferido son excluyentes: solo puede ser uno u
+        // otro, nunca los dos a la vez. Si el telefonema es de antes de esta
+        // regla y quedó guardado con los dos a true, se normaliza al abrir
+        // (gana Cumplimentado, por ser el estado más "definitivo").
+        if (cbCump.checked && cbTrans.checked) cbTrans.checked = false;
+        cbCump.addEventListener('change', function () {
+          dirty = true;
+          if (cbCump.checked) { cbTrans.checked = false; actualizarRelevo(); }
+        });
+        cbTrans.addEventListener('change', function () {
+          dirty = true;
+          if (cbTrans.checked) cbCump.checked = false;
+          actualizarRelevo();
+        });
+
+        // "Resguardo en caso de relevo" — solo si se marca Transferido.
+        // Caja aparte (no filas de la tabla), con el mismo estilo que tenía
+        // antes: recuadro redondeado debajo del telefonema.
+        var relevo = document.createElement('div'); relevo.className = 'tel-anexo-relevo';
+        var relevoTitle = document.createElement('span'); relevoTitle.className = 'tel-anexo-relevo-title';
+        relevoTitle.textContent = 'Resguardo en caso de relevo:';
+        relevo.appendChild(relevoTitle);
+        var relevoFields = document.createElement('div'); relevoFields.className = 'tel-anexo-relevo-fields';
+        relevo.appendChild(relevoFields);
+
+        function relevoField(labelTxt, value) {
+          var lbl = document.createElement('label');
+          var span = document.createElement('span'); span.textContent = labelTxt;
+          var inp = document.createElement('input'); inp.type = 'text'; inp.value = value || '';
+          inp.addEventListener('input', function () { dirty = true; });
+          lbl.appendChild(span); lbl.appendChild(inp);
+          relevoFields.appendChild(lbl);
+          return { input: inp };
+        }
+        var cNumTelevo = relevoField('Nº Telefonema:', tel.numTel);
+        var cTrenRelevo = relevoField('Tren:', tel.campos.tren);
+        var cFechaRelevo = relevoField('Fecha:', fechaNice);
+        var cMatricula = relevoField('Transferido a (nº matrícula):', tel.matricula);
+        var cFirmaEntrante = relevoField('Firma de maquinista entrante:', tel.firmaEntrante);
+
+        anexo.appendChild(body);
+        box.appendChild(relevo);
+
+        function actualizarRelevo() {
+          relevo.classList.toggle('open', cbTrans.checked);
+          if (cbTrans.checked) {
+            if (!cNumTelevo.input.value) cNumTelevo.input.value = cNumTel.input.value;
+            if (!cTrenRelevo.input.value) cTrenRelevo.input.value = (campoInputs.tren && campoInputs.tren.value) || '';
+            if (!cFechaRelevo.input.value) cFechaRelevo.input.value = fechaNice;
+          }
+        }
+        actualizarRelevo();
+
+        // Clic fuera de la ventana: si no hay nada escrito, cierra directo.
+        // Si hay cambios sin guardar, NO cierra sola — solo sacude la
+        // ventana para indicar que hay que usar la "X" (que sí tiene su
+        // confirmación de dos pasos). window.confirm() no es fiable en este
+        // entorno (se queda colgado sin mostrar nada) y appModal solo
+        // soporta un modal a la vez, así que no se puede anidar otro aquí —
+        // de ahí el patrón "pulsa otra vez para confirmar" en vez de un
+        // diálogo. El listener se retira al cerrar — si no, se acumularía
+        // uno nuevo cada vez que se reabre este mismo telefonema.
+        var overlayEl = box.parentNode;
+        function onOverlayClick(e) {
+          if (e.target !== overlayEl) return;
+          if (!dirty) { cleanup(); resolveWith(null); return; }
+          box.classList.remove('tel-shake'); void box.offsetWidth; box.classList.add('tel-shake');
+        }
+        overlayEl.addEventListener('click', onOverlayClick);
+        function cleanup() { overlayEl.removeEventListener('click', onOverlayClick); }
+
+        function guardar() {
+          variante.partes.forEach(function (p) {
+            if (p.t === 'campo') tel.campos[p.id] = (campoInputs[p.id].value || '').trim();
+            else if (p.t === 'opcional') tel.opcionales[p.id] = campoInputs[p.id].checked;
+          });
+          tel.numTel = cNumTel.input.value.trim(); tel.hora = cHora.input.value.trim();
+          tel.de = deInp.value.trim(); tel.a = aInp.value.trim();
+          tel.info = fInfo.value.trim();
+          tel.emisor = cEmisor.input.value.trim(); tel.firma = cFirma.input.value.trim();
+          tel.cumplimentado = cbCump.checked; tel.transferido = cbTrans.checked;
+          tel.matricula = cMatricula.input.value.trim(); tel.firmaEntrante = cFirmaEntrante.input.value.trim();
+          if (variante.viaBanalizada && campoInputs.cond) { tel.viaBanalizada = viaCb.checked; tel.via = viaSel.value; }
+
+          // Observaciones: una línea con el acrónimo, hora, el texto del
+          // telefonema y si se ha transferido — se actualiza en el sitio
+          // en vez de acumular una línea nueva cada vez que se guarda.
+          if (s0) {
+            var linea = composeObsLineTelefonema(tel, variante);
+            var lines = s0.observaciones ? s0.observaciones.split('\n') : [];
+            if (tel.obsLineIdx != null && lines[tel.obsLineIdx] !== undefined &&
+                lines[tel.obsLineIdx].indexOf(tel.codigo + ' · ') === 0) {
+              lines[tel.obsLineIdx] = linea;
+            } else {
+              lines.push(linea);
+              tel.obsLineIdx = lines.length - 1;
+            }
+            s0.observaciones = lines.join('\n');
+            var ta = document.querySelector('[data-bind="srv.' + si + '.observaciones"]');
+            if (ta) ta.value = s0.observaciones;
+          }
+
+          autosave();
+          refreshServicioCard(si);
+          cleanup();
+          resolveWith(true);
+        }
+
+        // Confirmación de dos pasos (pulsa otra vez) en vez de un diálogo
+        // nativo/anidado — mismo motivo que arriba.
+        function confirmToggle(armFn, disarmFn) {
+          var armed = false, timer = null;
+          return function () {
+            if (armed) { armed = false; clearTimeout(timer); disarmFn(); return true; }
+            armed = true;
+            armFn();
+            timer = setTimeout(function () { armed = false; disarmFn(); }, 3000);
+            return false;
+          };
+        }
+
+        var btnX = document.createElement('button'); btnX.type = 'button';
+        btnX.className = 'tel-modal-close'; btnX.textContent = '✕';
+        btnX.setAttribute('aria-label', 'Cerrar');
+        var confirmCerrar = confirmToggle(
+          function () { btnX.classList.add('confirm'); btnX.title = 'Pulsa otra vez para salir sin guardar'; },
+          function () { btnX.classList.remove('confirm'); btnX.title = 'Cerrar'; }
+        );
+        btnX.addEventListener('click', function () {
+          if (dirty && !confirmCerrar()) return;
+          cleanup();
+          resolveWith(null);
+        });
+        box.appendChild(btnX);
+
+        var btnDel = document.createElement('button'); btnDel.type = 'button';
+        btnDel.className = 'modal-btn danger'; btnDel.textContent = 'Borrar';
+        var confirmBorrar = confirmToggle(
+          function () { btnDel.textContent = 'Pulsa otra vez para borrar'; },
+          function () { btnDel.textContent = 'Borrar'; }
+        );
+        btnDel.addEventListener('click', function () {
+          if (!confirmBorrar()) return;
+          var t = getTurno(editId);
+          var s = t && t.servicios[si];
+          if (s) s.telefonemas.splice(ti, 1);
+          autosave();
+          refreshServicioCard(si);
+          cleanup();
+          resolveWith(null);
+        });
+
+        var btnOk = document.createElement('button'); btnOk.type = 'button';
+        btnOk.className = 'modal-btn primary'; btnOk.textContent = 'Guardar';
+        btnOk.addEventListener('click', guardar);
+
+        // Advertencias — recuadro amarillo justo debajo del telefonema
+        // (y del resguardo de relevo si está visible), encima de los botones.
+        if (variante.advertencias && variante.advertencias.length) {
+          var adv = document.createElement('div'); adv.className = 'tel-advertencias';
+          var advB = document.createElement('b'); advB.textContent = 'Advertencias:';
+          adv.appendChild(advB);
+          var advList = document.createElement('ul');
+          variante.advertencias.forEach(function (a) {
+            var li = document.createElement('li');
+            appendConNegritas(li, a);
+            advList.appendChild(li);
+          });
+          adv.appendChild(advList);
+          box.appendChild(adv);
+        }
+
+        var acts = document.createElement('div'); acts.className = 'modal-actions tel-anexo-actions';
+        acts.appendChild(btnDel); acts.appendChild(btnOk);
+        box.appendChild(acts);
+
+        try { cNumTel.input.focus(); } catch (e) {}
       }
     });
   }
@@ -2173,6 +2851,14 @@
       else { if (currentRec) stopDictado(); startDictado(dictSi); }
       return;
     }
+    if (act === 'telefonema-cat') {
+      abrirTelefonemaCategoria(el.getAttribute('data-cat'), +el.getAttribute('data-svc'));
+      return;
+    }
+    if (act === 'telefonema-abrir') {
+      abrirTelefonemaVentana(+el.getAttribute('data-svc'), +el.getAttribute('data-tel'));
+      return;
+    }
     if (act === 'cerrar' && t) {
       t.estado = 'cerrado';
       save(K_TURNOS, turnos);
@@ -2303,7 +2989,7 @@
         // Si YA hay un SW esperando antes de llamar a update() → nueva versión
         // ya descargada en una comprobación previa. Avisar y no decir "Al día".
         if (reg.waiting) {
-          appModal.alert({ title: 'Nueva versión disponible', message: 'Hay una versión nueva lista. Pulsa "Actualizar" en el aviso inferior para aplicarla.' });
+          appModal.alert({ title: 'Nueva versión disponible', message: 'Se está aplicando — la app se recargará sola en unos segundos.' });
           return;
         }
         var decided = false;
@@ -2314,7 +3000,7 @@
             if (decided) return;
             if (nw.state === 'installed' && navigator.serviceWorker.controller) {
               decided = true;
-              appModal.alert({ title: 'Nueva versión disponible', message: 'Hay una versión nueva lista. Pulsa "Actualizar" en el aviso inferior para aplicarla.' });
+              appModal.alert({ title: 'Nueva versión disponible', message: 'Se está aplicando — la app se recargará sola en unos segundos.' });
             }
           });
           return true;
@@ -2396,11 +3082,6 @@
     loadAll();
     loadHorarios();
     turnos.forEach(normTurno);
-    // #theme-toggle es compartido con HT: HT ya lo controla (ebula_theme)
-    // y aplica body.light antes de que este script corra. Sincronizamos
-    // solo el valor interno (para que Ajustes muestre el tema correcto)
-    // sin reaplicarlo, para no pisar lo que HT acaba de fijar.
-    settings.theme = document.body.classList.contains('light') ? 'light' : 'dark';
 
     var now = new Date();
     calYear = now.getFullYear();
@@ -2491,9 +3172,9 @@
       if (v === 'calendario') {
         renderCalendar();
         setView('calendario');
-        // Re-render tras el paint para fix de layout intermitente
-        // (la primera render puede ocurrir con el pane oculto si venimos
-        // de body.locked, lo que cachea dimensiones grid mal calculadas).
+        // Re-render tras el paint para fix de layout intermitente (la
+        // primera render puede ocurrir con el pane aún oculto, lo que
+        // cachea dimensiones grid mal calculadas).
         requestAnimationFrame(renderCalendar);
       }
       else if (v === 'estadisticas') { renderStats(); setView('estadisticas'); }

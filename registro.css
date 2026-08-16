@@ -39,6 +39,180 @@ button.btn.rec:hover{border-color:#fff}
 .obs-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
 .obs-actions .btn{font-size:13px; padding:7px 12px; min-height:36px}
 
+/* Botones de categoría de telefonema — desplazables, no envuelven */
+.tel-cats{display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  scrollbar-width:none; margin-top:10px; padding-bottom:2px}
+.tel-cats::-webkit-scrollbar{display:none}
+.tel-cats .btn{flex:0 0 auto; white-space:nowrap; font-size:13px; padding:7px 12px; min-height:36px}
+
+/* Chips de telefonema — justo debajo de Observaciones, a ancho completo.
+ * Cada uno reabre el Anexo I completo (ver/editar/completar más tarde).
+ * Sin botón de borrar aquí: eso vive dentro del propio formulario. */
+.tel-list{display:flex; flex-direction:column; gap:8px; margin-top:10px}
+.tel-chip{
+  display:flex; flex-direction:column; gap:3px; padding:7px 9px; border-radius:8px;
+  border:1px solid var(--border); border-left-width:4px; background:var(--panel-2);
+  cursor:pointer; font-size:11px;
+}
+.tel-chip:hover{border-color:var(--accent)}
+.tel-chip.color-rc{border-left-color:var(--ok)}
+.tel-chip.color-maquinista{border-left-color:#ec4899}
+.tel-chip-head{display:flex; align-items:baseline; justify-content:space-between; gap:6px}
+.tel-chip-head b{font-size:12px}
+.tel-chip-head span{color:var(--fg-dim); font-size:11px}
+.tel-chip-sub{color:var(--fg-dim); font-size:11px}
+.tel-chip-flags{display:flex; flex-direction:column; gap:1px; margin-top:2px}
+.tel-flag{color:var(--fg-dim)}
+.tel-flag.on{color:var(--ok); font-weight:600}
+
+/* Formulario de telefonema — réplica del "Anexo I - Formato de uso de
+ * telefonemas" (página 37, Libro de Telefonemas LNM-ILSA_AP2): misma
+ * disposición de celdas y mismos textos que el documento original. Las
+ * etiquetas fijas quedan alineadas a la izquierda como siempre; solo el
+ * texto que se AÑADE (lo que se teclea) va centrado dentro de su hueco. */
+.tel-anexo{display:flex; align-items:stretch; border:1px solid var(--fg); font-size:13px; color:var(--fg); margin-bottom:20px}
+.tel-anexo-body{flex:1; display:flex; flex-direction:column; min-width:0}
+.tel-anexo-row{display:flex; border-bottom:1px solid var(--fg)}
+.tel-anexo-row:last-child{border-bottom:none}
+.tel-anexo-cell{padding:3px 9px; display:flex; align-items:center; gap:8px; min-width:0; min-height:0}
+.tel-anexo-cell + .tel-anexo-cell{border-left:1px solid var(--fg)}
+.tel-anexo-cell b{font-weight:700; white-space:nowrap; font-size:12px}
+.tel-anexo-cell input[type=text]{
+  flex:1; min-width:0; min-height:0; border:none; background:transparent; color:var(--fg); text-align:center;
+  font-size:13px; font-family:inherit; border-bottom:1px solid var(--border); padding:1px 0;
+}
+.tel-anexo-cell input[type=text]:focus-visible{outline:none; border-bottom-color:var(--accent)}
+.tel-anexo-fixed{color:var(--accent); font-weight:600; margin:0 auto}
+
+.tel-anexo-full{flex-direction:column; align-items:stretch}
+.tel-anexo-header{padding:7px 9px; font-weight:700; text-align:center; position:relative}
+.tel-anexo-content{padding:9px}
+.tel-anexo-content textarea{
+  display:block; width:100%; border:none; background:transparent; color:var(--fg); font-size:13px;
+  font-family:inherit; text-align:center; resize:none; overflow:hidden; min-height:24px; padding:2px 0;
+}
+.tel-anexo-content textarea:focus-visible{outline:none}
+
+/* Única sección con la franja de color RC/Maquinista (verde/rosa, código de
+ * la propia norma, sección 2.1.8.c) — solo TEXTO TELEFONEMA, no toda la tabla. */
+.tel-anexo-row.tel-color-rc{border-left:4px solid var(--ok)}
+.tel-anexo-row.tel-color-maquinista{border-left:4px solid #ec4899}
+
+.tel-anexo-deacell{flex-direction:column; align-items:stretch; gap:2px; padding-top:3px; padding-bottom:3px}
+.tel-anexo-deacell .tel-anexo-deline{display:flex; align-items:baseline; gap:6px}
+.tel-anexo-deacell .tel-anexo-deline input{
+  flex:1; min-width:0; min-height:0; border:none; border-bottom:1px solid var(--border); text-align:center;
+  background:transparent; color:var(--fg); font-size:13px; font-family:inherit; padding:1px 0;
+}
+.tel-anexo-deacell .tel-anexo-deline input:focus-visible{outline:none; border-bottom-color:var(--accent)}
+.tel-anexo-cap{font-size:11px; text-align:center; opacity:.75}
+
+.tel-anexo-check{justify-content:space-between}
+.tel-anexo-check input{width:16px; height:16px; min-height:0; flex:0 0 auto}
+
+/* "Resguardo en caso de relevo" — caja aparte, redondeada, debajo del
+ * telefonema, oculta hasta marcar Transferido. */
+.tel-anexo-relevo{
+  display:none; margin-bottom:20px; padding:12px; border:1px solid var(--border);
+  border-radius:8px; background:var(--panel-2);
+}
+.tel-anexo-relevo.open{display:block}
+.tel-anexo-relevo-title{display:block; font-weight:700; font-size:12px; margin-bottom:8px}
+.tel-anexo-relevo-fields{display:flex; flex-wrap:wrap; gap:12px}
+.tel-anexo-relevo-fields label{display:flex; flex-direction:column; gap:3px; flex:1; min-width:140px}
+.tel-anexo-relevo-fields span{font-size:11px; font-weight:600; opacity:.8}
+.tel-anexo-relevo-fields input{
+  border:none; border-bottom:1px solid var(--border); background:transparent; color:var(--fg);
+  font-size:13px; font-family:inherit; padding:2px 0;
+}
+.tel-anexo-relevo-fields input:focus-visible{outline:none; border-bottom-color:var(--accent)}
+
+/* Guía y uso — justo debajo del título del telefonema. */
+.tel-guia{font-size:12.5px; color:var(--fg-dim); margin:-4px 0 14px; line-height:1.4}
+.tel-guia b{color:var(--fg); font-weight:700}
+
+/* Vía doble banalizada — en el encabezado "TEXTO TELEFONEMA:", pegada a
+ * la derecha, discreta y en letra pequeña. */
+.tel-via-ban{
+  display:flex; align-items:center; gap:5px; font-size:10.5px; opacity:.75; font-weight:400;
+  position:absolute; right:9px; top:50%; transform:translateY(-50%);
+}
+.tel-via-ban:hover{opacity:1}
+.tel-via-ban label{display:flex; align-items:center; gap:3px; cursor:pointer; white-space:nowrap}
+.tel-via-ban input[type=checkbox]{width:12px; height:12px; min-height:0; flex:0 0 auto; padding:0}
+.tel-via-ban select{
+  width:auto; min-height:0; border:1px solid var(--border); border-radius:5px;
+  background:var(--panel-2); color:var(--fg-dim); font-size:10.5px; font-family:inherit; padding:1px 4px;
+}
+.tel-via-ban select:disabled{opacity:.5}
+
+/* Advertencias — recuadro amarillo de aviso, debajo del telefonema, encima
+ * de los botones de Borrar/Guardar. */
+.tel-advertencias{
+  margin-bottom:16px; padding:10px 14px; border:1px solid var(--warn); border-radius:8px;
+  background:rgba(240,136,62,.12); font-size:12.5px; line-height:1.5;
+}
+.tel-advertencias > b{display:block; color:var(--warn); margin-bottom:4px}
+.tel-advertencias ul{margin:0; padding-left:18px; list-style:disc}
+.tel-advertencias li{margin-bottom:3px}
+.tel-advertencias li:last-child{margin-bottom:0}
+
+/* Huecos de la frase — texto en línea que se ensancha con lo escrito, igual
+ * que el resto de campos, no una caja de formulario aparte. */
+.tel-sentence{font-size:15px; line-height:2.4}
+.tel-sentence input[type=text]{
+  display:inline-block; width:auto; max-width:100%; padding:0 4px; margin:0 2px; border:none;
+  border-bottom:1px solid var(--accent); background:transparent;
+  color:var(--accent); font-weight:600; font-size:inherit; font-family:inherit; text-align:center;
+}
+.tel-sentence input[type=text]:focus-visible{outline:none; border-bottom-width:2px}
+.tel-sentence input[type=text]::placeholder{color:var(--fg-dim); font-weight:400}
+.tel-sentence .tel-opt{
+  display:inline-flex; align-items:center; gap:4px; font-size:13px;
+  color:var(--fg-dim); vertical-align:middle; margin:0 2px; cursor:pointer;
+}
+.tel-sentence .tel-opt input{width:15px; height:15px}
+
+/* Botón "cerrar" como X en la esquina superior derecha de la ventana del
+ * telefonema, en vez de un botón "Cerrar" abajo, apelotonado con el resto. */
+.modal-box.wide{position:relative}
+.tel-modal-close{
+  position:absolute; top:14px; right:14px; width:30px; height:30px; border-radius:50%;
+  border:1px solid var(--border); background:var(--panel-2); color:var(--fg-dim);
+  font-size:14px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.tel-modal-close:hover{border-color:var(--accent); color:var(--fg)}
+.tel-modal-close.confirm{background:var(--bad); border-color:var(--bad); color:#fff}
+
+/* Botones del formulario — más separados de la tabla y de "Borrar"
+ * (danger) del resto para no confundirlo con "Guardar". */
+.tel-anexo-actions{margin-top:16px}
+.tel-anexo-actions .danger{margin-right:auto}
+
+/* Clic fuera con cambios sin guardar: sacude la ventana en vez de cerrar
+ * sola (avisa a usar la "X", que sí confirma con un segundo toque). */
+@keyframes tel-shake{
+  10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)}
+  30%,50%,70%{transform:translateX(-7px)} 40%,60%{transform:translateX(7px)}
+}
+.modal-box.tel-shake{animation:tel-shake .35s}
+
+/* Selector de categoría → variante: ventana propia con dos líneas por
+ * botón (código + a qué corresponde) y un color discreto (franja lateral,
+ * no relleno sólido — así no se ven "tan verdes"). */
+.modal-box.narrow{max-width:420px}
+.tel-picker{display:flex; flex-direction:column; gap:8px; margin-top:4px}
+.tel-picker-btn{
+  display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+  padding:9px 12px; border-radius:8px; border:1px solid var(--border); border-left-width:4px;
+  background:var(--panel-2); color:var(--fg); cursor:pointer; text-align:left; font-family:inherit;
+}
+.tel-picker-btn:hover{border-color:var(--accent)}
+.tel-picker-btn.color-rc{border-left-color:var(--ok)}
+.tel-picker-btn.color-maquinista{border-left-color:#ec4899}
+.tel-picker-code{font-weight:700; font-size:14px}
+.tel-picker-name{font-size:12px; color:var(--fg-dim)}
+
 button.btn.ghost{background:none}
 button.btn:disabled{opacity:.45; cursor:default}
 .btn-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px}
@@ -145,6 +319,9 @@ button.btn:disabled{opacity:.45; cursor:default}
 .list-row .lr-date{
   font-family:Poppins,sans-serif; font-weight:700; font-size:14px;
   color:var(--fg); flex:1;
+}
+.list-row .lr-date .inc-badge{
+  font-size:20px; margin-left:8px; vertical-align:middle;
 }
 .list-row .lr-chev{color:var(--fg-dim); font-size:18px}
 .list-row .lr-svc-list{display:flex; flex-direction:column; gap:3px}

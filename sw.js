@@ -1,4 +1,4 @@
-const CACHE = 'enruta-rv-v1';
+const CACHE = 'enruta-rv-v2';
 const PRECACHE = [
   './', './index.html', './manifest.webmanifest',
   './data.js', './registro.js', './registro.css', './app-modal.js',
@@ -7,13 +7,10 @@ const PRECACHE = [
 ];
 
 self.addEventListener('install', e => {
-  // No llamamos skipWaiting() aquí: el SW nuevo queda "esperando" hasta que el
-  // usuario pulse "Actualizar" en el banner (el cliente envía SKIP_WAITING).
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)));
-});
-
-self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+  // Aplica el SW nuevo en cuanto termina de instalar (sin esperar a un
+  // banner "Actualizar" — no existe tal UI). El controllerchange en
+  // index.html recarga la página sola cuando esto ocurre.
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
