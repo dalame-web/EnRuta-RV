@@ -84,9 +84,9 @@ button.btn.rec:hover{border-color:#fff}
 .tel-anexo-cell input[type=text]:focus-visible{outline:none; border-bottom-color:var(--accent)}
 .tel-anexo-fixed{color:var(--accent); font-weight:600; margin:0 auto}
 
-.tel-anexo-full{flex-direction:column; align-items:stretch}
+.tel-anexo-full{flex-direction:column; align-items:stretch; min-width:0}
 .tel-anexo-header{padding:7px 9px; font-weight:700; text-align:center; position:relative}
-.tel-anexo-content{padding:9px}
+.tel-anexo-content{padding:9px; min-width:0; width:100%}
 .tel-anexo-content textarea{
   display:block; width:100%; border:none; background:transparent; color:var(--fg); font-size:13px;
   font-family:inherit; text-align:center; resize:none; overflow:hidden; min-height:24px; padding:2px 0;
@@ -212,6 +212,19 @@ button.btn.rec:hover{border-color:#fff}
 .tel-picker-btn.color-maquinista{border-left-color:#ec4899}
 .tel-picker-code{font-weight:700; font-size:14px}
 .tel-picker-name{font-size:12px; color:var(--fg-dim)}
+
+/* Móvil — el Anexo I usa proporciones fijas (58/42, 78/22) pensadas para
+ * pantallas anchas; por debajo de 480px no caben con las etiquetas en una
+ * sola línea (se cortan/desbordan). Se apila todo a una columna. El
+ * flex-basis de cada celda se fija por JS en línea (cell() en registro.js),
+ * así que hace falta !important para poder pisarlo desde aquí. */
+@media (max-width:480px){
+  .tel-anexo-row{flex-wrap:wrap}
+  .tel-anexo-cell{flex:1 1 100% !important}
+  .tel-anexo-cell + .tel-anexo-cell{border-left:none; border-top:1px solid var(--fg)}
+  .tel-anexo-header{display:flex; flex-direction:column; align-items:center; gap:6px}
+  .tel-via-ban{position:static; transform:none}
+}
 
 button.btn.ghost{background:none}
 button.btn:disabled{opacity:.45; cursor:default}

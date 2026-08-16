@@ -48,6 +48,16 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,s
 body.light .theme-btn .theme-icon-moon{display:inline}
 body:not(.light) .theme-btn .theme-icon-sun{display:inline}
 
+/* Por debajo de 480px, 4 pestañas + botón de tema (≈479px de contenido)
+ * no caben en un móvil normal (360-375px) con el padding de escritorio.
+ * Va DESPUÉS de las reglas base .tab/.theme-btn a propósito: son la misma
+ * especificidad (una clase) y en un empate de especificidad gana la regla
+ * que aparece más abajo en el archivo, sin importar el @media. */
+@media (max-width:480px){
+  .tab{padding:9px 10px; font-size:12.5px}
+  .theme-btn{width:28px; height:28px; margin-right:6px}
+}
+
 /* Versión de la app — discreta, esquina inferior derecha, solo en Calendario */
 #app-version-badge{display:none;position:fixed;right:10px;bottom:6px;z-index:5;
   font-size:11px;color:var(--fg-dim);opacity:.5;pointer-events:none;
