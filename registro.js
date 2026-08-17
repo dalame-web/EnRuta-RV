@@ -12,7 +12,7 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v23';
+  var APP_VERSION = 'enruta-v24';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -841,6 +841,10 @@
     if (settings.calView !== 'list') settings.calView = 'grid';
     if (settings.lastBackup == null) settings.lastBackup = '';
     if (settings.autoDownload == null) settings.autoDownload = false;
+    // Modo desarrollador: muestra los botones ETCS/LZB en Registro. Oculto
+    // por defecto — se activa tocando 7 veces "Versión instalada" en
+    // Ajustes (mismo gesto que el modo desarrollador de Android).
+    if (settings.telDevMode == null) settings.telDevMode = false;
   }
   function saveSettings() { save(K_SETTINGS, settings); }
 
@@ -1370,6 +1374,10 @@
 
   // Estado del editor inline de retraso (sólo uno activo a la vez).
   var activeRetBind = null;
+  // Contador del gesto "modo desarrollador" en Ajustes (7 toques en
+  // "Versión instalada", con reinicio si pasan >2s entre toques).
+  var versionTapCount = 0;
+  var versionTapTimer = null;
 
   // ownerIdx: -1 = origen; 0..n-1 = paradas[i]. Devuelve solo paradas
   // posteriores (no se puede ir hacia atrás en la marcha).
@@ -1671,8 +1679,10 @@
     }
     // Registro solo ofrece ETC/LZB para rellenar — el resto de grupos
     // (ABA, ARS, IVC, RET, SOC...) son de solo consulta en la pestaña
-    // Telefonemas, no se rellenan desde aquí.
-    var CATS_REGISTRO = TELEFONEMAS.filter(function (c) { return c.cat === 'ETC' || c.cat === 'LZB'; });
+    // Telefonemas, no se rellenan desde aquí. Ocultos salvo telDevMode
+    // (Ajustes → toca 7 veces "Versión instalada").
+    var CATS_REGISTRO = settings.telDevMode ?
+      TELEFONEMAS.filter(function (c) { return c.cat === 'ETC' || c.cat === 'LZB'; }) : [];
     if (CATS_REGISTRO.length) {
       h += '<div class="tel-cats">';
       CATS_REGISTRO.forEach(function (c) {
@@ -2641,7 +2651,10 @@
 
     // 8. Aplicación
     h += '<div class="card"><div class="card-title">Aplicación</div>' +
-      '<div class="hint">Versión instalada: <b>' + esc(APP_VERSION) + '</b></div>' +
+      '<div class="hint" data-action="app-version-tap" style="cursor:default; user-select:none">' +
+      'Versión instalada: <b>' + esc(APP_VERSION) + '</b>' +
+      (settings.telDevMode ? ' · <span style="color:var(--ok)">modo desarrollador activo</span>' : '') +
+      '</div>' +
       '<div class="btn-row" style="margin-top:8px">' +
       '<button class="btn primary" data-action="check-update">Comprobar actualizaciones</button>' +
       '<button class="btn" data-action="export-backup">Exportar copia ahora</button>' +
@@ -3451,6 +3464,25 @@
       markRetFrozen(bindNow);
       activeRetBind = null;
       renderEditor();
+      return;
+    }
+    if (act === 'app-version-tap') {
+      versionTapCount++;
+      clearTimeout(versionTapTimer);
+      versionTapTimer = setTimeout(function () { versionTapCount = 0; }, 2000);
+      if (versionTapCount >= 7) {
+        versionTapCount = 0;
+        clearTimeout(versionTapTimer);
+        settings.telDevMode = !settings.telDevMode;
+        saveSettings();
+        renderSettings();
+        appModal.alert({
+          title: settings.telDevMode ? 'Modo desarrollador activado' : 'Modo desarrollador desactivado',
+          message: settings.telDevMode ?
+            'Los botones ETCS/LZB vuelven a estar visibles en Registro.' :
+            'Los botones ETCS/LZB quedan ocultos en Registro.'
+        });
+      }
       return;
     }
     if (act === 'dictar') {
