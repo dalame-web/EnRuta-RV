@@ -12,7 +12,7 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v21';
+  var APP_VERSION = 'enruta-v22';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
