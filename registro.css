@@ -670,6 +670,13 @@ input[type=number]::-webkit-inner-spin-button{
 .ret-input{
   flex:0 0 110px; min-height:32px; padding:4px 8px; font-size:13px;
 }
+/* Botón "marcar según hora actual" — junto al campo de retraso manual. */
+.ret-now{
+  background:none; border:1px solid var(--border); border-radius:6px;
+  padding:4px 9px; color:var(--fg-dim); cursor:pointer;
+  font-size:14px; min-height:30px; min-width:34px;
+}
+.ret-now:hover{border-color:var(--accent); color:var(--accent)}
 .st-time-col{ display:flex; flex-direction:column; gap:2px; flex:0 0 auto; }
 .st-real{
   font-family:monospace; font-size:13px; font-weight:700;

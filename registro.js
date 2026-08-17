@@ -792,6 +792,20 @@
     t = t % (24 * 60);
     return pad2(Math.floor(t / 60)) + ':' + pad2(t % 60);
   }
+  // Retraso (+) o adelanto (-) en minutos entre una hora programada 'HH:MM'
+  // y la hora actual del dispositivo. Camino más corto alrededor de
+  // medianoche (nunca da más de 12h en ningún sentido).
+  function retrasoDesdeAhora(horaProg) {
+    if (!/^\d{1,2}:\d{2}$/.test(horaProg || '')) return null;
+    var p = horaProg.split(':');
+    var progMin = (+p[0]) * 60 + (+p[1]);
+    var now = new Date();
+    var nowMin = now.getHours() * 60 + now.getMinutes();
+    var diff = nowMin - progMin;
+    if (diff > 720) diff -= 1440;
+    if (diff < -720) diff += 1440;
+    return diff;
+  }
 
   // ===== Almacenamiento =====
   function load(k, def) {
@@ -1388,6 +1402,14 @@
     return '<button class="ret-add" data-action="ret-edit" ' +
       'data-ret-bind="' + esc(bind) + '">+ Retraso</button>';
   }
+  // Botón junto al campo de retraso manual: calcula retraso/adelanto
+  // comparando la hora programada con la hora actual del dispositivo.
+  function retNowBtnHtml(bind, hora) {
+    if (!bind || !hora) return '';
+    return '<button class="ret-now" type="button" data-action="ret-now" ' +
+      'data-ret-bind="' + esc(bind) + '" data-ret-hora="' + esc(hora) + '" ' +
+      'title="Marcar retraso/adelanto según la hora actual">⏱</button>';
+  }
 
   function stationCard(tipo, si, cfg) {
     var badgeTxt = tipo === 'origin' ? 'ORIGEN' :
@@ -1432,7 +1454,8 @@
         h += '<span class="st-h">' + esc(cfg.horaLlegada) + '</span>';
       }
       if (horaRealLleg) h += '<span class="st-real' + (retLlegMin < 0 ? ' early' : '') + '">' + horaRealLleg + '</span>';
-      h += '</div>' + retInlineHtml(cfg.bindRetLleg, cfg.valRetLleg) + '</div>';
+      h += '</div>' + retInlineHtml(cfg.bindRetLleg, cfg.valRetLleg) +
+        retNowBtnHtml(cfg.bindRetLleg, cfg.horaLlegada) + '</div>';
     }
     if (cfg.horaSalida || cfg.editSalida) {
       var retSalMin = parseRetraso(cfg.valRetSal);
@@ -1446,7 +1469,8 @@
         h += '<span class="st-h">' + esc(cfg.horaSalida) + '</span>';
       }
       if (horaRealSal) h += '<span class="st-real' + (retSalMin < 0 ? ' early' : '') + '">' + horaRealSal + '</span>';
-      h += '</div>' + retInlineHtml(cfg.bindRetSal, cfg.valRetSal) + '</div>';
+      h += '</div>' + retInlineHtml(cfg.bindRetSal, cfg.valRetSal) +
+        retNowBtnHtml(cfg.bindRetSal, cfg.horaSalida) + '</div>';
     }
     h += '</div>';
     if (cfg.pax) h += '<div class="st-pax">' + cfg.pax + '</div>';
@@ -3417,6 +3441,16 @@
         var inp = document.querySelector('.ret-input');
         if (inp) { inp.focus(); inp.select(); }
       }, 0);
+      return;
+    }
+    if (act === 'ret-now') {
+      var bindNow = el.getAttribute('data-ret-bind');
+      var diff = retrasoDesdeAhora(el.getAttribute('data-ret-hora'));
+      if (diff == null) return;
+      applyBind(bindNow, String(diff));
+      markRetFrozen(bindNow);
+      activeRetBind = null;
+      renderEditor();
       return;
     }
     if (act === 'dictar') {
