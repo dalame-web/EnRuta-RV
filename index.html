@@ -71,6 +71,7 @@ body.tab-calendario #app-version-badge{display:block}
 <div class="tabs">
   <button class="tab active" data-tab="calendario">📅 Calendario</button>
   <button class="tab" data-tab="registro">📋 Registro</button>
+  <button class="tab" data-tab="telefonemas">📞 Telefonemas</button>
   <button class="tab" data-tab="estadisticas">📊 Estadísticas</button>
   <button class="tab" data-tab="ajustes">⚙ Ajustes</button>
   <button class="theme-btn" data-action="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema">
@@ -81,6 +82,7 @@ body.tab-calendario #app-version-badge{display:block}
 
 <section id="registro-pane" class="pane"></section>
 <section id="calendario-pane" class="pane active"></section>
+<section id="telefonemas-pane" class="pane"></section>
 <section id="estadisticas-pane" class="pane"></section>
 <section id="ajustes-pane" class="pane"></section>
 <div class="save-flash" id="save-flash">Guardado</div>
@@ -143,7 +145,8 @@ body.tab-calendario #app-version-badge{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="app-modal.js"></script>
 <script src="data.js"></script>
-<script src="registro.js"></script>
+<script src="registro.js?v=202608184"></script>
+<script src="telefonemas-listado.js?v=202608184"></script>
 <script>
 (function(){
   var b = document.getElementById('app-version-badge');

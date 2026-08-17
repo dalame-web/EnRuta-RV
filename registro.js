@@ -51,7 +51,7 @@
             { t: 'text', v: ' para rebasar el EoA de ' },
             { t: 'campo', id: 'punto', label: 'Punto', hint: 'km, señal, pantalla ETCS, estación, puesto, bifurcación, etc.' },
             { t: 'text', v: ' con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' },
             { t: 'text', v: '.' }
           ]
         },
@@ -66,8 +66,8 @@
           partes: [
             { t: 'text', v: 'Autorizo al Maquinista de tren ' },
             { t: 'campo', id: 'tren', label: 'Nº de tren' },
-            { t: 'text', v: ' a reanudar la marcha/retroceder con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: 'a reanudar la marcha/retroceder con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' },
             { t: 'text', v: ' hasta ' },
             { t: 'campo', id: 'hasta', label: 'Hasta (punto)' },
             { t: 'text', v: '.' }
@@ -83,8 +83,8 @@
           partes: [
             { t: 'text', v: 'Maquinista de tren ' },
             { t: 'campo', id: 'tren', label: 'Nº de tren' },
-            { t: 'text', v: ' desconecte el ETCS y reanude marcha al amparo del BSL/BA/BLA con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'text', v: 'desconecte el ETCS y reanude marcha al amparo del BSL/BA/BLA con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' },
             { t: 'text', v: '.' }
           ]
         },
@@ -100,11 +100,12 @@
             { t: 'campo', id: 'tren', label: 'Nº de tren' },
             { t: 'text', v: ' ' },
             { t: 'campo', id: 'sel', label: 'Seleccione el / continúe en', hint: 'seleccione el, continúe en' },
-            { t: 'text', v: ' Nivel ' },
+            { t: 'text', v: ' Nivel' },
             { t: 'campo', id: 'nivel', label: 'Nivel' },
-            { t: 'opcional', id: 'reanude', label: 'Incluir "y reanude la marcha al amparo del BCA/BSL/BA/BLA"', v: ' y reanude la marcha al amparo del BCA/BSL/BA/BLA' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'reanude', label: 'Incluir "y reanude la marcha al amparo del BCA/BSL/BA/BLA"', v: 'y reanude la marcha al amparo del BCA/BSL/BA/BLA' },
             { t: 'text', v: ' con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' },
             { t: 'text', v: '.' }
           ]
         },
@@ -120,9 +121,9 @@
             { t: 'text', v: 'Maquinista de tren ' },
             { t: 'campo', id: 'tren', label: 'Nº de tren' },
             { t: 'text', v: ', desconecte y vuelva a conectar el ETCS. Seleccione el Nivel ' },
-            { t: 'campo', id: 'nivel', label: 'Nivel', hint: '0+ASFA, 0' },
+            { t: 'campo', id: 'nivel', label: 'Nivel', hint: '"0+ASFA", o "0"' },
             { t: 'text', v: ' y reanude la marcha al amparo del BSL/BA/BLA con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' },
             { t: 'text', v: '.' }
           ]
         },
@@ -139,7 +140,7 @@
             { t: 'text', v: ', seleccione el Nivel ' },
             { t: 'campo', id: 'nivel', label: 'Nivel', hint: '2, 1' },
             { t: 'text', v: ' y reanude la marcha al amparo del BCA/BSL/BA/BLA con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' },
             { t: 'text', v: '.' }
           ]
         }
@@ -150,7 +151,7 @@
       nombre: 'Telefonemas LZB',
       variantes: [
         {
-          codigo: 'LZB1', nombre: 'Rebase de punto de parada',
+          codigo: 'LZB1', nombre: 'Rebase de señal/pantalla',
           guia: 'Cuando sea necesario autorizar el rebase de un punto de parada',
           viaBanalizada: true,
           advertencias: [
@@ -160,17 +161,20 @@
             '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
           ],
           partes: [
-            { t: 'text', v: 'Autorizo al Maquinista de tren ' },
-            { t: 'campo', id: 'tren', label: 'Nº de tren' },
-            { t: 'text', v: ' para rebasar el punto de parada de ' },
-            { t: 'campo', id: 'punto', label: 'Punto', hint: 'km, señal, punto kilométrico, estación, puesto, bifurcación, etc.' },
+            { t: 'text', v: 'Autorizo al Maquinista ' },
+            { t: 'campo', id: 'sujeto', label: 'Del tren / de la maniobra', hint: 'del tren ___, de la maniobra ___' },
+            { t: 'text', v: ' a rebasar la señal/pantalla ' },
+            { t: 'campo', id: 'clase', label: 'Clase', hint: 'clase' },
+            { t: 'text', v: 'número ' },
+            { t: 'campo', id: 'num', label: 'Número' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'lugar', label: 'Incluir "de (estación, puesto, bifurcación, etc.)"', v: 'de (estación, puesto, bifurcación, etc.)' },
             { t: 'text', v: ' con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
-            { t: 'text', v: '.' }
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' }
           ]
         },
         {
-          codigo: 'LZB2', nombre: 'Reanudación tras rebase de punto de parada',
+          codigo: 'LZB2', nombre: 'Continuar la marcha con condiciones hasta señal/pantalla',
           guia: 'Para la reanudación de la marcha tras el rebase de un punto de parada',
           advertencias: [
             'Se prescribirá "*marcha a la vista*" y/u otras indicaciones hasta la siguiente pantalla o señal que pueda dar parada.',
@@ -178,30 +182,27 @@
             '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
           ],
           partes: [
-            { t: 'text', v: 'Autorizo al Maquinista de tren ' },
+            { t: 'text', v: 'Autorizo a maquinista de tren ' },
             { t: 'campo', id: 'tren', label: 'Nº de tren' },
-            { t: 'text', v: ' a reanudar la marcha/retroceder con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
-            { t: 'text', v: ' hasta ' },
-            { t: 'campo', id: 'hasta', label: 'Hasta (punto)' },
+            { t: 'text', v: ' a continuar la marcha con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' },
+            { t: 'text', v: ' hasta la ' },
+            { t: 'campo', id: 'senal', label: 'Señal / pantalla', hint: 'señal o pantalla' },
             { t: 'text', v: '.' }
           ]
         },
         {
-          codigo: 'LZB3', nombre: 'Fallo de transmisión Vmeta=0',
+          codigo: 'LZB3', nombre: 'Continuar al amparo del BSL con Marcha a la Vista',
           guia: 'Para reanudar la marcha tras un fallo de transmisión en bloqueo parcial (Vmeta=0)',
           advertencias: [
             'Cuando se recupere la transmisión, se tiene que validar en la siguiente pantalla o señal que pueda dar parada.',
             '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
           ],
           partes: [
-            { t: 'text', v: 'Autorizo al Maquinista de tren ' },
+            { t: 'text', v: 'Autorizo a maquinista de tren ' },
             { t: 'campo', id: 'tren', label: 'Nº de tren' },
-            { t: 'text', v: ' a reanudar la marcha con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
-            { t: 'text', v: ' hasta ' },
-            { t: 'campo', id: 'hasta', label: 'Hasta (punto)' },
-            { t: 'text', v: '.' }
+            { t: 'text', v: ' a continuar la marcha al amparo del BSL con "Marcha a la Vista" hasta la señal ' },
+            { t: 'campo', id: 'senal', label: 'Señal', hint: 'siguiente señal de entrada o salida' }
           ]
         },
         {
@@ -214,24 +215,476 @@
           partes: [
             { t: 'text', v: 'Maquinista de tren ' },
             { t: 'campo', id: 'tren', label: 'Nº de tren' },
-            { t: 'text', v: ' desconecte/conecte el LZB y reanude marcha al amparo del BSL/BA/BLA con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
-            { t: 'text', v: '.' }
+            { t: 'text', v: ', desconecte (y vuelva a conectar) el LZB, y reanude la marcha al amparo del BSL con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' }
           ]
         },
         {
-          codigo: 'LZB5', nombre: 'Disolución de itinerario',
-          guia: 'Cuando sea necesario establecer un itinerario diferente a un tren.',
+          codigo: 'LZB5', nombre: 'Reanudación tras desconexión, por vía',
+          // El guía original (disolución de itinerario) no corresponde a
+          // este texto oficial — pendiente de que el usuario confirme el
+          // texto correcto de Guía y uso.
           advertencias: [
             '*Atención con las velocidades máximas del tramo, LTV y situación de señales y Zonas Neutras.*'
           ],
           partes: [
             { t: 'text', v: 'Maquinista de tren ' },
             { t: 'campo', id: 'tren', label: 'Nº de tren' },
-            { t: 'text', v: ', se disuelve el itinerario establecido en ' },
-            { t: 'campo', id: 'punto', label: 'Punto', hint: 'km, señal, punto kilométrico, estación, puesto, bifurcación, etc.' },
+            { t: 'text', v: ', desconecte y vuelva a conectar el LZB, y reanude la marcha al amparo del BSL desde la señal ' },
+            { t: 'campo', id: 'senal', label: 'Señal' },
+            { t: 'text', v: ' por vía ' },
+            { t: 'campo', id: 'via', label: 'Vía', hint: 'I, II' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'ABA', catLabel: 'Anormalidad baliza', color: 'rc',
+      nombre: 'Anormalidad en baliza de sistema de señalización',
+      variantes: [
+        {
+          codigo: 'ABA', nombre: 'Anormalidad en baliza',
+          partes: [
+            { t: 'text', v: 'La baliza ' },
+            { t: 'campo', id: 'sistema', label: 'Sistema', hint: 'ASFA, ERTMS, EBICAB, etc.' },
+            { t: 'text', v: ', ' },
+            { t: 'campo', id: 'posicion', label: 'Posición', hint: 'previa, de señal, etc.' },
+            { t: 'text', v: ' de la señal ' },
+            { t: 'campo', id: 'clase', label: 'Clase', hint: 'clase' },
+            { t: 'text', v: ' número ' },
+            { t: 'campo', id: 'num', label: 'Número' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'lugar', label: 'Incluir "de (estación, puesto, bifurcación, etc.)"', v: 'de (estación, puesto, bifurcación, etc.)' },
+            { t: 'text', v: ', se encuentra ' },
+            { t: 'campo', id: 'estado', label: 'Estado', hint: 'desplazada, fuera de servicio, etc.' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'ARS', catLabel: 'Rebase señal fija', color: 'rc',
+      nombre: 'Autorización de rebase de señal fija fundamental',
+      variantes: [
+        {
+          codigo: 'ARS5', nombre: 'Rebase de señal / zona protegida para maniobras',
+          viaBanalizada: true,
+          partes: [
+            { t: 'text', v: 'Autorizo al Maquinista ' },
+            { t: 'campo', id: 'sujeto', label: 'Del tren / de la maniobra', hint: 'del tren ___, de la maniobra' },
+            { t: 'text', v: ' a rebasar ' },
+            { t: 'opcional', id: 'senal', label: 'Incluir "la señal (clase) número ___"', v: 'la señal (clase: entrada y/o retroceso, interiores y/o salida, etc.) número ___' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'zona', label: 'Incluir "la zona protegida para maniobras lado ___"', v: 'la zona protegida para maniobras lado ___' },
+            { t: 'text', v: ' de ' },
+            { t: 'campo', id: 'lugar', label: 'Lugar', hint: 'estación, puesto, bifurcación, etc.' },
             { t: 'text', v: ' con ' },
-            { t: 'campo', id: 'cond', label: 'Condiciones de circulación' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'ARS6', nombre: 'Rebase entre dos señales sin exceder 10 km/h',
+          viaBanalizada: true,
+          partes: [
+            { t: 'text', v: 'Autorizo al Maquinista del tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' a rebasar desde la señal ' },
+            { t: 'campo', id: 'origenTipo', label: 'Tipo de señal', hint: 'avanzada, de entrada, de salida' },
+            { t: 'text', v: ' número ' },
+            { t: 'campo', id: 'origenNum', label: 'Número' },
+            { t: 'text', v: ' de ' },
+            { t: 'campo', id: 'origenEst', label: 'Estación', hint: 'estación' },
+            { t: 'text', v: 'hasta la señal de ' },
+            { t: 'campo', id: 'destinoTipo', label: 'Tipo de señal', hint: 'entrada, salida' },
+            { t: 'text', v: ' número ' },
+            { t: 'campo', id: 'destinoNum', label: 'Número' },
+            { t: 'text', v: ' de ' },
+            { t: 'campo', id: 'destinoEst', label: 'Estación', hint: 'estación' },
+            { t: 'text', v: ' inclusive, sin exceder de 10 km/h al paso por las agujas, ' },
+            { t: 'opcional', id: 'verificar', label: 'Incluir "después de verificar su posición"', v: 'después de verificar su posición ' },
+            { t: 'text', v: 'con ' },
+            { t: 'campo', id: 'cond', label: 'Otras condiciones de circulación', hint: 'otras condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'LTV', catLabel: 'Limitación temporal velocidad', color: 'rc',
+      nombre: 'Limitación Temporal de Velocidad',
+      variantes: [
+        {
+          codigo: 'LTV3', nombre: 'Establecida o suprimida (con causa)',
+          partes: [
+            { t: 'campo', id: 'accion', label: 'Establecida / suprimida', hint: 'Establecida o suprimida' },
+            { t: 'text', v: ' limitación temporal de velocidad máxima a ' },
+            { t: 'campo', id: 'vel', label: 'Velocidad (km/h)' },
+            { t: 'text', v: ' km/h ' },
+            { t: 'opcional', id: 'vias', label: 'Incluir "en vía/s ___"', v: 'en vía/s ___' },
+            { t: 'text', v: ' desde el km ' },
+            { t: 'campo', id: 'kmDesde', label: 'Km desde' },
+            { t: 'text', v: ' al ' },
+            { t: 'campo', id: 'kmHasta', label: 'Km hasta' },
+            { t: 'text', v: ' entre ' },
+            { t: 'campo', id: 'entre1', label: 'Estación' },
+            { t: 'text', v: ' y ' },
+            { t: 'campo', id: 'entre2', label: 'Estación' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'causa', label: 'Incluir "por (trinchera, zona inundable, terraplén)"', v: 'por (trinchera, zona inundable, terraplén)' },
+            { t: 'text', v: '. ' },
+            { t: 'campo', id: 'senalizada', label: 'Señalizada / sin señalizar', hint: 'Se encuentra señalizada o sin señalizar' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'csv', label: 'Incluir "Supone un CSV"', v: 'Supone un CSV' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'MAV', catLabel: 'Marcha a la vista', color: 'rc',
+      nombre: 'Marcha a la vista',
+      variantes: [
+        {
+          codigo: 'MAV', nombre: 'Marcha a la vista',
+          partes: [
+            { t: 'text', v: 'Circulará con marcha a la vista entre ' },
+            { t: 'campo', id: 'entre1', label: 'Punto', hint: 'estación, pk, etc.' },
+            { t: 'text', v: ' y ' },
+            { t: 'campo', id: 'entre2', label: 'Punto', hint: 'estación, pk, etc.' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'velmax', label: 'Incluir "sin exceder de ___ km/h"', v: 'sin exceder de ___ km/h' },
+            { t: 'text', v: ' por ' },
+            { t: 'campo', id: 'motivo', label: 'Motivo', hint: 'motivo' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'cond', label: 'Incluir "con (condiciones de circulación...)"', v: 'con (condiciones de circulación incluyendo el tipo de reconocimiento a realizar)' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'MT', catLabel: 'Marche el tren', color: 'rc',
+      nombre: 'Marche el tren',
+      variantes: [
+        {
+          codigo: 'MT1', nombre: 'Marche por vía',
+          partes: [
+            { t: 'text', v: 'Marche el tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' de vía ' },
+            { t: 'campo', id: 'via', label: 'Vía' }
+          ]
+        },
+        {
+          codigo: 'MT2', nombre: 'Marche con marcha a la vista hasta señal',
+          partes: [
+            { t: 'text', v: 'Marche el tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' hasta ' },
+            { t: 'campo', id: 'estacion', label: 'Estación', hint: 'estación inmediata' },
+            { t: 'text', v: '. con marcha a la vista hasta la señal ' },
+            { t: 'campo', id: 'senal', label: 'Señal', hint: 'primera de bloqueo' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'PAN', catLabel: 'Parada no prescrita', color: 'rc',
+      nombre: 'Parada no prescrita',
+      variantes: [
+        {
+          codigo: 'PAN', nombre: 'Parada no prescrita',
+          partes: [
+            { t: 'text', v: 'Efectuará parada en ' },
+            { t: 'campo', id: 'lugar', label: 'Lugar', hint: 'estación, apeadero, punto kilométrico' },
+            { t: 'text', v: ' para ' },
+            { t: 'campo', id: 'motivo', label: 'Motivo', hint: 'motivo' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'REM', catLabel: 'Reanudación marcha', color: 'rc',
+      nombre: 'Reanudación de la marcha',
+      variantes: [
+        {
+          codigo: 'REM', nombre: 'Reanudación de la marcha',
+          partes: [
+            { t: 'text', v: 'Puede reanudar la marcha a la estación de ' },
+            { t: 'campo', id: 'estacion', label: 'Estación', hint: 'estación' },
+            { t: 'text', v: 'con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones específicas de circulación', hint: 'condiciones específicas de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'RET', catLabel: 'Retroceso del tren', color: 'rc',
+      nombre: 'Retroceso del tren',
+      variantes: [
+        {
+          codigo: 'RET1', nombre: 'Solicitud de retroceso', color: 'maquinista',
+          enlace: 'Se responde con RET2 (autoriza el retroceso) o RET3 (si se anula la solicitud).',
+          partes: [
+            { t: 'text', v: 'Tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' detenido en el km ' },
+            { t: 'campo', id: 'km', label: 'Km' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'via', label: 'Incluir "de la vía (I, II, etc.)"', v: 'de la vía (I, II, etc.)' },
+            { t: 'text', v: ' entre ' },
+            { t: 'campo', id: 'entre1', label: 'Estación' },
+            { t: 'text', v: ' y' },
+            { t: 'campo', id: 'entre2', label: 'Estación' },
+            { t: 'text', v: '. Solicito autorización de retroceso.' }
+          ]
+        },
+        {
+          codigo: 'RET2', nombre: 'Autorización de retroceso', color: 'rc',
+          enlace: 'Responde a la solicitud de RET1.',
+          partes: [
+            { t: 'text', v: 'Retroceda el tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' hasta ' },
+            { t: 'campo', id: 'estacion', label: 'Estación', hint: 'estación' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'cond', label: 'Incluir "Con (condiciones de circulación)"', v: 'Con (condiciones de circulación)' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'RET3', nombre: 'Anulación de solicitud de retroceso', color: 'maquinista',
+          enlace: 'Anula la solicitud hecha en RET1 y pide autorización para reanudar la marcha.',
+          partes: [
+            { t: 'text', v: 'Tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' detenido en el km ' },
+            { t: 'campo', id: 'km', label: 'Km' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'via', label: 'Incluir "de la vía (I, II, etc.)"', v: 'de la vía (I, II, etc.)' },
+            { t: 'text', v: ' entre' },
+            { t: 'campo', id: 'entre1', label: 'Estación' },
+            { t: 'text', v: ' y' },
+            { t: 'campo', id: 'entre2', label: 'Estación' },
+            { t: 'text', v: '. Anulo solicitud de retroceso y solicito autorización para reanudar la marcha.' }
+          ]
+        },
+        {
+          codigo: 'RET7', nombre: 'Reanudación de la marcha tras retroceso', color: 'rc',
+          enlace: 'Se emite tras autorizarse el retroceso (RET2), para que el tren reanude la marcha.',
+          partes: [
+            { t: 'text', v: 'Tren ' },
+            { t: 'campo', id: 'accion', label: 'Autorizado / ordenado', hint: 'autorizado, ordenado' },
+            { t: 'text', v: ' a retroceder a ' },
+            { t: 'campo', id: 'lugar', label: 'Lugar' },
+            { t: 'text', v: ' puede reanudar la marcha hacia la estación ' },
+            { t: 'campo', id: 'estacion', label: 'Estación' },
+            { t: 'text', v: ' con ' },
+            { t: 'campo', id: 'cond', label: 'Condiciones de circulación', hint: 'condiciones de circulación' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'APA', catLabel: 'Tren completo', color: 'maquinista',
+      nombre: 'Comunicación de tren completo',
+      variantes: [
+        {
+          codigo: 'APA', nombre: 'Tren completo y apartado',
+          partes: [
+            { t: 'text', v: 'Tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' llegó completo y apartado en ' },
+            { t: 'campo', id: 'lugar', label: 'Lugar' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'IVC', catLabel: 'Interrupción vía contigua', color: 'rc',
+      nombre: 'Interrupción de vía contigua',
+      variantes: [
+        {
+          codigo: 'IVC1', nombre: 'Solicitud de interrupción', color: 'maquinista',
+          enlace: 'Se responde con IVC3 (el RC confirma la interrupción) y, para levantarla, con IVC4 (referencia el nº de este telefonema).',
+          partes: [
+            { t: 'text', v: 'Maquinista de tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' detenido en el km ' },
+            { t: 'campo', id: 'km', label: 'Km', hint: 'situación de la cabeza del tren' },
+            { t: 'text', v: '. Solicito interrupción de la circulación por la/s vía/s ' },
+            { t: 'campo', id: 'vias', label: 'Vía/s', hint: 'I, II, etc.' },
+            { t: 'text', v: ' entre ' },
+            { t: 'campo', id: 'entre1', label: 'Estación', hint: 'estación' },
+            { t: 'text', v: ' y ' },
+            { t: 'campo', id: 'entre2', label: 'Estación', hint: 'estación' },
+            { t: 'text', v: ' para reconocer el tren.' }
+          ]
+        },
+        {
+          codigo: 'IVC3', nombre: 'Confirmación de interrupción', color: 'rc',
+          enlace: 'Confirma la interrupción solicitada en IVC1.',
+          partes: [
+            { t: 'text', v: 'Interrumpida la circulación por la/s vía/s ' },
+            { t: 'campo', id: 'vias', label: 'Vía/s', hint: 'I, II, etc.' },
+            { t: 'text', v: ' entre ' },
+            { t: 'campo', id: 'entre1', label: 'Estación', hint: 'estación' },
+            { t: 'text', v: ' y ' },
+            { t: 'campo', id: 'entre2', label: 'Estación', hint: 'estación' },
+            { t: 'text', v: ' para reconocer el tren.' }
+          ]
+        },
+        {
+          codigo: 'IVC4', nombre: 'Levantamiento de la interrupción', color: 'maquinista',
+          enlace: 'Levanta la interrupción solicitada en IVC1, referenciando su número de telefonema.',
+          partes: [
+            { t: 'text', v: 'Reconocido tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ', queda sin efecto la interrupción de la circulación solicitada mediante mi telefonema n.º ' },
+            { t: 'campo', id: 'numTel', label: 'Nº de telefonema' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'SOC', catLabel: 'Socorro a tren', color: 'rc',
+      nombre: 'Socorro a tren',
+      variantes: [
+        {
+          codigo: 'SOC1', nombre: 'Solicitud de socorro', color: 'maquinista',
+          partes: [
+            { t: 'text', v: 'Tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' detenido en el km ' },
+            { t: 'campo', id: 'km', label: 'Km', hint: 'situación de la cabeza del tren' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'via', label: 'Incluir "de la vía (I, II, etc.)"', v: 'de la vía (I, II, etc.)' },
+            { t: 'text', v: ' entre ' },
+            { t: 'campo', id: 'entre1', label: 'Estación' },
+            { t: 'text', v: ' y ' },
+            { t: 'campo', id: 'entre2', label: 'Estación' },
+            { t: 'text', v: ' por ' },
+            { t: 'campo', id: 'causa', label: 'Causa', hint: 'avería, accidente' },
+            { t: 'text', v: ' solicito socorro.' }
+          ]
+        },
+        {
+          codigo: 'SOC4', nombre: 'Socorro con condiciones detalladas', color: 'rc',
+          partes: [
+            { t: 'text', v: 'Socorro a tren' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'segundaParte', label: 'Incluir "a la segunda parte de tren ___"', v: 'a la segunda parte de tren ___' },
+            { t: 'text', v: ' detenido en el km ' },
+            { t: 'campo', id: 'km', label: 'Km' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'via', label: 'Incluir "de la vía (I, II, etc.)"', v: 'de la vía (I, II, etc.)' },
+            { t: 'text', v: ' entre ' },
+            { t: 'campo', id: 'entre1', label: 'Estación' },
+            { t: 'text', v: ' y ' },
+            { t: 'campo', id: 'entre2', label: 'Estación' },
+            { t: 'text', v: '. Circulará sin exceder de 40 km/h desde ' },
+            { t: 'campo', id: 'estacionAnterior', label: 'Estación anterior', hint: 'estación anterior' },
+            { t: 'text', v: ' y además, desde el km ' },
+            { t: 'campo', id: 'km3', label: 'Km', hint: '3 km antes del punto donde se encuentra la cabeza o cola del tren detenido' },
+            { t: 'text', v: ' con marcha a la vista y con ' },
+            { t: 'campo', id: 'cond', label: 'Instrucciones y otras condiciones de circulación', hint: 'instrucciones y otras condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'SOC5', nombre: 'Socorro con marcha a la vista', color: 'rc',
+          partes: [
+            { t: 'text', v: 'Socorro a tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' detenido ' },
+            { t: 'opcional', id: 'via', label: 'Incluir "en la vía (I, II, etc.)"', v: 'en la vía (I, II, etc.)' },
+            { t: 'text', v: ' entre ' },
+            { t: 'campo', id: 'entre1', label: 'Estación' },
+            { t: 'text', v: ' y ' },
+            { t: 'campo', id: 'entre2', label: 'Estación' },
+            { t: 'text', v: '. Circulará con marcha a la vista y sin exceder de 40 km/h hasta su localización y con ' },
+            { t: 'campo', id: 'cond', label: 'Instrucciones y otras condiciones de circulación', hint: 'instrucciones y otras condiciones de circulación' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'SOC6', nombre: 'Anulación de petición de socorro', color: 'maquinista',
+          partes: [
+            { t: 'text', v: 'Anulo petición de socorro para tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' que hice por telefonema núm. ' },
+            { t: 'campo', id: 'numTel', label: 'Nº de telefonema' },
+            { t: 'text', v: '. Solicito autorización para reanudar la marcha (o retroceder) a la estación de ' },
+            { t: 'campo', id: 'estacion', label: 'Estación' },
+            { t: 'text', v: '.' }
+          ]
+        },
+        {
+          codigo: 'SOC10', nombre: 'Autorización de reanudación o retroceso', color: 'rc',
+          partes: [
+            { t: 'text', v: 'Puede ' },
+            { t: 'campo', id: 'accion', label: 'Reanudar la marcha o retroceder', hint: 'reanudar la marcha o retroceder' },
+            { t: 'text', v: ' a la estación de ' },
+            { t: 'campo', id: 'estacion', label: 'Estación' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'cond', label: 'Incluir "Con (condiciones de circulación)"', v: 'Con (condiciones de circulación)' }
+          ]
+        },
+        {
+          codigo: 'SOC11', nombre: 'Mantener tren detenido', color: 'rc',
+          partes: [
+            { t: 'text', v: 'Mantenga tren ' },
+            { t: 'campo', id: 'tren', label: 'Nº de tren' },
+            { t: 'text', v: ' detenido en el km ' },
+            { t: 'campo', id: 'km', label: 'Km' },
+            { t: 'text', v: ' por ' },
+            { t: 'campo', id: 'causas', label: 'Causas', hint: 'causas' },
+            { t: 'text', v: '.' }
+          ]
+        }
+      ]
+    },
+    {
+      cat: 'BTA', catLabel: 'BT anormalidad BA/BLA/BEM', color: 'rc',
+      nombre: 'Bloqueo Telefónico en caso de anormalidad del BA, BLA o BEM',
+      variantes: [
+        {
+          codigo: 'BTA10', nombre: 'Circulación con BT por avería de bloqueo',
+          // Advertencia sacada literal del PDF (nota oficial adjunta a este
+          // telefonema en el documento, no aportada por el usuario).
+          advertencias: [
+            'A este telefonema se agregarán las estaciones intermedias con Responsable de Circulación que intervengan en el bloqueo, si existen, y las AC cerradas que tengan establecido itinerario de paso por vía desviada e, igualmente, cuando proceda: Limitaciones temporales de velocidad máxima, PN con semibarreras enclavadas sin protección, etc.'
+          ],
+          partes: [
+            { t: 'text', v: 'Circulará con BT entre ' },
+            { t: 'campo', id: 'entre1', label: 'Estación' },
+            { t: 'text', v: ' y ' },
+            { t: 'campo', id: 'entre2', label: 'Estación' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'via', label: 'Incluir "por la vía (I, II, etc.)"', v: 'por la vía (I, II, etc.)' },
+            { t: 'text', v: '. No funciona ' },
+            { t: 'campo', id: 'sistema', label: 'Sistema', hint: 'BA, BLA, BEM' },
+            { t: 'text', v: '. ' },
+            { t: 'opcional', id: 'itinerario', label: 'Incluir instrucciones de parada ante agujas', v: 'Irá dispuesto a efectuar parada ante la/s aguja/s del/os km/s___ y continuará la marcha después de verificar que está bien dispuesto el itinerario a seguir' }
+          ]
+        },
+        {
+          codigo: 'BTA15', nombre: 'Restablecimiento del bloqueo',
+          partes: [
+            { t: 'text', v: 'Restablecido el ' },
+            { t: 'campo', id: 'sistema', label: 'Sistema', hint: 'BA, BLA, BEM' },
+            { t: 'text', v: ' entre ' },
+            { t: 'campo', id: 'entre1', label: 'Estación' },
+            { t: 'text', v: ' y ' },
+            { t: 'campo', id: 'entre2', label: 'Estación' },
+            { t: 'text', v: ' ' },
+            { t: 'opcional', id: 'via', label: 'Incluir "por la vía (I, II, etc.)"', v: 'por la vía (I, II, etc.)' },
             { t: 'text', v: '.' }
           ]
         }
@@ -566,7 +1019,7 @@
       discardEmptyEdit();
     }
     lastSetView = v;
-    ['calendario', 'registro', 'estadisticas', 'ajustes'].forEach(function (p) {
+    ['calendario', 'registro', 'telefonemas', 'estadisticas', 'ajustes'].forEach(function (p) {
       var el = $(p + '-pane');
       if (el) el.classList.toggle('active', p === v);
     });
@@ -1192,9 +1645,13 @@
       });
       h += '</div>';
     }
-    if (TELEFONEMAS.length) {
+    // Registro solo ofrece ETC/LZB para rellenar — el resto de grupos
+    // (ABA, ARS, IVC, RET, SOC...) son de solo consulta en la pestaña
+    // Telefonemas, no se rellenan desde aquí.
+    var CATS_REGISTRO = TELEFONEMAS.filter(function (c) { return c.cat === 'ETC' || c.cat === 'LZB'; });
+    if (CATS_REGISTRO.length) {
       h += '<div class="tel-cats">';
-      TELEFONEMAS.forEach(function (c) {
+      CATS_REGISTRO.forEach(function (c) {
         h += '<button class="btn ghost" data-action="telefonema-cat" data-svc="' + si +
           '" data-cat="' + esc(c.cat) + '">' + esc(c.catLabel) + '</button>';
       });
@@ -1464,7 +1921,7 @@
       else if (p.t === 'opcional') opcionales[p.id] = false;
     });
     return {
-      cat: categoria.cat, codigo: variante.codigo, color: categoria.color || 'rc',
+      cat: categoria.cat, codigo: variante.codigo, color: variante.color || categoria.color || 'rc',
       fecha: s0.fecha, numTel: '', hora: horaActual, de: '', a: s0.servicioComercial || '',
       campos: campos, opcionales: opcionales,
       info: '', emisor: '', firma: nombreCompleto,
@@ -1600,6 +2057,17 @@
         ttl.style.textAlign = 'center';
         ttl.textContent = variante.codigo + (variante.nombre ? ' - ' + variante.nombre : '');
         box.appendChild(ttl);
+
+        // Enlace con otros telefonemas (ej. RET1/RET2/RET3, IVC1/IVC3/IVC4)
+        // — va antes que la Guía, es lo primero que necesita saber el
+        // maquinista: que este telefonema no es autónomo.
+        if (variante.enlace) {
+          var enlace = document.createElement('div'); enlace.className = 'tel-enlace';
+          var enlaceB = document.createElement('b'); enlaceB.textContent = '🔗 Enlazado: ';
+          enlace.appendChild(enlaceB);
+          enlace.appendChild(document.createTextNode(variante.enlace));
+          box.appendChild(enlace);
+        }
 
         if (variante.guia) {
           var guia = document.createElement('div'); guia.className = 'tel-guia';
@@ -3283,6 +3751,10 @@
         // cachea dimensiones grid mal calculadas).
         requestAnimationFrame(renderCalendar);
       }
+      else if (v === 'telefonemas') {
+        if (window.TELEFONEMAS_LISTADO) window.TELEFONEMAS_LISTADO.render($('telefonemas-pane'));
+        setView('telefonemas');
+      }
       else if (v === 'estadisticas') { renderStats(); setView('estadisticas'); }
       else if (v === 'ajustes') { renderSettings(); setView('ajustes'); }
       else if (v === 'registro') {
@@ -3311,4 +3783,7 @@
     },
     discardEmptyEdit: discardEmptyEdit
   };
+  // Fuente de verdad del catálogo, leída (no duplicada) por
+  // telefonemas-listado.js para la pestaña de solo consulta.
+  window.TELEFONEMAS = TELEFONEMAS;
 })();

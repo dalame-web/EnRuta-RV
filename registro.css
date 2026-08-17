@@ -16,7 +16,7 @@
 :where(:root){
   --bg:#0d1117; --panel:#161b22; --panel-2:#1f242c; --border:#30363d;
   --fg:#e6edf3; --fg-dim:#9ba3ad; --accent:#58a6ff; --warn:#f0883e;
-  --ok:#3fb950; --bad:#f85149; --iryo:#e8201c;
+  --ok:#3fb950; --bad:#f85149; --iryo:#e8201c; --tel-maquinista:#ec4899;
 }
 
 /* ==== RV Iryo CSS (componentes) ==== */
@@ -56,7 +56,7 @@ button.btn.rec:hover{border-color:#fff}
 }
 .tel-chip:hover{border-color:var(--accent)}
 .tel-chip.color-rc{border-left-color:var(--ok)}
-.tel-chip.color-maquinista{border-left-color:#ec4899}
+.tel-chip.color-maquinista{border-left-color:var(--tel-maquinista)}
 .tel-chip-head{display:flex; align-items:baseline; justify-content:space-between; gap:6px}
 .tel-chip-head b{font-size:12px}
 .tel-chip-head span{color:var(--fg-dim); font-size:11px}
@@ -96,7 +96,7 @@ button.btn.rec:hover{border-color:#fff}
 /* Única sección con la franja de color RC/Maquinista (verde/rosa, código de
  * la propia norma, sección 2.1.8.c) — solo TEXTO TELEFONEMA, no toda la tabla. */
 .tel-anexo-row.tel-color-rc{border-left:4px solid var(--ok)}
-.tel-anexo-row.tel-color-maquinista{border-left:4px solid #ec4899}
+.tel-anexo-row.tel-color-maquinista{border-left:4px solid var(--tel-maquinista)}
 
 .tel-anexo-deacell{flex-direction:column; align-items:stretch; gap:2px; padding-top:3px; padding-bottom:3px}
 .tel-anexo-deacell .tel-anexo-deline{display:flex; align-items:baseline; gap:6px}
@@ -131,6 +131,12 @@ button.btn.rec:hover{border-color:#fff}
 .tel-guia{font-size:12.5px; color:var(--fg-dim); margin:-4px 0 14px; line-height:1.4}
 .tel-guia b{color:var(--fg); font-weight:700}
 
+/* Enlace con otros telefonemas (RET1/RET2/RET3, IVC1/IVC3/IVC4...) — va
+ * antes que la Guía, con acento propio para no confundirse con
+ * Advertencias (aviso) ni con Guía (contexto de uso). */
+.tel-enlace{font-size:12.5px; color:var(--accent); margin:-4px 0 10px; line-height:1.4}
+.tel-enlace b{font-weight:700}
+
 /* Vía doble banalizada — en el encabezado "TEXTO TELEFONEMA:", pegada a
  * la derecha, discreta y en letra pequeña. */
 .tel-via-ban{
@@ -158,15 +164,16 @@ button.btn.rec:hover{border-color:#fff}
 .tel-advertencias li:last-child{margin-bottom:0}
 
 /* Huecos de la frase — texto en línea que se ensancha con lo escrito, igual
- * que el resto de campos, no una caja de formulario aparte. */
-.tel-sentence{font-size:15px; line-height:2.4}
+ * que el resto de campos, no una caja de formulario aparte. En cursiva,
+ * como el texto del telefonema en el Libro (tipografía manuscrita). */
+.tel-sentence{font-size:15px; font-style:italic; line-height:2.4}
 .tel-sentence input[type=text]{
   display:inline-block; width:auto; max-width:100%; padding:0 4px; margin:0 2px; border:none;
   border-bottom:1px solid var(--accent); background:transparent;
-  color:var(--accent); font-weight:600; font-size:inherit; font-family:inherit; text-align:center;
+  color:var(--accent); font-weight:600; font-size:inherit; font-style:inherit; font-family:inherit; text-align:center;
 }
 .tel-sentence input[type=text]:focus-visible{outline:none; border-bottom-width:2px}
-.tel-sentence input[type=text]::placeholder{color:var(--fg-dim); font-weight:400}
+.tel-sentence input[type=text]::placeholder{color:var(--fg-dim); font-weight:400; font-style:italic}
 .tel-sentence .tel-opt{
   display:inline-flex; align-items:center; gap:4px; font-size:13px;
   color:var(--fg-dim); vertical-align:middle; margin:0 2px; cursor:pointer;
@@ -209,7 +216,7 @@ button.btn.rec:hover{border-color:#fff}
 }
 .tel-picker-btn:hover{border-color:var(--accent)}
 .tel-picker-btn.color-rc{border-left-color:var(--ok)}
-.tel-picker-btn.color-maquinista{border-left-color:#ec4899}
+.tel-picker-btn.color-maquinista{border-left-color:var(--tel-maquinista)}
 .tel-picker-code{font-weight:700; font-size:14px}
 .tel-picker-name{font-size:12px; color:var(--fg-dim)}
 
@@ -225,6 +232,108 @@ button.btn.rec:hover{border-color:#fff}
   .tel-anexo-header{display:flex; flex-direction:column; align-items:center; gap:6px}
   .tel-via-ban{position:static; transform:none}
 }
+
+/* ==== Listado de telefonemas (pestaña "Telefonemas", solo consulta) ====
+ * Independiente del formulario Anexo I de arriba: no rellena ni guarda
+ * nada, solo muestra el catálogo completo de TELEFONEMAS. Ver
+ * telefonemas-listado.js. */
+/* Buscador + chips de categoría fijos bajo la barra de pestañas (que es
+ * position:fixed) mientras se hace scroll por el listado. El top debe
+ * coincidir con la altura de .tabs en cada breakpoint (index.html) para
+ * que no queden tapados por ella. */
+.tel-list-sticky{
+  position:sticky; top:44px; z-index:5; background:var(--bg);
+  padding-top:10px; margin:-10px -14px 12px; padding-left:14px; padding-right:14px;
+  border-bottom:1px solid var(--border);
+}
+@media (max-width:760px){ .tel-list-sticky{top:38px} }
+@media (max-width:480px){ .tel-list-sticky{top:36px} }
+.tel-list-search{
+  width:100%; min-height:40px; padding:0 12px; border-radius:8px;
+  border:1px solid var(--border); background:var(--panel-2); color:var(--fg);
+  font-size:14px; font-family:inherit; margin-bottom:10px;
+}
+.tel-list-search:focus-visible{outline:none; border-color:var(--accent)}
+.tel-list-nav{
+  display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  scrollbar-width:none; padding-bottom:10px;
+}
+.tel-list-nav::-webkit-scrollbar{display:none}
+.tel-list-nav-btn{
+  flex:0 0 auto; white-space:nowrap; cursor:pointer; font-family:inherit;
+  font-size:12.5px; font-weight:600; padding:7px 12px; border-radius:8px;
+  border:1px solid var(--border); background:var(--panel-2); color:var(--fg);
+}
+.tel-list-nav-btn:hover{border-color:var(--accent)}
+
+.tel-list-section{margin-bottom:26px}
+.tel-list-section-title{font-size:13px; font-weight:700; color:var(--fg-dim); margin-bottom:10px}
+
+/* Móvil-first: 1 columna hasta 1100px (incluye tablet) — a partir de ahí,
+ * grid multi-columna. Antes usaba auto-fill desde el principio y una
+ * tablet ya caía en 2 columnas, que es justo lo que no se quería aquí. */
+.tel-list-grid{display:grid; grid-template-columns:1fr; gap:12px}
+@media (min-width:1100px){
+  .tel-list-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+}
+.tel-list-card{
+  border:1px solid var(--border); border-radius:12px; overflow:hidden;
+  background:var(--panel-2); cursor:pointer;
+}
+.tel-list-card:hover{border-color:var(--accent)}
+/* Encabezado en gris neutro para las tres categorías — el color de
+ * categoría (verde/rosa/ámbar) se reserva para el título y la etiqueta,
+ * si no todo el bloque se ve "muy verde". */
+.tel-list-card-head{
+  display:flex; justify-content:space-between; align-items:flex-start;
+  padding:9px 12px; gap:8px;
+  background:color-mix(in srgb, var(--fg) 6%, var(--panel-2));
+  border-bottom:1px solid var(--border);
+}
+.tel-list-card-title-wrap{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px}
+.tel-list-card-code{font-family:Poppins,sans-serif; font-size:16px; font-weight:700}
+.tel-list-card-dash{color:var(--fg-dim)}
+.tel-list-card-subtitle{font-size:12.5px; font-weight:400; color:var(--fg-dim)}
+.tel-list-card-cat{font-size:11px; opacity:.85}
+.tel-list-card.color-rc .tel-list-card-code,
+.tel-list-card.color-rc .tel-list-card-cat{color:var(--ok)}
+.tel-list-card.color-maquinista .tel-list-card-code,
+.tel-list-card.color-maquinista .tel-list-card-cat{color:var(--tel-maquinista)}
+.tel-list-card.color-amarillo .tel-list-card-code,
+.tel-list-card.color-amarillo .tel-list-card-cat{color:var(--warn)}
+
+.tel-list-card-body{padding:11px 12px}
+.tel-list-card-name{font-size:12.5px; color:var(--fg-dim); margin-bottom:7px; line-height:1.4}
+.tel-list-card-name b{color:var(--fg); font-weight:700}
+/* En el Libro de Telefonemas, todo el texto entre comillas va en cursiva
+ * (tipografía manuscrita) — se respeta aquí para que sea fiel al original. */
+.tel-list-frase{font-size:13.5px; font-style:italic; line-height:1.6; padding:9px 10px; border-radius:8px}
+.tel-list-placeholder{color:var(--fg-dim); border-bottom:1px dotted var(--fg-dim)}
+.tel-list-optional{color:var(--fg-dim)}
+/* Fondo tintado del color de categoría directamente en la frase — así se
+ * ve de un vistazo si el telefonema es de RC/Maquinista/LTV sin tener que
+ * mirar la franja superior. */
+.tel-list-card.color-rc .tel-list-frase{background:color-mix(in srgb, var(--ok) 12%, transparent)}
+.tel-list-card.color-maquinista .tel-list-frase{background:color-mix(in srgb, var(--tel-maquinista) 12%, transparent)}
+.tel-list-card.color-amarillo .tel-list-frase{background:color-mix(in srgb, var(--warn) 12%, transparent)}
+
+/* Enlace con otros telefonemas — siempre visible (no detrás del expandir),
+ * es información de secuencia que hace falta ver de entrada. */
+.tel-list-link{font-size:12px; color:var(--accent); margin-top:8px; line-height:1.4}
+
+.tel-list-detail{display:none; margin-top:12px; padding-top:11px; border-top:1px solid var(--border)}
+.tel-list-card.expanded .tel-list-detail{display:block}
+.tel-list-advertencias{
+  padding:9px 12px; border:1px solid var(--warn); border-radius:8px;
+  background:rgba(240,136,62,.12); font-size:12px; line-height:1.5;
+}
+.tel-list-advertencias > b{display:block; color:var(--warn); margin-bottom:4px}
+.tel-list-advertencias ul{margin:0; padding-left:16px; list-style:disc}
+.tel-list-advertencias li{margin-bottom:3px}
+.tel-list-advertencias li:last-child{margin-bottom:0}
+.tel-list-via{font-size:11.5px; color:var(--fg-dim); margin-top:8px}
+
+.tel-list-empty{color:var(--fg-dim); font-size:13.5px; padding:16px 0; text-align:center}
 
 button.btn.ghost{background:none}
 button.btn:disabled{opacity:.45; cursor:default}
@@ -690,8 +799,8 @@ input[type=number]::-webkit-inner-spin-button{
  * ==================================================================== */
 
 /* RV panes por ID (evita conflicto con .pane de HT) */
-#calendario-pane,#registro-pane,#estadisticas-pane,#ajustes-pane{display:none}
-#calendario-pane.active,#registro-pane.active,#estadisticas-pane.active,#ajustes-pane.active{display:block}
+#calendario-pane,#registro-pane,#telefonemas-pane,#estadisticas-pane,#ajustes-pane{display:none}
+#calendario-pane.active,#registro-pane.active,#telefonemas-pane.active,#estadisticas-pane.active,#ajustes-pane.active{display:block}
 
 /* PMR icon en parada (silla de ruedas) */
 .pmr-warn{color:var(--accent);font-size:26px;font-weight:700;line-height:1;vertical-align:middle;margin-left:6px}
@@ -699,6 +808,7 @@ input[type=number]::-webkit-inner-spin-button{
 /* Layout RV: card centrada con ancho máximo, como en RV original */
 #registro-pane.pane.active,
 #calendario-pane.pane.active,
+#telefonemas-pane.pane.active,
 #estadisticas-pane.pane.active,
 #ajustes-pane.pane.active{
   display:block;width:100%;padding:14px;max-width:880px;margin:0 auto;
