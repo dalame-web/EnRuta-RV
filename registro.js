@@ -12,7 +12,7 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v25';
+  var APP_VERSION = 'enruta-v26';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1641,16 +1641,10 @@
       '</div>';
     h += '</div>';
 
-    // Traslado sin horario oficial: casilla de nº de servicio manual,
-    // justo encima del desplegable y alineada con su misma columna.
-    if (s.esTraslado) {
-      h += '<div class="field-grid" style="grid-template-columns:130px 1fr"><div></div>' +
-        '<div class="field" style="text-align:center"><label>Nº de servicio</label>' +
-        '<input type="text" inputmode="numeric" class="svc-man-num" data-bind="srv.' + si + '.servicioComercial" value="' +
-        esc(s.servicioComercial) + '" placeholder="Número"></div></div>';
-    }
-    // Fecha + Servicio Comercial
-    h += '<div class="field-grid" style="grid-template-columns:130px 1fr">' +
+    // Fecha + Servicio Comercial [+ Nº de traslado, seguido a la derecha
+    // del desplegable, en la misma fila — no en una fila aparte].
+    h += '<div class="field-grid" style="grid-template-columns:' +
+      (s.esTraslado ? '130px 1fr 110px' : '130px 1fr') + '">' +
       '<div class="field"><label>Fecha</label>' +
       '<input type="date" data-bind="srv.' + si + '.fecha" value="' + esc(s.fecha) + '"></div>' +
       '<div class="field"><label>Servicio Comercial</label>';
@@ -1661,7 +1655,13 @@
       h += '<input type="text" data-bind="srv.' + si + '.servicioComercial" value="' +
         esc(s.servicioComercial) + '" placeholder="Nº de servicio">';
     }
-    h += '</div></div>';
+    h += '</div>';
+    if (s.esTraslado) {
+      h += '<div class="field"><label>Nº</label>' +
+        '<input type="text" inputmode="numeric" class="svc-man-num" data-bind="srv.' + si + '.servicioComercial" value="' +
+        esc(s.servicioComercial) + '" placeholder="Número"></div>';
+    }
+    h += '</div>';
     if (s.origen || s.destino) {
       h += '<div class="hint" style="margin:-6px 0 11px">' +
         esc(s.origen) + ' → ' + esc(s.destino) + '</div>';

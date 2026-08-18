@@ -566,9 +566,9 @@ input[type=number]::-webkit-inner-spin-button{
   -webkit-appearance:none; margin:0;
 }
 .field-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-/* Nº de servicio manual de un traslado — más pequeña y centrada sobre el
- * desplegable de Servicio Comercial, no a todo el ancho de la columna. */
-.svc-man-num{width:130px; text-align:center}
+/* Nº de servicio manual de un traslado — a la derecha del desplegable de
+ * Servicio Comercial, en su propia columna estrecha del field-grid. */
+.svc-man-num{text-align:center}
 
 /* Card del título del servicio con LTV inline */
 .svc-card-title{
