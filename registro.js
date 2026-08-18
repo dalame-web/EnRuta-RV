@@ -12,7 +12,7 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v24';
+  var APP_VERSION = 'enruta-v25';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -700,6 +700,7 @@
   var turnos = [];
   var settings = {};
   var horarios = [];
+  var maniobras = [];
   var editId = null;
   var expandedSvc = 0;
   var incidenciaAbierta = {}; // svc index -> bool. Estado de UI, no se persiste.
@@ -853,6 +854,7 @@
     horarios.sort(function (a, b) {
       return (parseInt(a.servicio, 10) || 0) - (parseInt(b.servicio, 10) || 0);
     });
+    maniobras = (window.RV_MANIOBRAS || []).slice();
   }
 
   // ===== Modelo =====
@@ -861,6 +863,7 @@
       fecha: fecha || today(),
       servicioComercial: '', origen: '', destino: '', via: '', rama: '',
       hSalida: '', hDestino: '', rSalida: '', rLlegDestino: '',
+      esTraslado: false, maniobraNombre: '',
       horaLTV: '', paradas: [],
       n1: '', viajeros: '', asistencias: '', plazasH: '', pmr: [],
       comprobaciones: COMPROBACIONES.map(function () { return false; }),
@@ -1293,6 +1296,13 @@
       h += '<option value="' + esc(key) + '" data-idx="' + i + '"' +
         (key === cur ? ' selected' : '') + '>' + esc(label) + '</option>';
     });
+    // Traslados sin horario oficial — siempre al final, aparte del orden
+    // numérico de horarios.
+    var curMan = s.esTraslado ? s.maniobraNombre : '';
+    maniobras.forEach(function (m, i) {
+      h += '<option value="man:' + i + '" data-man="' + i + '"' +
+        (m.nombre === curMan ? ' selected' : '') + '>' + esc(m.nombre) + '</option>';
+    });
     return h;
   }
   function ramaOptions(sel) {
@@ -1418,6 +1428,14 @@
       'data-ret-bind="' + esc(bind) + '" data-ret-hora="' + esc(hora) + '" ' +
       'title="Marcar retraso/adelanto según la hora actual">⏱</button>';
   }
+  // Igual que retNowBtnHtml pero para traslados sin horario oficial — no
+  // hay hora programada contra la que calcular retraso, así que el botón
+  // escribe la hora actual directamente en el campo de hora.
+  function horaNowBtnHtml(bind) {
+    if (!bind) return '';
+    return '<button class="ret-now" type="button" data-action="hora-now" ' +
+      'data-hora-bind="' + esc(bind) + '" title="Marcar hora actual">⏱</button>';
+  }
 
   function stationCard(tipo, si, cfg) {
     var badgeTxt = tipo === 'origin' ? 'ORIGEN' :
@@ -1462,8 +1480,10 @@
         h += '<span class="st-h">' + esc(cfg.horaLlegada) + '</span>';
       }
       if (horaRealLleg) h += '<span class="st-real' + (retLlegMin < 0 ? ' early' : '') + '">' + horaRealLleg + '</span>';
-      h += '</div>' + retInlineHtml(cfg.bindRetLleg, cfg.valRetLleg) +
-        retNowBtnHtml(cfg.bindRetLleg, cfg.horaLlegada) + '</div>';
+      h += '</div>' + (cfg.esTraslado ?
+        horaNowBtnHtml(cfg.bindHoraLlegada) :
+        retInlineHtml(cfg.bindRetLleg, cfg.valRetLleg) + retNowBtnHtml(cfg.bindRetLleg, cfg.horaLlegada)
+      ) + '</div>';
     }
     if (cfg.horaSalida || cfg.editSalida) {
       var retSalMin = parseRetraso(cfg.valRetSal);
@@ -1477,8 +1497,10 @@
         h += '<span class="st-h">' + esc(cfg.horaSalida) + '</span>';
       }
       if (horaRealSal) h += '<span class="st-real' + (retSalMin < 0 ? ' early' : '') + '">' + horaRealSal + '</span>';
-      h += '</div>' + retInlineHtml(cfg.bindRetSal, cfg.valRetSal) +
-        retNowBtnHtml(cfg.bindRetSal, cfg.horaSalida) + '</div>';
+      h += '</div>' + (cfg.esTraslado ?
+        horaNowBtnHtml(cfg.bindHoraSalida) :
+        retInlineHtml(cfg.bindRetSal, cfg.valRetSal) + retNowBtnHtml(cfg.bindRetSal, cfg.horaSalida)
+      ) + '</div>';
     }
     h += '</div>';
     if (cfg.pax) h += '<div class="st-pax">' + cfg.pax + '</div>';
@@ -1534,14 +1556,18 @@
 
   function stationsBlock(s, si) {
     var h = '<div class="stations">';
+    var esTraslado = !!s.esTraslado;
     // Origen
     h += stationCard('origin', si, {
       nombre: s.origen || '(origen)',
       horaSalida: s.hSalida,
       horaLlegada: '',
+      editSalida: esTraslado,
+      bindHoraSalida: 'srv.' + si + '.hSalida',
+      esTraslado: esTraslado,
       bindRetSal: 'srv.' + si + '.rSalida',
       valRetSal: s.rSalida,
-      pax: paxBlockOrigen(s, si)
+      pax: esTraslado ? '' : paxBlockOrigen(s, si)
     });
     // Paradas intermedias
     s.paradas.forEach(function (p, pi) {
@@ -1557,13 +1583,16 @@
         pmrBaja: hasPmrInt,
         horaLlegada: hLlegParada,
         horaSalida: p.hora,
-        editSalida: !p.hora,
+        editLlegada: esTraslado,
+        bindHoraLlegada: 'srv.' + si + '.par.' + pi + '.hLleg',
+        editSalida: esTraslado || !p.hora,
         bindHoraSalida: 'srv.' + si + '.par.' + pi + '.hora',
+        esTraslado: esTraslado,
         bindRetLleg: 'srv.' + si + '.par.' + pi + '.rLleg',
         valRetLleg: p.rLleg,
         bindRetSal: 'srv.' + si + '.par.' + pi + '.rSal',
         valRetSal: p.rSal,
-        pax: paxBlockParada(s, p, si, pi)
+        pax: esTraslado ? '' : paxBlockParada(s, p, si, pi)
       });
     });
     // Destino (con mini "+" para añadir parada al final)
@@ -1575,6 +1604,9 @@
       pmrBaja: hasPmrDest,
       horaLlegada: s.hDestino,
       horaSalida: '',
+      editLlegada: esTraslado,
+      bindHoraLlegada: 'srv.' + si + '.hDestino',
+      esTraslado: esTraslado,
       bindRetLleg: 'srv.' + si + '.rLlegDestino',
       valRetLleg: s.rLlegDestino,
       pax: ''
@@ -1588,15 +1620,16 @@
     var dos = t.servicios.length > 1;
     var h = '';
     var titulo = s.servicioComercial ? esc(s.servicioComercial) : String(si + 1);
+    var prefijo = s.esTraslado ? 'Traslado ' : 'Servicio ';
 
     // Cabecera card-title con LTV inline a la derecha
     h += '<div class="svc-card-title">';
     if (dos) {
       h += '<button type="button" class="title-toggle" ' +
         'data-action="svc-toggle" data-svc="' + si + '">' +
-        'Servicio ' + titulo + '<span class="chev">▴</span></button>';
+        prefijo + '<span id="svc-titulo-' + si + '">' + titulo + '</span><span class="chev">▴</span></button>';
     } else {
-      h += '<div class="title-static">Servicio ' + titulo + '</div>';
+      h += '<div class="title-static">' + prefijo + '<span id="svc-titulo-' + si + '">' + titulo + '</span></div>';
     }
     if (svcConInformeGenerado(s)) {
       h += '<span class="inc-badge" title="Informe de incidencia generado">📋</span>';
@@ -1608,6 +1641,14 @@
       '</div>';
     h += '</div>';
 
+    // Traslado sin horario oficial: casilla de nº de servicio manual,
+    // justo encima del desplegable y alineada con su misma columna.
+    if (s.esTraslado) {
+      h += '<div class="field-grid" style="grid-template-columns:130px 1fr"><div></div>' +
+        '<div class="field" style="text-align:center"><label>Nº de servicio</label>' +
+        '<input type="text" inputmode="numeric" class="svc-man-num" data-bind="srv.' + si + '.servicioComercial" value="' +
+        esc(s.servicioComercial) + '" placeholder="Número"></div></div>';
+    }
     // Fecha + Servicio Comercial
     h += '<div class="field-grid" style="grid-template-columns:130px 1fr">' +
       '<div class="field"><label>Fecha</label>' +
@@ -1634,10 +1675,10 @@
       '<select data-bind="srv.' + si + '.rama">' + ramaOptions(s.rama) + '</select></div>' +
       '</div>';
 
-    // N1
+    // N1 — no aplica en traslados (sin conductor/N1 asignado como tal).
     h += '<div class="field"><label class="red">N1</label>' +
       '<input type="text" data-bind="srv.' + si + '.n1" value="' +
-      esc(s.n1) + '" placeholder="Nombre"></div>';
+      esc(s.n1) + '" placeholder="Nombre"' + (s.esTraslado ? ' disabled' : '') + '></div>';
 
     // Estaciones (card por estación)
     h += stationsBlock(s, si);
@@ -2500,6 +2541,7 @@
     s.destino = hr.destino || '';
     s.hSalida = hr.hSalida || '';
     s.hDestino = hr.hDestino || '';
+    s.esTraslado = false; s.maniobraNombre = '';
     s.paradas = (hr.paradas || []).map(function (p) {
       var tP = typeof p.tParada === 'number' ? p.tParada : 0;
       return {
@@ -2519,6 +2561,32 @@
       window.dispatchEvent(new CustomEvent('iryo:registroServiceChanged',
         { detail: { num: hr.servicio } }));
     }
+  }
+
+  // Traslado sin horario oficial (RV_MANIOBRAS): autocompleta estaciones
+  // pero deja las horas en blanco — se rellenan a mano (botón ⏱ = hora
+  // actual) y el nº de servicio en la casilla que aparece encima del
+  // desplegable.
+  function autofillManiobra(si, manIdx) {
+    var t = getTurno(editId);
+    if (!t) return;
+    var s = t.servicios[si];
+    var m = maniobras[manIdx];
+    if (!m) return;
+    s.servicioComercial = '';
+    s.esTraslado = true;
+    s.maniobraNombre = m.nombre;
+    s.origen = m.origen || '';
+    s.destino = m.destino || '';
+    s.hSalida = ''; s.hDestino = '';
+    s.paradas = (m.paradas || []).map(function (p) {
+      return {
+        nombre: p.nombre, hLleg: '', hora: '', tParada: 0,
+        rLleg: '', rSal: '', viajeros: '', asistencias: ''
+      };
+    });
+    autosave();
+    refreshServicioCard(si);
   }
 
   // ===== Estadísticas =====
@@ -3293,6 +3361,13 @@
     if (!bind) return;
     if (el.type === 'checkbox') applyBind(bind, el.checked);
     else applyBind(bind, el.value);
+    // Cabecera "Servicio N" en vivo mientras se teclea el nº manual de un
+    // traslado — sin re-render completo, para no perder el foco/cursor.
+    var mNum = bind.match(/^srv\.(\d+)\.servicioComercial$/);
+    if (mNum) {
+      var titEl = $('svc-titulo-' + mNum[1]);
+      if (titEl) titEl.textContent = el.value || String(+mNum[1] + 1);
+    }
   }
   function onChange(e) {
     var el = e.target;
@@ -3305,8 +3380,11 @@
       function doAutofillSrv() {
         if (opt && opt.getAttribute('data-idx') != null) {
           autofillServicio(si, +opt.getAttribute('data-idx'));
+        } else if (opt && opt.getAttribute('data-man') != null) {
+          autofillManiobra(si, +opt.getAttribute('data-man'));
         } else if (t && s) {
           s.servicioComercial = ''; s.origen = ''; s.destino = '';
+          s.esTraslado = false; s.maniobraNombre = '';
           autosave();
           refreshServicioCard(si);
         }
@@ -3463,6 +3541,13 @@
       applyBind(bindNow, String(diff));
       markRetFrozen(bindNow);
       activeRetBind = null;
+      renderEditor();
+      return;
+    }
+    if (act === 'hora-now') {
+      var bindHora = el.getAttribute('data-hora-bind');
+      var now = new Date();
+      applyBind(bindHora, pad2(now.getHours()) + ':' + pad2(now.getMinutes()));
       renderEditor();
       return;
     }
