@@ -139,9 +139,15 @@ body.tab-calendario #app-version-badge{display:block}
     document.body.classList.add('tab-' + name);
   });
   if('serviceWorker' in navigator){
+    // Recargar sola solo si YA había un SW controlando la página (actualización
+    // real). En la primera instalación no hay controller previo — recargar ahí
+    // interrumpe cualquier flujo async que esté en marcha justo tras el arranque
+    // (p.ej. el aviso de vincular carpeta de turnos) sin necesidad real, porque
+    // la página ya se sirvió fresca desde la red.
+    var hadController = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.register('sw.js').catch(function(){});
     navigator.serviceWorker.addEventListener('controllerchange', function(){
-      window.location.reload();
+      if(hadController) window.location.reload();
     });
   }
 })();
@@ -149,9 +155,9 @@ body.tab-calendario #app-version-badge{display:block}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="app-modal.js"></script>
-<script src="data.js?v=202608191"></script>
-<script src="registro.js?v=202608191"></script>
-<script src="telefonemas-listado.js?v=202608191"></script>
+<script src="data.js?v=202608200"></script>
+<script src="registro.js?v=202608200"></script>
+<script src="telefonemas-listado.js?v=202608200"></script>
 <script>
 (function(){
   var b = document.getElementById('app-version-badge');

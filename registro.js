@@ -12,7 +12,7 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v27';
+  var APP_VERSION = 'enruta-v28';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -815,6 +815,11 @@
   }
   function save(k, v) {
     try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+    // Único punto por el que pasan TODAS las escrituras de turnos (las
+    // debounced de autosave() y las directas) — enganchar aquí basta para
+    // que el espejo en archivos cubra cualquier cambio, sin tocar cada
+    // llamada a save()/autosave() por separado.
+    if (k === K_TURNOS) scheduleTurnoFolderSync();
   }
   var saveTimer = null;
   function autosave() {
@@ -846,8 +851,224 @@
     // por defecto — se activa tocando 7 veces "Versión instalada" en
     // Ajustes (mismo gesto que el modo desarrollador de Android).
     if (settings.telDevMode == null) settings.telDevMode = false;
+    // Carpeta de turnos en el dispositivo (ver bloque más abajo).
+    if (settings.folderSetupSeen == null) settings.folderSetupSeen = false;
+    if (settings.folderLinked == null) settings.folderLinked = false;
   }
   function saveSettings() { save(K_SETTINGS, settings); }
+
+  // ===== Carpeta de turnos (espejo en archivos, uno por día) =====
+  // Solo funciona si el navegador soporta File System Access
+  // (showDirectoryPicker) — en cualquier otro navegador esta sección
+  // simplemente no hace nada y la app funciona igual que siempre con
+  // localStorage. El handle de la carpeta no es serializable a JSON, así
+  // que se guarda en IndexedDB, no en settings/localStorage.
+  var folderHandle = null; // vivo solo si hay permiso concedido esta sesión
+  var FOLDER_DB = 'rviryo_folder_v1';
+
+  function folderSupported() {
+    return !!(window.showDirectoryPicker && window.indexedDB);
+  }
+  function idbOpen() {
+    return new Promise(function (resolve, reject) {
+      var req = indexedDB.open(FOLDER_DB, 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore('kv'); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+  function idbGetHandle() {
+    return idbOpen().then(function (db) {
+      return new Promise(function (resolve) {
+        var g = db.transaction('kv', 'readonly').objectStore('kv').get('folderHandle');
+        g.onsuccess = function () { resolve(g.result || null); };
+        g.onerror = function () { resolve(null); };
+      });
+    }).catch(function () { return null; });
+  }
+  function idbSetHandle(handle) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (resolve) {
+        var tx = db.transaction('kv', 'readwrite');
+        if (handle) tx.objectStore('kv').put(handle, 'folderHandle');
+        else tx.objectStore('kv').delete('folderHandle');
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { resolve(); };
+      });
+    }).catch(function () {});
+  }
+
+  function dayFileName(fecha) { return 'turno-' + fecha + '.json'; }
+
+  // Recalcula turnosOfDay(fecha) y vuelca/borra su archivo — siempre un
+  // espejo fiel de "lo que se ve ese día en la app", nunca datos a medias.
+  function writeDayFile(fecha) {
+    if (!folderHandle || !fecha) return;
+    var dia = turnosOfDay(fecha).filter(function (t) { return !isEmptyTurno(t); });
+    if (!dia.length) {
+      folderHandle.removeEntry(dayFileName(fecha)).catch(function () {});
+      return;
+    }
+    folderHandle.getFileHandle(dayFileName(fecha), { create: true })
+      .then(function (fh) { return fh.createWritable(); })
+      .then(function (w) {
+        return w.write(JSON.stringify({ fecha: fecha, turnos: dia }, null, 2))
+          .then(function () { return w.close(); });
+      })
+      .catch(function () {});
+  }
+  // Reescribe solo las fechas que toca un turno concreto (caso normal:
+  // edición de un campo con el editor abierto). Cubre también la dormida
+  // (2 fechas) sin lógica aparte, porque solo mira servicios[].fecha.
+  function syncTurnoDates(turno) {
+    if (!folderHandle || !turno) return;
+    var fechas = {};
+    (turno.servicios || []).forEach(function (s) { if (s.fecha) fechas[s.fecha] = true; });
+    Object.keys(fechas).forEach(writeDayFile);
+  }
+  // Resync completo: recalcula todas las fechas con turnos y borra los
+  // archivos de días que ya no tienen ninguno. Más caro, se usa solo
+  // cuando no hay un turno concreto que mirar (borrar turno, importar
+  // copia, vincular la carpeta por primera vez).
+  async function syncFolderFull() {
+    if (!folderHandle) return;
+    var liveFechas = {};
+    turnos.forEach(function (t) {
+      if (isEmptyTurno(t)) return;
+      (t.servicios || []).forEach(function (s) { if (s.fecha) liveFechas[s.fecha] = true; });
+    });
+    Object.keys(liveFechas).forEach(writeDayFile);
+    try {
+      for await (var entry of folderHandle.values()) {
+        var m = entry.name.match(/^turno-(\d{4}-\d{2}-\d{2})\.json$/);
+        if (m && !liveFechas[m[1]]) {
+          try { await folderHandle.removeEntry(entry.name); } catch (e) {}
+        }
+      }
+    } catch (e) {}
+  }
+  // Punto de enganche único, llamado desde save() en cada escritura de
+  // turnos. Si hay un turno abierto en el editor, basta con sus fechas
+  // (caso normal, barato). Si no (borrar turno, importar copia...), toca
+  // recalcular todo porque no sabemos qué cambió sin comparar el array
+  // entero.
+  function scheduleTurnoFolderSync() {
+    if (!folderHandle) return;
+    var t = editId != null ? getTurno(editId) : null;
+    if (t) syncTurnoDates(t);
+    else syncFolderFull();
+  }
+
+  // El selector nativo abre ya en Documentos con esa carpeta preseleccionada
+  // — el usuario solo tiene que confirmar (un toque), no crear ni buscar
+  // nada. La subcarpeta "EnRuta" donde van los turno-*.json la crea el
+  // propio código dentro de la carpeta elegida, no el usuario.
+  async function linkFolder() {
+    if (!folderSupported()) {
+      appModal.alert({ title: 'No disponible', message: 'Este navegador no soporta guardar los turnos como archivos en el dispositivo.' });
+      return;
+    }
+    var parent;
+    try {
+      parent = await window.showDirectoryPicker({ startIn: 'documents' });
+    } catch (e) { return; } // el usuario cerró el selector sin elegir
+    var perm;
+    try { perm = await parent.requestPermission({ mode: 'readwrite' }); }
+    catch (e) { perm = 'denied'; }
+    if (perm !== 'granted') return;
+    var handle;
+    try { handle = await parent.getDirectoryHandle('EnRuta', { create: true }); }
+    catch (e) { return; }
+    folderHandle = handle;
+    await idbSetHandle(handle);
+    settings.folderLinked = true;
+    saveSettings();
+    syncFolderFull();
+    renderSettings();
+    flashSaved();
+  }
+  async function relinkFolderPermission() {
+    var handle = await idbGetHandle();
+    if (!handle) return;
+    var perm;
+    try { perm = await handle.requestPermission({ mode: 'readwrite' }); }
+    catch (e) { perm = 'denied'; }
+    if (perm !== 'granted') return;
+    folderHandle = handle;
+    syncFolderFull();
+    renderSettings();
+    flashSaved();
+  }
+  function unlinkFolder() {
+    folderHandle = null;
+    settings.folderLinked = false;
+    saveSettings();
+    idbSetHandle(null);
+    renderSettings();
+  }
+  // Recuperación manual: relee todos los turno-*.json de la carpeta y
+  // sustituye los turnos actuales por lo que haya ahí. No se hace sola —
+  // solo si el usuario la pide, para no pisar datos por sorpresa.
+  async function reindexFromFolder() {
+    if (!folderHandle) return;
+    var collected = {};
+    try {
+      for await (var entry of folderHandle.values()) {
+        if (entry.kind !== 'file' || !/^turno-\d{4}-\d{2}-\d{2}\.json$/.test(entry.name)) continue;
+        try {
+          var file = await entry.getFile();
+          var data = JSON.parse(await file.text());
+          (data.turnos || []).forEach(function (t) { if (t && t.id) collected[t.id] = t; });
+        } catch (e) {}
+      }
+    } catch (e) {}
+    var restored = Object.keys(collected).map(function (id) { return collected[id]; }).map(normTurno);
+    appModal.confirm({
+      title: 'Reindexar desde archivos',
+      message: 'Se han encontrado ' + restored.length + ' turnos en la carpeta. Esto sustituirá los turnos actuales de la app por estos. ¿Continuar?',
+      buttons: [
+        { label: 'Cancelar', value: false, kind: 'neutral' },
+        { label: 'Reindexar', value: true, kind: 'danger' }
+      ]
+    }).then(function (ok) {
+      if (!ok) return;
+      turnos = restored;
+      save(K_TURNOS, turnos);
+      renderCalendar();
+      renderSettings();
+      appModal.alert({ title: 'Reindexado', message: restored.length + ' turnos restaurados desde los archivos.' });
+    });
+  }
+  // Al arrancar: si ya había carpeta vinculada, recupera el handle y
+  // comprueba el permiso sin insistir sola si se perdió.
+  function initFolderHandle() {
+    if (!folderSupported()) return Promise.resolve();
+    return idbGetHandle().then(function (handle) {
+      if (!handle) return;
+      return handle.queryPermission({ mode: 'readwrite' }).then(function (perm) {
+        folderHandle = (perm === 'granted') ? handle : null;
+      }).catch(function () { folderHandle = null; });
+    });
+  }
+  // Primer aviso, una sola vez (a quien instala de nuevo y a quien ya
+  // tenía la app con turnos guardados). Un único toque en el aviso
+  // encadena directo con el selector nativo de carpetas.
+  function maybeFirstRunFolderPrompt() {
+    if (settings.folderSetupSeen) return;
+    settings.folderSetupSeen = true;
+    saveSettings();
+    if (!folderSupported()) return;
+    setView('ajustes');
+    renderSettings();
+    appModal.confirm({
+      title: 'Para guardar los turnos en el dispositivo',
+      message: 'Para guardar los datos de los servicios se tiene que dar permiso a EnRuta.',
+      buttons: [
+        { label: 'Ahora no', value: false, kind: 'neutral' },
+        { label: 'Permitir', value: true, kind: 'primary' }
+      ]
+    }).then(function (ok) { if (ok) linkFolder(); });
+  }
 
   function loadHorarios() {
     horarios = (window.RV_HORARIOS || []).slice();
@@ -2723,6 +2944,23 @@
       '<input type="file" id="file-backup" accept=".json,application/json" style="display:none">' +
       '</div>';
 
+    // 7b. Carpeta de turnos (espejo automático en archivos, uno por día)
+    h += '<div class="card"><div class="card-title">Carpeta de turnos (archivos)</div>';
+    if (!folderSupported()) {
+      h += '<div class="hint">Este navegador no soporta guardar los turnos como archivos en el dispositivo.</div>';
+    } else if (settings.folderLinked && folderHandle) {
+      h += '<div class="hint">Vinculada — cada turno se guarda solo, como archivo, en cuanto cambia algo.</div>' +
+        '<div class="btn-row"><button class="btn" data-action="folder-reindex">Reindexar desde archivos</button>' +
+        '<button class="btn ghost" data-action="folder-unlink">Desvincular</button></div>';
+    } else if (settings.folderLinked) {
+      h += '<div class="hint" style="color:var(--warn)">Se perdió el permiso de acceso a la carpeta vinculada.</div>' +
+        '<div class="btn-row"><button class="btn primary" data-action="folder-relink">Reconceder acceso</button></div>';
+    } else {
+      h += '<div class="hint">Sin vincular — los turnos solo están guardados en la app.</div>' +
+        '<div class="btn-row"><button class="btn primary" data-action="folder-link">Vincular carpeta</button></div>';
+    }
+    h += '</div>';
+
     // 8. Aplicación
     h += '<div class="card"><div class="card-title">Aplicación</div>' +
       '<div class="hint" data-action="app-version-tap" style="cursor:default; user-select:none">' +
@@ -3776,6 +4014,20 @@
     }
     if (act === 'export-backup') { exportBackup(); return; }
     if (act === 'import-backup') { $('file-backup').click(); return; }
+    if (act === 'folder-link') { linkFolder(); return; }
+    if (act === 'folder-relink') { relinkFolderPermission(); return; }
+    if (act === 'folder-reindex') { reindexFromFolder(); return; }
+    if (act === 'folder-unlink') {
+      appModal.confirm({
+        title: 'Desvincular carpeta',
+        message: 'La carpeta dejará de actualizarse sola. Los archivos ya creados no se borran.',
+        buttons: [
+          { label: 'Cancelar', value: false, kind: 'neutral' },
+          { label: 'Desvincular', value: true, kind: 'danger' }
+        ]
+      }).then(function (ok) { if (ok) unlinkFolder(); });
+      return;
+    }
     if (act === 'wipe') {
       appModal.confirm({
         title: 'Borrar todo',
@@ -3857,16 +4109,15 @@
     renderCalendar();
     setView('calendario');
 
+    initFolderHandle().then(maybeFirstRunFolderPrompt);
+
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().catch(function () {});
     }
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(function () {});
-      navigator.serviceWorker.addEventListener('controllerchange', function () {
-        window.location.reload();
-      });
-    }
+    // El registro real y el listener de actualización viven en index.html
+    // (con guarda para no recargar en la primera instalación, solo en
+    // actualizaciones reales) — este bloque queda fuera para no duplicarlo.
   }
 
   if (document.readyState === 'loading') {

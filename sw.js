@@ -1,4 +1,4 @@
-const CACHE = 'enruta-rv-v8';
+const CACHE = 'enruta-rv-v10';
 const PRECACHE = [
   './', './index.html', './manifest.webmanifest',
   './data.js', './registro.js', './registro.css', './app-modal.js', './telefonemas-listado.js',
@@ -23,6 +23,9 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // Solo http(s): peticiones chrome-extension:// (de otras extensiones del
+  // navegador) no las acepta la Cache API y no nos interesa interceptarlas.
+  if (!e.request.url.startsWith('http')) return;
   e.respondWith(
     fetch(e.request).then(res => {
       if (res.ok && res.type === 'basic') {
@@ -30,6 +33,8 @@ self.addEventListener('fetch', e => {
         caches.open(CACHE).then(c => c.put(e.request, clone));
       }
       return res;
-    }).catch(() => caches.match(e.request))
+    }).catch(() =>
+      caches.match(e.request).then(cached => cached || Response.error())
+    )
   );
 });
