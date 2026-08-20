@@ -12,7 +12,7 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v26';
+  var APP_VERSION = 'enruta-v27';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1002,7 +1002,8 @@
     if (t.horaLTV) return false;
     return t.servicios.every(function (s) {
       if (s.servicioComercial || s.via || s.rama || s.n1 ||
-          s.viajeros || s.asistencias || s.plazasH || s.observaciones) return false;
+          s.viajeros || s.asistencias || s.plazasH || s.observaciones ||
+          s.esTraslado || s.origen || s.destino) return false;
       if (s.paradas.some(function (p) {
         return p.nombre || p.hora || p.rLleg || p.rSal;
       })) return false;
@@ -1050,13 +1051,16 @@
 
   // ===== Calendario =====
   function renderSvcBlock(s) {
-    var num = s.servicioComercial ? '<b>' + esc(s.servicioComercial) + '</b>' : '';
+    var esTraslado = !!s.esTraslado;
+    var numTxt = s.servicioComercial || (esTraslado ? (s.maniobraNombre || 'Traslado') : '');
+    var num = numTxt ? '<b>' + esc(numTxt) + '</b>' : '';
     var rd = parseInt(String(s.rLlegDestino || '').replace(/^\+/, ''), 10);
     var ret = (!isNaN(rd) && rd > 0) ? ' <span class="ret">+' + rd + 'm</span>' : '';
-    var line1 = num + ret;
+    var tag = esTraslado ? '<span class="svc-tag">TRASLADO</span>' : '';
+    var line1 = tag + num + ret;
     var line2 = (s.hSalida && s.hDestino) ? esc(s.hSalida + '→' + s.hDestino) : '';
-    if (!line1 && !line2) return '';
-    var out = '<span class="svc-block">';
+    if (!num && !line2 && !esTraslado) return '';
+    var out = '<span class="svc-block' + (esTraslado ? ' traslado' : '') + '">';
     if (line1) out += '<span class="svc-head">' + line1 + '</span>';
     if (line2) out += '<span class="svc-hrs">' + line2 + '</span>';
     out += '</span>';
@@ -1202,15 +1206,17 @@
         '</div>';
       h += '<div class="lr-svc-list">';
       t.servicios.forEach(function (s) {
-        var num = s.servicioComercial || '—';
+        var esTraslado = !!s.esTraslado;
+        var num = s.servicioComercial || (esTraslado ? (s.maniobraNombre || '—') : '—');
         var hrs = (s.hSalida && s.hDestino) ? (s.hSalida + ' → ' + s.hDestino) : '—';
         var ruta = (s.origen && s.destino) ? ' · ' + s.origen + ' → ' + s.destino : '';
         var rd = parseInt(String(s.rLlegDestino || '').replace(/^\+/, ''), 10);
         var retHtml = (!isNaN(rd) && rd > 0)
           ? ' · <span class="ret">+' + rd + 'm</span>'
           : '';
-        h += '<div class="lr-svc-line">' +
-          '<b>Servicio ' + esc(num) + '</b> · ' + esc(hrs) + esc(ruta) + retHtml +
+        var tagHtml = esTraslado ? '<span class="svc-tag">TRASLADO</span> ' : '';
+        h += '<div class="lr-svc-line' + (esTraslado ? ' traslado' : '') + '">' +
+          tagHtml + '<b>' + (esTraslado ? 'Traslado ' : 'Servicio ') + esc(num) + '</b> · ' + esc(hrs) + esc(ruta) + retHtml +
           '</div>';
       });
       h += '</div>';

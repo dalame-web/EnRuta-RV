@@ -409,6 +409,17 @@ button.btn:disabled{opacity:.45; cursor:default}
   font-size:9px; line-height:1.15; color:var(--fg-dim);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
+/* Traslados — distintos de un servicio normal, misma franja de color que
+ * usa el resto de la app para "no es RC" (rosa, var(--tel-maquinista)). */
+.svc-tag{
+  display:inline-block; font-size:8px; font-weight:700; letter-spacing:.3px;
+  color:var(--tel-maquinista); border:1px solid var(--tel-maquinista);
+  border-radius:3px; padding:0 3px; margin-right:3px; vertical-align:middle;
+}
+.cal-day .svc-block.traslado{border-left:2px solid var(--tel-maquinista); padding-left:4px}
+.cal-day .svc-block.traslado .svc-head b{color:var(--tel-maquinista)}
+.list-row .lr-svc-line.traslado{color:var(--tel-maquinista)}
+.list-row .lr-svc-line.traslado b{color:var(--tel-maquinista)}
 .cal-day .estado{
   font-size:9px; font-weight:700; line-height:1.15; margin-top:auto; padding-top:3px;
   text-transform:uppercase; letter-spacing:.3px;
