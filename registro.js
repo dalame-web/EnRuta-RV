@@ -705,6 +705,11 @@
   var expandedSvc = 0;
   var incidenciaAbierta = {}; // svc index -> bool. Estado de UI, no se persiste.
   var calYear, calMonth;
+  // Estado de la pestaña Informe — solo en memoria, nunca en localStorage.
+  // null → sin elegir modo (dispara modal al entrar en la pestaña).
+  // {modo:'elegir-svc'} → mostrando lista de servicios existentes.
+  // {modo:'form', origen:'registro'|'cero', s:{...}, inc:{...}} → formulario.
+  var informeState = null;
   var statsRange = null;
 
   // ===== Utilidades =====
@@ -1262,7 +1267,7 @@
       discardEmptyEdit();
     }
     lastSetView = v;
-    ['calendario', 'registro', 'telefonemas', 'estadisticas', 'ajustes'].forEach(function (p) {
+    ['calendario', 'registro', 'telefonemas', 'informe', 'estadisticas', 'ajustes'].forEach(function (p) {
       var el = $(p + '-pane');
       if (el) el.classList.toggle('active', p === v);
     });
@@ -1607,6 +1612,134 @@
       '" data-inc="' + ii + '">Generar informe de incidencia</button></div>';
     h += '</div>';
     return h;
+  }
+
+  // ===== Pestaña Informe (aditiva, no toca el flujo de incidencias de
+  // Registro) — genera el mismo PDF oficial vía generarInformeIncidenciaPDF,
+  // reutilizada tal cual, desde un registro existente o desde cero. =====
+  function blankInformeS() {
+    return { fecha: today(), servicioComercial: '', rama: '', hSalida: '', hDestino: '', rSalida: '', rLlegDestino: '' };
+  }
+  function abrirModoInforme() {
+    appModal.confirm({
+      title: 'Nuevo informe',
+      message: '¿Partir de un registro ya creado o empezar en blanco?',
+      buttons: [
+        { label: 'Desde un registro', value: 'registro', kind: 'primary' },
+        { label: 'Desde cero', value: 'cero', kind: 'neutral' }
+      ],
+      backdropClose: true,
+      dismissValue: null
+    }).then(function (modo) {
+      if (modo === 'registro') informeState = { modo: 'elegir-svc' };
+      else if (modo === 'cero') informeState = { modo: 'form', origen: 'cero', s: blankInformeS(), inc: blankIncidencia() };
+      else return; // cerrado sin elegir: se queda el botón para reintentar
+      renderInforme();
+    });
+  }
+  function applyInformeBind(bind, value) {
+    if (!informeState || informeState.modo !== 'form') return;
+    var p = bind.split('.'); // ['inf', 's'|'inc', campo]
+    (p[1] === 's' ? informeState.s : informeState.inc)[p[2]] = value;
+  }
+  function renderInformeLista(pane) {
+    var h = '<div class="btn-row" style="margin:0 0 14px">' +
+      '<button class="btn ghost" data-action="informe-cambiar-modo">‹ Elegir modo</button></div>';
+    h += '<h2>Elige un servicio</h2>';
+    var sorted = turnos.slice().sort(function (a, b) {
+      var fa = (a.servicios[0] && a.servicios[0].fecha) || '';
+      var fb = (b.servicios[0] && b.servicios[0].fecha) || '';
+      return fb.localeCompare(fa);
+    });
+    if (!sorted.length) {
+      h += '<div class="list-empty">Aún no hay turnos registrados.</div>';
+      pane.innerHTML = h;
+      return;
+    }
+    h += '<div class="list-grid">';
+    sorted.forEach(function (t) {
+      var fechas = t.servicios.map(function (s) { return s.fecha ? ymdNice(s.fecha) : '—'; });
+      var rng = fechas[0];
+      if (fechas.length > 1 && fechas[1] && fechas[1] !== fechas[0]) rng += ' · ' + fechas[1];
+      h += '<div class="list-row">';
+      h += '<div class="lr-head"><div class="lr-date">' + esc(rng) + '</div>' +
+        '<span class="badge ' + t.estado + '">' +
+        (t.estado === 'cerrado' ? 'Cerrado' : 'En curso') + '</span></div>';
+      h += '<div class="lr-svc-list">';
+      t.servicios.forEach(function (s, si) {
+        var esTraslado = !!s.esTraslado;
+        var num = s.servicioComercial || (esTraslado ? (s.maniobraNombre || '—') : '—');
+        var hrs = (s.hSalida && s.hDestino) ? (s.hSalida + ' → ' + s.hDestino) : '—';
+        h += '<div class="lr-svc-line" style="cursor:pointer" data-action="informe-pick-svc" ' +
+          'data-tid="' + t.id + '" data-si="' + si + '">' +
+          '<b>' + (esTraslado ? 'Traslado ' : 'Servicio ') + esc(num) + '</b> · ' + esc(hrs) +
+          ' <span class="lr-chev">›</span></div>';
+      });
+      h += '</div></div>';
+    });
+    h += '</div>';
+    pane.innerHTML = h;
+  }
+  function renderInformeForm(pane) {
+    var st = informeState, s = st.s, inc = st.inc;
+    var h = '<div class="btn-row" style="margin:0 0 14px">' +
+      '<button class="btn ghost" data-action="informe-cambiar-modo">‹ Cambiar de modo</button></div>';
+    h += '<h2>' + (st.origen === 'registro' ? 'Informe desde un registro' : 'Informe desde cero') + '</h2>';
+    h += '<div class="card">';
+    h += '<div class="field-grid">' +
+      '<div class="field"><label>Fecha</label><input type="date" data-bind="inf.s.fecha" value="' + esc(s.fecha) + '"></div>' +
+      '<div class="field"><label>Servicio</label><input type="text" data-bind="inf.s.servicioComercial" value="' + esc(s.servicioComercial) + '"></div>' +
+      '</div>';
+    h += '<div class="field-grid">' +
+      '<div class="field"><label>Unidad de tren</label><select data-bind="inf.s.rama">' + ramaOptions(s.rama) + '</select></div>' +
+      '</div>';
+    h += '<div class="field-grid">' +
+      '<div class="field"><label>Hora salida prevista</label><input type="text" data-bind="inf.s.hSalida" value="' + esc(s.hSalida) + '" placeholder="9:57"></div>' +
+      '<div class="field"><label>Hora llegada prevista</label><input type="text" data-bind="inf.s.hDestino" value="' + esc(s.hDestino) + '" placeholder="13:21"></div>' +
+      '</div>';
+    h += '<div class="field-grid">' +
+      '<div class="field"><label>Retraso salida</label><input type="text" data-bind="inf.s.rSalida" value="' + esc(s.rSalida) + '" placeholder="+5"></div>' +
+      '<div class="field"><label>Retraso llegada</label><input type="text" data-bind="inf.s.rLlegDestino" value="' + esc(s.rLlegDestino) + '" placeholder="+5"></div>' +
+      '</div>';
+    h += '</div>'; // fin card datos del servicio
+
+    h += '<div class="incidencia-block">';
+    h += '<h3>Incidencia</h3>';
+    h += '<div class="field-grid">' +
+      '<div class="field"><label>Hora</label><input type="time" data-bind="inf.inc.hora" value="' + esc(inc.hora) + '"></div>' +
+      '<div class="field"><label>Línea</label><select data-bind="inf.inc.linea">' + optionsFromList(INC_LINEAS, inc.linea) + '</select></div>' +
+      '</div>';
+    h += '<div class="field-grid">' +
+      '<div class="field"><label>Cabina conducción</label><select data-bind="inf.inc.cabina">' + optionsFromList(INC_CABINAS, inc.cabina) + '</select></div>' +
+      '<div class="field"><label>Coche</label><select data-bind="inf.inc.coche">' + incCocheOptions(inc.coche) + '</select></div>' +
+      '</div>';
+    h += '<div class="field"><label>PK / estación</label><input type="text" data-bind="inf.inc.pk" value="' + esc(inc.pk) + '"></div>';
+    h += '<div class="field"><label>Descripción de la incidencia</label>' +
+      '<textarea data-bind="inf.inc.descripcion">' + esc(inc.descripcion) + '</textarea></div>';
+    h += '<div class="field"><label>Medidas adoptadas</label>' +
+      '<textarea data-bind="inf.inc.medidas">' + esc(inc.medidas) + '</textarea></div>';
+    h += '<div class="field"><label>Trenes afectados</label>' +
+      '<input type="text" data-bind="inf.inc.trenes" value="' + esc(inc.trenes) + '"></div>';
+    h += '</div>'; // fin incidencia-block
+
+    h += '<div class="btn-row" style="margin:14px 0 0;justify-content:flex-end">' +
+      '<button class="btn primary" data-action="informe-generar">Generar informe de incidencia</button></div>';
+    pane.innerHTML = h;
+  }
+  function renderInforme() {
+    var pane = $('informe-pane');
+    if (!pane) return;
+    if (!informeState) {
+      pane.innerHTML = '<div class="card" style="text-align:center;padding:32px 20px">' +
+        '<h2 style="margin-bottom:6px">Informe de incidencia</h2>' +
+        '<div class="hint" style="margin-bottom:18px">Genera el informe oficial partiendo de un registro o desde cero.</div>' +
+        '<div class="btn-row" style="justify-content:center">' +
+        '<button class="btn primary" data-action="informe-elegir-modo">Elegir modo de informe</button></div></div>';
+      abrirModoInforme();
+      return;
+    }
+    if (informeState.modo === 'elegir-svc') { renderInformeLista(pane); return; }
+    renderInformeForm(pane);
   }
 
   // Estado del editor inline de retraso (sólo uno activo a la vez).
@@ -3603,6 +3736,7 @@
     var el = e.target;
     var bind = el.getAttribute && el.getAttribute('data-bind');
     if (!bind) return;
+    if (bind.indexOf('inf.') === 0) { applyInformeBind(bind, el.type === 'checkbox' ? el.checked : el.value); return; }
     if (el.type === 'checkbox') applyBind(bind, el.checked);
     else applyBind(bind, el.value);
     // Cabecera "Servicio N" en vivo mientras se teclea el nº manual de un
@@ -3685,6 +3819,37 @@
       turnos.push(nt); save(K_TURNOS, turnos); openEditor(nt.id); return;
     }
     if (act === 'volver') { discardEmptyEdit(); renderCalendar(); setView('calendario'); return; }
+
+    if (act === 'informe-elegir-modo') { abrirModoInforme(); return; }
+    if (act === 'informe-cambiar-modo') { informeState = null; renderInforme(); return; }
+    if (act === 'informe-pick-svc') {
+      var tidInf = el.getAttribute('data-tid');
+      var siInf = +el.getAttribute('data-si');
+      var tInf = getTurno(tidInf);
+      var sInf = tInf && tInf.servicios[siInf];
+      if (!sInf) return;
+      informeState = {
+        modo: 'form', origen: 'registro',
+        s: {
+          fecha: sInf.fecha, servicioComercial: sInf.servicioComercial || sInf.maniobraNombre || '',
+          rama: sInf.rama, hSalida: sInf.hSalida, hDestino: sInf.hDestino,
+          rSalida: sInf.rSalida, rLlegDestino: sInf.rLlegDestino
+        },
+        inc: blankIncidencia()
+      };
+      renderInforme();
+      return;
+    }
+    if (act === 'informe-generar') {
+      if (!informeState || informeState.modo !== 'form') return;
+      var descInf = (informeState.inc.descripcion || '').trim();
+      if (!descInf) {
+        appModal.alert({ title: 'Falta la descripción', message: 'Rellena la Descripción de la incidencia antes de generar el informe.' });
+        return;
+      }
+      generarInformeIncidenciaPDF(null, informeState.s, informeState.inc, descInf, 0, 1).then(flashSaved);
+      return;
+    }
 
     if (act === 'add-servicio' && t) {
       // Fecha del 2º servicio = el día real de hoy (igual que al crear un registro
@@ -4163,6 +4328,7 @@
         if (window.TELEFONEMAS_LISTADO) window.TELEFONEMAS_LISTADO.render($('telefonemas-pane'));
         setView('telefonemas');
       }
+      else if (v === 'informe') { renderInforme(); setView('informe'); }
       else if (v === 'estadisticas') { renderStats(); setView('estadisticas'); }
       else if (v === 'ajustes') { renderSettings(); setView('ajustes'); }
       else if (v === 'registro') {

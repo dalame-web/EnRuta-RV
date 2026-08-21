@@ -464,6 +464,11 @@ button.btn:disabled{opacity:.45; cursor:default}
 }
 .list-row .lr-svc-line b{color:var(--fg); font-weight:600}
 .list-row .lr-svc-line .ret{color:var(--warn); font-weight:600}
+/* Línea de servicio clicable (pestaña Informe: elegir un servicio suelto
+   dentro del turno, no todo el turno) — feedback propio, distinto del
+   list-row entero que normalmente es el clicable. */
+.list-row .lr-svc-line[data-action]{border-radius:6px; transition:background .1s ease}
+.list-row .lr-svc-line[data-action]:hover{background:var(--panel-2); border-left-color:var(--accent)}
 .list-empty{
   text-align:center; color:var(--fg-dim); font-size:14px; padding:40px 16px;
 }
@@ -823,8 +828,8 @@ input[type=number]::-webkit-inner-spin-button{
  * ==================================================================== */
 
 /* RV panes por ID (evita conflicto con .pane de HT) */
-#calendario-pane,#registro-pane,#telefonemas-pane,#estadisticas-pane,#ajustes-pane{display:none}
-#calendario-pane.active,#registro-pane.active,#telefonemas-pane.active,#estadisticas-pane.active,#ajustes-pane.active{display:block}
+#calendario-pane,#registro-pane,#telefonemas-pane,#informe-pane,#estadisticas-pane,#ajustes-pane{display:none}
+#calendario-pane.active,#registro-pane.active,#telefonemas-pane.active,#informe-pane.active,#estadisticas-pane.active,#ajustes-pane.active{display:block}
 
 /* PMR icon en parada (silla de ruedas) */
 .pmr-warn{color:var(--accent);font-size:26px;font-weight:700;line-height:1;vertical-align:middle;margin-left:6px}
@@ -833,6 +838,7 @@ input[type=number]::-webkit-inner-spin-button{
 #registro-pane.pane.active,
 #calendario-pane.pane.active,
 #telefonemas-pane.pane.active,
+#informe-pane.pane.active,
 #estadisticas-pane.pane.active,
 #ajustes-pane.pane.active{
   display:block;width:100%;padding:14px;max-width:880px;margin:0 auto;
