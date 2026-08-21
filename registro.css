@@ -464,11 +464,20 @@ button.btn:disabled{opacity:.45; cursor:default}
 }
 .list-row .lr-svc-line b{color:var(--fg); font-weight:600}
 .list-row .lr-svc-line .ret{color:var(--warn); font-weight:600}
-/* Línea de servicio clicable (pestaña Informe: elegir un servicio suelto
-   dentro del turno, no todo el turno) — feedback propio, distinto del
-   list-row entero que normalmente es el clicable. */
-.list-row .lr-svc-line[data-action]{border-radius:6px; transition:background .1s ease}
-.list-row .lr-svc-line[data-action]:hover{background:var(--panel-2); border-left-color:var(--accent)}
+/* Selector de servicio dentro de un turno (pestaña Informe): cada servicio
+   es un botón real y separado, no una línea de texto — evita que un turno
+   con 2 servicios (dormida, o dos servicios el mismo día) se confunda con
+   una única opción y se elija el primero sin querer. */
+.svc-pick-list{display:flex; flex-direction:column; gap:6px}
+.svc-pick-btn{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  width:100%; text-align:left; font-family:Inter,sans-serif; font-size:13.5px;
+  padding:9px 12px; border-radius:8px; border:1px solid var(--border);
+  background:var(--panel-2); color:var(--fg-dim); cursor:pointer;
+}
+.svc-pick-btn b{color:var(--fg); font-weight:600}
+.svc-pick-btn:hover{border-color:var(--accent); color:var(--fg)}
+.svc-pick-btn .lr-chev{color:var(--fg-dim); font-size:18px; flex:0 0 auto}
 .list-empty{
   text-align:center; color:var(--fg-dim); font-size:14px; padding:40px 16px;
 }

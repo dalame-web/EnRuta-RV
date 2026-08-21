@@ -1665,15 +1665,19 @@
       h += '<div class="lr-head"><div class="lr-date">' + esc(rng) + '</div>' +
         '<span class="badge ' + t.estado + '">' +
         (t.estado === 'cerrado' ? 'Cerrado' : 'En curso') + '</span></div>';
-      h += '<div class="lr-svc-list">';
+      if (t.servicios.length > 1) {
+        h += '<div class="hint" style="margin:2px 0 6px">Este turno tiene ' + t.servicios.length +
+          ' servicios — elige uno:</div>';
+      }
+      h += '<div class="svc-pick-list">';
       t.servicios.forEach(function (s, si) {
         var esTraslado = !!s.esTraslado;
         var num = s.servicioComercial || (esTraslado ? (s.maniobraNombre || '—') : '—');
         var hrs = (s.hSalida && s.hDestino) ? (s.hSalida + ' → ' + s.hDestino) : '—';
-        h += '<div class="lr-svc-line" style="cursor:pointer" data-action="informe-pick-svc" ' +
+        h += '<button type="button" class="svc-pick-btn" data-action="informe-pick-svc" ' +
           'data-tid="' + t.id + '" data-si="' + si + '">' +
-          '<b>' + (esTraslado ? 'Traslado ' : 'Servicio ') + esc(num) + '</b> · ' + esc(hrs) +
-          ' <span class="lr-chev">›</span></div>';
+          '<span><b>' + (esTraslado ? 'Traslado ' : 'Servicio ') + esc(num) + '</b> · ' + esc(hrs) + '</span>' +
+          '<span class="lr-chev">›</span></button>';
       });
       h += '</div></div>';
     });
