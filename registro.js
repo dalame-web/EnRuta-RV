@@ -12,7 +12,7 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v29';
+  var APP_VERSION = 'enruta-v30';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -25,6 +25,55 @@
   for (var r = 1; r <= 23; r++) DEFAULT_RAMAS.push(r < 10 ? '0' + r : '' + r);
 
   // ===== Telefonemas (Libro de Telefonemas del Maquinista, LNM-ILSA_AP2) =====
+  // Atajos de Observaciones: mismo mecanismo de "partes" que TELEFONEMAS
+  // (texto fijo + campos a rellenar), pero sin nada de lo que rodea a un
+  // telefonema — no se persisten, no son reabribles, solo insertan una
+  // línea de texto plano en Observaciones. Un campo con "options" se pinta
+  // como <select> en vez de <input>. Añadir un atajo nuevo = un objeto más
+  // aquí, sin tocar el resto del código.
+  var OBS_ATAJOS = [
+    { id: 'vmeta0', label: 'Vmeta = 0', partes: [
+      { t: 'text', v: 'Vmeta = 0 en el PK ' },
+      { t: 'campo', id: 'pk', label: 'PK' },
+      { t: 'text', v: ' y se valida en ' },
+      { t: 'campo', id: 'tipoValidacion', label: 'Se valida en', options: ['Pantalla', 'Señal'] },
+      { t: 'text', v: ' ' },
+      { t: 'campo', id: 'numeroValidacion', label: 'Número' }
+    ] },
+    { id: 'vmeta40', label: 'Vmeta = 40', partes: [
+      { t: 'text', v: 'Vmeta = 40 en el PK ' },
+      { t: 'campo', id: 'pk', label: 'PK' },
+      { t: 'text', v: ' y se valida en ' },
+      { t: 'campo', id: 'tipoValidacion', label: 'Se valida en', options: ['Pantalla', 'Señal'] },
+      { t: 'text', v: ' ' },
+      { t: 'campo', id: 'numeroValidacion', label: 'Número' }
+    ] },
+    { id: 'mv', label: 'Marcha a la Vista (MV)', partes: [
+      { t: 'text', v: 'Se realiza MV (Marcha a la Vista) desde el PK ' },
+      { t: 'campo', id: 'pkDesde', label: 'PK desde' },
+      { t: 'text', v: ' al PK ' },
+      { t: 'campo', id: 'pkHasta', label: 'PK hasta' },
+      { t: 'text', v: '. Se comunica al CRC que ' },
+      { t: 'campo', id: 'siNo', label: 'Observa', options: ['SI', 'NO'] },
+      { t: 'text', v: ' observa ' },
+      { t: 'campo', id: 'observa', label: 'Qué se observa' }
+    ] },
+    { id: 'parada', label: 'Punto de parada', partes: [
+      { t: 'text', v: 'Detenido ante la ' },
+      { t: 'campo', id: 'tipo', label: 'Tipo', options: ['Señal', 'Pantalla'] },
+      { t: 'text', v: ' ' },
+      { t: 'campo', id: 'numero', label: 'Número' },
+      { t: 'text', v: ', se reanuda la marcha con ' },
+      { t: 'campo', id: 'condiciones', label: 'Condiciones' }
+    ] },
+    { id: 'crc', label: 'Comunica al CRC', partes: [
+      { t: 'text', v: 'Se comunica al CRC que se observa ' },
+      { t: 'campo', id: 'observa', label: 'Qué se observa' },
+      { t: 'text', v: ' en el PK ' },
+      { t: 'campo', id: 'pk', label: 'PK' }
+    ] }
+  ];
+
   // Cada variante se compone de "partes": texto fijo, campos a rellenar (con
   // pista opcional de las opciones entre paréntesis del original) y bloques
   // opcionales (corchetes en el original) que se incluyen o no con una casilla.
@@ -2061,6 +2110,12 @@
     // servicio justo debajo, también a ancho completo.
     h += '<div class="field" style="margin-top:12px">' +
       '<label style="color:#a371f7">Observaciones durante el trayecto</label>' +
+      '<div class="obs-atajos">' +
+      OBS_ATAJOS.map(function (a) {
+        return '<button type="button" class="btn ghost" data-action="obs-atajo" ' +
+          'data-svc="' + si + '" data-atajo="' + a.id + '">' + esc(a.label) + '</button>';
+      }).join('') +
+      '</div>' +
       '<div class="obs-wrapper" data-svc="' + si + '">' +
       '<textarea data-bind="srv.' + si + '.observaciones">' + esc(s.observaciones) + '</textarea>' +
       '</div></div>';
@@ -2380,6 +2435,84 @@
     if (tel.transferido) linea += ' · Transferido';
     return linea;
   }
+  // ===== Atajos de Observaciones =====
+  // Compone la línea final uniendo las partes fijas con los valores
+  // tecleados/elegidos — mismo patrón que composeObsLineTelefonema, hueco
+  // vacío se marca con '___' en vez de quedarse en blanco sin más.
+  function componerTextoAtajo(atajo, valores) {
+    return atajo.partes.map(function (p) {
+      return p.t === 'text' ? p.v : (valores[p.id] || '___');
+    }).join('');
+  }
+  function abrirObsAtajo(atajoId, si) {
+    var atajo = OBS_ATAJOS.find(function (a) { return a.id === atajoId; });
+    if (!atajo) return;
+    appModal.custom({
+      className: 'narrow',
+      backdropClose: true,
+      dismissValue: null,
+      render: function (box, resolveWith) {
+        box.innerHTML = '';
+        var ttl = document.createElement('div'); ttl.className = 'modal-title';
+        ttl.textContent = atajo.label;
+        box.appendChild(ttl);
+
+        // La frase completa en una sola línea corrida, con los huecos como
+        // input/select insertados dentro del propio texto — así se ve el
+        // contexto de lo que se está rellenando, no solo el nombre del campo.
+        var frase = document.createElement('div'); frase.className = 'atajo-frase';
+        var inputs = {};
+        atajo.partes.forEach(function (p) {
+          if (p.t === 'text') {
+            frase.appendChild(document.createTextNode(p.v));
+            return;
+          }
+          var el;
+          if (p.options) {
+            el = document.createElement('select'); el.className = 'atajo-inline-select';
+            p.options.forEach(function (opt) {
+              var o = document.createElement('option'); o.value = opt; o.textContent = opt;
+              el.appendChild(o);
+            });
+          } else {
+            el = document.createElement('input'); el.type = 'text'; el.className = 'atajo-inline-input';
+            el.placeholder = p.label;
+            autosizeCh(el, Math.max(6, p.label.length));
+          }
+          el.title = p.label;
+          frase.appendChild(el);
+          inputs[p.id] = el;
+        });
+        box.appendChild(frase);
+
+        var acts = document.createElement('div'); acts.className = 'modal-actions';
+        var btnCancel = document.createElement('button'); btnCancel.type = 'button';
+        btnCancel.className = 'modal-btn neutral'; btnCancel.textContent = 'Cancelar';
+        btnCancel.addEventListener('click', function () { resolveWith(null); });
+        acts.appendChild(btnCancel);
+        var btnOk = document.createElement('button'); btnOk.type = 'button';
+        btnOk.className = 'modal-btn primary'; btnOk.textContent = 'Insertar';
+        btnOk.addEventListener('click', function () {
+          var valores = {};
+          Object.keys(inputs).forEach(function (id) { valores[id] = (inputs[id].value || '').trim(); });
+          resolveWith(valores);
+        });
+        acts.appendChild(btnOk);
+        box.appendChild(acts);
+      }
+    }).then(function (valores) {
+      if (!valores) return;
+      var t = getTurno(editId);
+      var s = t && t.servicios[si];
+      if (!s) return;
+      var linea = componerTextoAtajo(atajo, valores);
+      s.observaciones = (s.observaciones ? s.observaciones + '\n' : '') + linea;
+      autosave();
+      var ta = document.querySelector('[data-bind="srv.' + si + '.observaciones"]');
+      if (ta) ta.value = s.observaciones;
+    });
+  }
+
   function abrirTelefonemaCategoria(cat, si) {
     var categoria = TELEFONEMAS.find(function (c) { return c.cat === cat; });
     if (!categoria) return;
@@ -3991,6 +4124,10 @@
     }
     if (act === 'telefonema-cat') {
       abrirTelefonemaCategoria(el.getAttribute('data-cat'), +el.getAttribute('data-svc'));
+      return;
+    }
+    if (act === 'obs-atajo') {
+      abrirObsAtajo(el.getAttribute('data-atajo'), +el.getAttribute('data-svc'));
       return;
     }
     if (act === 'telefonema-abrir') {

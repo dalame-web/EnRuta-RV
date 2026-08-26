@@ -45,6 +45,23 @@ button.btn.rec:hover{border-color:#fff}
 .tel-cats::-webkit-scrollbar{display:none}
 .tel-cats .btn{flex:0 0 auto; white-space:nowrap; font-size:13px; padding:7px 12px; min-height:36px}
 
+/* Atajos de Observaciones (Vmeta, MV...) — entre la etiqueta y el textarea,
+   desplazables como .tel-cats, insertan una frase ya compuesta. */
+.obs-atajos{display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  scrollbar-width:none; margin:6px 0 8px; padding-bottom:2px}
+.obs-atajos::-webkit-scrollbar{display:none}
+.obs-atajos .btn{flex:0 0 auto; white-space:nowrap; font-size:13px; padding:7px 12px; min-height:36px}
+/* Modal de atajo: la frase completa corrida, con los huecos insertados en
+   línea dentro del propio texto — se ve el contexto de lo que se rellena. */
+.atajo-frase{font-size:15px; line-height:1.9; margin-bottom:16px}
+.atajo-inline-input, .atajo-inline-select{
+  display:inline-block; border:none; border-bottom:2px solid var(--accent);
+  background:transparent; color:var(--fg); font:inherit; font-weight:600;
+  padding:0 2px; text-align:center; border-radius:0;
+}
+.atajo-inline-input::placeholder{color:var(--fg-dim); font-weight:400}
+.atajo-inline-select{cursor:pointer}
+
 /* Chips de telefonema — justo debajo de Observaciones, a ancho completo.
  * Cada uno reabre el Anexo I completo (ver/editar/completar más tarde).
  * Sin botón de borrar aquí: eso vive dentro del propio formulario. */
