@@ -13,7 +13,14 @@
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
   var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
-  var APP_VERSION = 'enruta-v35';
+  // Solo el access token de Google (vida corta, ~1h, lo emite Google — no
+  // es la contraseña de la cuenta ni nada permanente) + su caducidad, para
+  // no tener que volver a autenticar en cada apertura de la app dentro de
+  // esa hora. Pasado ese tiempo caduca solo y no se renueva en segundo
+  // plano (ver init) — habría que pedir un popup sin gesto del usuario,
+  // que el navegador bloquea.
+  var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
+  var APP_VERSION = 'enruta-v36';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -982,6 +989,8 @@
     turnos = load(K_TURNOS, []);
     settings = load(K_SETTINGS, {});
     gcalCache = load(K_GCAL_CACHE, {});
+    var gcalTok = load(K_GCAL_TOKEN, null);
+    if (gcalTok && gcalTok.token && gcalTok.exp > Date.now()) gcalToken = gcalTok.token;
     if (!settings.ramas || !settings.ramas.length) settings.ramas = DEFAULT_RAMAS.slice();
     if (settings.telefono == null) settings.telefono = '';
     if (settings.nombre == null) settings.nombre = '';
@@ -3664,6 +3673,31 @@
       };
     });
   }
+  // Origen/destino/hSalida "reales" de un servicio parseado de Calendar —
+  // los del Libro de Horarios si se identificó (sv.guess.hr), si no los de
+  // Calendar tal cual. Único punto de verdad para "¿este servicio ya está
+  // en el turno?", usado tanto para decidir si un día entra en la
+  // revisión (gcalProcesarEventos) como al aplicarla (gcalAplicarPropuestas)
+  // — antes cada uno comparaba de una forma distinta y no coincidían nunca
+  // en sincronizaciones repetidas (ni para detectar que ya estaba, ni para
+  // no duplicarlo).
+  function svCampos(sv) {
+    var hr = sv.guess && sv.guess.hr;
+    return {
+      origen: hr ? hr.origen : sv.origen,
+      destino: hr ? hr.destino : sv.destino,
+      hSalida: hr ? hr.hSalida : sv.hSalida
+    };
+  }
+  function servicioCoincide(s, fecha, origen, destino, hSalida) {
+    return s.fecha === fecha && s.origen === origen && s.destino === destino && s.hSalida === hSalida;
+  }
+  function servicioYaExiste(turno, sv) {
+    var c = svCampos(sv);
+    return turno.servicios.some(function (s) {
+      return servicioCoincide(s, sv.fecha, c.origen, c.destino, c.hSalida);
+    });
+  }
   // Pide un token de acceso a Google. interactive=true abre la ventana de
   // consentimiento si hace falta (botón "Vincular con Google" — requiere
   // el toque del usuario, los navegadores bloquean popups sin gesto).
@@ -3683,6 +3717,15 @@
       }
       gcalTokenClient.callback = function (resp) {
         gcalToken = (resp && resp.access_token) || null;
+        // Guarda el token con su caducidad real (expires_in, en segundos —
+        // Google suele dar ~3600) para no pedir nada de nuevo si la app se
+        // reabre dentro de esa hora. Margen de 60s por seguridad.
+        if (gcalToken) {
+          var vidaSeg = (resp && resp.expires_in) || 3600;
+          save(K_GCAL_TOKEN, { token: gcalToken, exp: Date.now() + (vidaSeg - 60) * 1000 });
+        } else {
+          save(K_GCAL_TOKEN, null);
+        }
         resolve(gcalToken);
       };
       try {
@@ -3716,6 +3759,10 @@
     return fetch(url, { headers: { Authorization: 'Bearer ' + gcalToken } })
       .then(function (r) {
         if (r.ok) return r.json();
+        // 401 = el token guardado ya no vale (caducado de verdad antes de
+        // lo previsto, o revocado) — se limpia para no reintentar con uno
+        // que Google ya ha rechazado.
+        if (r.status === 401) { gcalToken = null; save(K_GCAL_TOKEN, null); }
         return r.text().then(function (body) {
           throw new Error('HTTP ' + r.status + ': ' + body.slice(0, 300));
         });
@@ -3769,6 +3816,14 @@
           };
         }
       }
+      // Solo entra en la revisión si de verdad hay algo que hacer — antes
+      // se metía SIEMPRE que hubiera turno + evento, así que un día ya
+      // completado del todo seguía saliendo como pendiente en cada
+      // sincronización sin parar.
+      var faltaHorario = (!existente.toma && parsed.toma) || (!existente.deje && parsed.deje) ||
+        (!existente.descanso && parsed.descansoMin);
+      var faltaServicio = parsed.servicios.some(function (sv) { return !servicioYaExiste(existente, sv); });
+      if (!faltaHorario && !faltaServicio && !prop.cambioHorario) return;
       props.push(prop);
     });
     save(K_GCAL_CACHE, gcalCache);
@@ -3813,9 +3868,15 @@
       // (gcalProcesarEventos no mete en la revisión un día sin turno) —
       // solo se completan huecos, nunca se crea un turno nuevo desde aquí.
       var t = prop.existente;
-      if (!t.toma && prop.toma) t.toma = prop.toma;
-      if (!t.deje && prop.deje) t.deje = prop.deje;
-      if (!t.descanso && prop.descansoMin) t.descanso = minToHHMM(prop.descansoMin);
+      // Por si acaso: si t fuera un turno recién autorrellenado y aún sin
+      // confirmar (_deCache, ver aplicarCacheATurno), aplicar la revisión
+      // es una acción explícita del usuario — cuenta como real, o si no
+      // discardEmptyEdit lo borraría igualmente al salir del editor.
+      t._deCache = false;
+      var huboCambio = false;
+      if (!t.toma && prop.toma) { t.toma = prop.toma; huboCambio = true; }
+      if (!t.deje && prop.deje) { t.deje = prop.deje; huboCambio = true; }
+      if (!t.descanso && prop.descansoMin) { t.descanso = minToHHMM(prop.descansoMin); huboCambio = true; }
       if (t.toma || t.deje || t.descanso) t.turnoHorarioActivo = true;
       prop.servicios.forEach(function (sv, si) {
         // Mismo criterio que aplicarCacheATurno: origen/destino/horas/
@@ -3834,22 +3895,23 @@
         var destinoCmp = hr ? hr.destino : sv.destino;
         var hSalidaCmp = hr ? hr.hSalida : sv.hSalida;
         var yaHay = t.servicios.some(function (s) {
-          return s.fecha === sv.fecha && s.origen === origenCmp &&
-            s.destino === destinoCmp && s.hSalida === hSalidaCmp;
+          return servicioCoincide(s, sv.fecha, origenCmp, destinoCmp, hSalidaCmp);
         });
         if (!yaHay) {
           var ns = blankServicio(sv.fecha);
           if (hr) aplicarHorarioAServicio(ns, hr);
           else ns.servicioComercial = numTren;
           t.servicios.push(ns);
+          huboCambio = true;
         }
       });
       if (actualizarCambio && prop.cambioHorario) {
         t.toma = prop.cambioHorario.tomaNuevo;
         t.deje = prop.cambioHorario.dejeNuevo;
         t.descanso = descansoTxt(prop.cambioHorario.descansoNuevoMin);
+        huboCambio = true;
       }
-      cambios++;
+      if (huboCambio) cambios++;
     });
     gcalPropuestas = null;
     if (cambios) { save(K_TURNOS, turnos); renderCalendar(); }
@@ -5183,7 +5245,7 @@
     if (act === 'gcal-guardar-config') {
       settings.gcalClientId = $('set-gcal-client').value.trim();
       settings.gcalCalendarId = $('set-gcal-cal').value.trim() || 'primary';
-      gcalToken = null; // cambiar de proyecto invalida el token anterior
+      gcalToken = null; save(K_GCAL_TOKEN, null); // cambiar de proyecto invalida el token anterior
       // gcalTokenClient se crea UNA vez (initTokenClient) con el Client ID
       // que hubiera en ese momento — sin esto, cambiar el ID aquí y guardar
       // seguía usando por debajo el cliente viejo (invalid_client) hasta
@@ -5322,23 +5384,28 @@
       navigator.storage.persist().catch(function () {});
     }
 
-    // Chequeo automático de Google Calendar (solo modo desarrollador, solo
-    // si ya hay un Client ID configurado de una vez anterior). Con retraso
-    // para no competir con el primer render; sin gesto del usuario el
-    // token solo puede renovarse en silencio si el navegador ya tenía
-    // sesión de Google vigente — si no, no pasa nada, se queda para
-    // vincular a mano desde Ajustes.
+    // Google Calendar (solo modo desarrollador): chequeo automático al
+    // abrir la app, pero SOLO si ya hay un token guardado (ver loadAll)
+    // que siga vigente — nunca se llama a requestAccessToken() sin un
+    // toque real del usuario, porque abre su propio popup incluso con
+    // prompt:'' y sin gesto el navegador lo bloquea (o lo muestra igual,
+    // pareciendo que "pide verificar la cuenta" cada vez que se abre la
+    // app). Si el token guardado ya caducó, no se intenta nada solo —
+    // toca vincular a mano (🔄 del Calendario / Ajustes), pero no en cada
+    // apertura, solo cuando pasa la hora de validez del token.
     if (settings.telDevMode && settings.gcalClientId) {
       gcalLoadScript();
-      setTimeout(function () {
-        gcalRangoDesde = ymd(new Date(Date.now() - 2 * 86400000));
-        gcalRangoHasta = ymd(new Date(Date.now() + 7 * 86400000));
-        gcalEjecutarChequeo(gcalRangoDesde, gcalRangoHasta, false).then(function (result) {
-          if (!result) return;
-          if (lastSetView === 'ajustes') renderSettings();
-          else if (lastSetView === 'calendario') renderCalendar();
-        });
-      }, 4000);
+      if (gcalToken) {
+        setTimeout(function () {
+          gcalRangoDesde = ymd(new Date(Date.now() - 2 * 86400000));
+          gcalRangoHasta = ymd(new Date(Date.now() + 7 * 86400000));
+          gcalEjecutarChequeo(gcalRangoDesde, gcalRangoHasta, false).then(function (result) {
+            if (!result) return;
+            if (lastSetView === 'ajustes') renderSettings();
+            else if (lastSetView === 'calendario') renderCalendar();
+          });
+        }, 1500);
+      }
     }
 
     // El registro real y el listener de actualización viven en index.html
