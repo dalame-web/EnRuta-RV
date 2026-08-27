@@ -13,7 +13,7 @@
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
   var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
-  var APP_VERSION = 'enruta-v32';
+  var APP_VERSION = 'enruta-v33';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -5153,6 +5153,11 @@
       settings.gcalClientId = $('set-gcal-client').value.trim();
       settings.gcalCalendarId = $('set-gcal-cal').value.trim() || 'primary';
       gcalToken = null; // cambiar de proyecto invalida el token anterior
+      // gcalTokenClient se crea UNA vez (initTokenClient) con el Client ID
+      // que hubiera en ese momento — sin esto, cambiar el ID aquí y guardar
+      // seguía usando por debajo el cliente viejo (invalid_client) hasta
+      // recargar la app entera.
+      gcalTokenClient = null;
       saveSettings(); flashSaved(); renderSettings();
       return;
     }
