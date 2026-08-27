@@ -13,7 +13,7 @@
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
   var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
-  var APP_VERSION = 'enruta-v34';
+  var APP_VERSION = 'enruta-v35';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -944,7 +944,16 @@
     catch (e) { return def; }
   }
   function save(k, v) {
-    try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+    var out = v;
+    // Un turno marcado _deCache (creado solo, autorrellenado desde la
+    // caché de Google Calendar) nunca se persiste por sí solo — solo
+    // cuenta como real en cuanto el usuario toca algo (ver applyBind/
+    // autofillServicio/autosave). Así ninguna escritura de OTRO turno
+    // arrastra de rebote uno que la app creó pero el usuario ni miró.
+    if (k === K_TURNOS && Array.isArray(v)) {
+      out = v.filter(function (t) { return !t._deCache; });
+    }
+    try { localStorage.setItem(k, JSON.stringify(out)); } catch (e) {}
     // Único punto por el que pasan TODAS las escrituras de turnos (las
     // debounced de autosave() y las directas) — enganchar aquí basta para
     // que el espejo en archivos cubra cualquier cambio, sin tocar cada
@@ -953,6 +962,10 @@
   }
   var saveTimer = null;
   function autosave() {
+    // Cualquier autosave del turno abierto significa que el usuario ha
+    // tocado algo de verdad — deja de estar pendiente de confirmación.
+    var tEdit = editId != null ? getTurno(editId) : null;
+    if (tEdit) tEdit._deCache = false;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
       save(K_TURNOS, turnos);
@@ -1384,7 +1397,10 @@
       var t = getTurno(editId);
       if (!t) {
         editId = null;
-      } else if (t.estado !== 'cerrado' && isEmptyTurno(t)) {
+      } else if (t.estado !== 'cerrado' && (t._deCache || isEmptyTurno(t))) {
+        // _deCache: turno autorrellenado desde Google Calendar que el
+        // usuario nunca llegó a tocar — se descarta igual que uno vacío,
+        // aunque tenga datos (vienen de la app, no de él).
         turnos = turnos.filter(function (x) { return x.id !== editId; });
         save(K_TURNOS, turnos);
         editId = null;
@@ -1638,6 +1654,10 @@
   // Rellena un turno recién creado con lo que ya sabíamos de Google
   // Calendar (caché) — el usuario sigue completando el resto a mano.
   function aplicarCacheATurno(t, prop) {
+    // Rellenado por la app, no por el usuario — no se guarda solo (ver
+    // save()/discardEmptyEdit). Se confirma en cuanto el usuario toque
+    // cualquier campo de este turno.
+    t._deCache = true;
     if (prop.toma || prop.deje || prop.descansoMin) {
       t.turnoHorarioActivo = true;
       t.toma = prop.toma || ''; t.deje = prop.deje || '';
@@ -2432,6 +2452,7 @@
   function applyBind(bind, value) {
     var t = getTurno(editId);
     if (!t) return;
+    t._deCache = false; // el usuario ha tocado un campo de verdad
     var p = bind.split('.');
     if (p[0] === 'srv') {
       var s = t.servicios[+p[1]];
@@ -3221,6 +3242,7 @@
   function autofillServicio(si, horarioIdx) {
     var t = getTurno(editId);
     if (!t) return;
+    t._deCache = false;
     var s = t.servicios[si];
     var hr = horarios[horarioIdx];
     if (!hr) return;
@@ -3258,6 +3280,7 @@
   function autofillManiobra(si, manIdx) {
     var t = getTurno(editId);
     if (!t) return;
+    t._deCache = false;
     var s = t.servicios[si];
     var m = maniobras[manIdx];
     if (!m) return;
