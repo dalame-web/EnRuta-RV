@@ -12,7 +12,7 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v35';
+  var APP_VERSION = 'enruta-v37';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -3407,6 +3407,17 @@
   //         Madrid Puerta de Atocha → MALAGA M.ZAMB
   //   12:39 🚩 Deje
   //         MALAGA M.ZAMB
+  // Dormida: el evento entero cruza de un día a otro (start/end en fechas
+  // distintas) — el turno de la empresa mete un "Duty interruption" en vez
+  // de "Break" para el descanso en el hotel, y "Passage connection"/
+  // "Preparation" para los traslados de/al hotel (se descartan igual que
+  // "Travel time", no generan servicio):
+  //   15:39 🚩 Deje / Barcelona-Sants
+  //   15:54 ▸ Passage connection / Barcelona-Sants → BARCELONA SANTS HOTEL
+  //   15:59 ▸ Duty interruption / (descanso real, hasta el siguiente tramo)
+  //   05:45 ▸ Passage connection / BARCELONA SANTS HOTEL → Barcelona-Sants
+  //   05:50 ▸ Preparation / Barcelona-Sants
+  //   06:50 🔑 Toma / Barcelona-Sants
   //   12:54 ▸ Break
   //         MALAGA M.ZAMB
   // "Travel time" (viaja como pasajero) se descarta, no genera servicio.
@@ -3423,10 +3434,18 @@
     var m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim());
     return m ? (+m[1] * 60 + +m[2]) : null;
   }
-  function parseEventoTurno(fechaISO, descripcion) {
+  function siguienteDia(fechaISO) {
+    var p = fechaISO.split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    d.setDate(d.getDate() + 1);
+    return ymd(d);
+  }
+  // fechaInicioISO/fechaFinISO: fecha de inicio y fin del evento (para una
+  // dormida son distintas — el evento entero cruza de un día a otro).
+  function parseEventoTurno(fechaInicioISO, fechaFinISO, descripcion) {
     var lineas = String(descripcion || '').split('\n')
       .map(function (l) { return l.trim(); }).filter(Boolean);
-    var tipoRe = /^(\d{1,2}:\d{2})\D*\b(Toma|Deje|Break|Train|Travel time)\b/i;
+    var tipoRe = /^(\d{1,2}:\d{2})\D*\b(Toma|Deje|Break|Duty interruption|Train|Travel time|Passage connection|Preparation)\b/i;
     var tramos = [];
     for (var i = 0; i < lineas.length; i++) {
       var m = lineas[i].match(tipoRe);
@@ -3434,23 +3453,38 @@
       var loc = (lineas[i + 1] && !tipoRe.test(lineas[i + 1])) ? lineas[i + 1] : '';
       tramos.push({ hora: m[1], tipo: m[2].toLowerCase().replace(/\s+/g, ''), loc: loc });
     }
+    // Reparte cada tramo en su día real: empieza en fechaInicio, salta al
+    // día siguiente cada vez que la hora "retrocede" respecto al tramo
+    // anterior (cruce de medianoche) — el texto no trae fecha por línea.
+    var fechaActual = fechaInicioISO, horaAnterior = null;
+    tramos.forEach(function (tr) {
+      if (horaAnterior != null && hhmmToMin(tr.hora) < hhmmToMin(horaAnterior)) {
+        fechaActual = siguienteDia(fechaActual);
+      }
+      tr.fecha = fechaActual;
+      horaAnterior = tr.hora;
+    });
     var toma = '', deje = '', descansoMin = 0, servicios = [];
     tramos.forEach(function (tr, j) {
       var sig = tramos[j + 1];
       if (tr.tipo === 'toma' && !toma) toma = tr.hora;
       if (tr.tipo === 'deje') deje = tr.hora; // se queda con el último
-      if (tr.tipo === 'break' && sig) {
+      // "Break" (parada corta) y "Duty interruption" (descanso de dormida
+      // en el hotel) cuentan igual como descanso.
+      if ((tr.tipo === 'break' || tr.tipo === 'dutyinterruption') && sig) {
         var dm = durMin(tr.hora, sig.hora);
         if (dm != null) descansoMin += dm;
       }
       if (tr.tipo === 'train') {
         var partes = tr.loc.split('→').map(function (x) { return x.trim(); });
-        servicios.push({ origen: partes[0] || '', destino: partes[1] || '',
+        servicios.push({ fecha: tr.fecha, origen: partes[0] || '', destino: partes[1] || '',
           hSalida: tr.hora, hDestino: sig ? sig.hora : '' });
       }
-      // 'traveltime' se descarta a propósito — no genera servicio.
+      // 'traveltime'/'passageconnection'/'preparation' se descartan a
+      // propósito — traslados o preparación tipo pasajero, no servicio.
     });
-    return { fecha: fechaISO, toma: toma, deje: deje, descansoMin: descansoMin, servicios: servicios };
+    return { fechaInicio: fechaInicioISO, fechaFin: fechaFinISO,
+      toma: toma, deje: deje, descansoMin: descansoMin, servicios: servicios };
   }
   // Normaliza un nombre de estación para comparar a pesar de que el
   // portal de la empresa y el Libro de Horarios escriban distinto
@@ -3506,17 +3540,31 @@
       } catch (e) { resolve(null); }
     });
   }
+  var gcalUltimoError = null; // texto del último fallo real (auth/HTTP/red), para mostrarlo en vez de tragárselo
+  // Desfase horario local en formato "+02:00" — sin esto, Google interpreta
+  // timeMin/timeMax como UTC y el rango de fechas se desplaza.
+  function offsetLocal() {
+    var min = -new Date().getTimezoneOffset();
+    var signo = min >= 0 ? '+' : '-';
+    min = Math.abs(min);
+    return signo + pad2(Math.floor(min / 60)) + ':' + pad2(min % 60);
+  }
   function gcalFetchEventos(desdeISO, hastaISO) {
-    if (!gcalToken) return Promise.resolve([]);
+    if (!gcalToken) return Promise.reject(new Error('Sin token de Google.'));
     var calId = encodeURIComponent(settings.gcalCalendarId || 'primary');
+    var off = offsetLocal();
     var url = 'https://www.googleapis.com/calendar/v3/calendars/' + calId + '/events' +
-      '?timeMin=' + encodeURIComponent(desdeISO + 'T00:00:00') +
-      '&timeMax=' + encodeURIComponent(hastaISO + 'T23:59:59') +
+      '?timeMin=' + encodeURIComponent(desdeISO + 'T00:00:00' + off) +
+      '&timeMax=' + encodeURIComponent(hastaISO + 'T23:59:59' + off) +
       '&singleEvents=true&orderBy=startTime';
     return fetch(url, { headers: { Authorization: 'Bearer ' + gcalToken } })
-      .then(function (r) { return r.ok ? r.json() : { items: [] }; })
-      .then(function (data) { return data.items || []; })
-      .catch(function () { return []; });
+      .then(function (r) {
+        if (r.ok) return r.json();
+        return r.text().then(function (body) {
+          throw new Error('HTTP ' + r.status + ': ' + body.slice(0, 300));
+        });
+      })
+      .then(function (data) { return data.items || []; });
   }
   // Compara cada evento con lo que ya hay guardado ese día — nunca decide
   // sobrescribir, solo detecta huecos y (para "ayer") posibles cambios de
@@ -3524,19 +3572,23 @@
   function gcalConstruirPropuestas(eventos) {
     var ayer = ymd(new Date(Date.now() - 86400000));
     return eventos.map(function (ev) {
-      var fecha = (ev.start && (ev.start.date || (ev.start.dateTime || '').slice(0, 10))) || '';
-      if (!fecha) return null;
-      var parsed = parseEventoTurno(fecha, ev.description || '');
+      var fechaInicio = (ev.start && (ev.start.date || (ev.start.dateTime || '').slice(0, 10))) || '';
+      if (!fechaInicio) return null;
+      var fechaFin = (ev.end && (ev.end.date || (ev.end.dateTime || '').slice(0, 10))) || fechaInicio;
+      var parsed = parseEventoTurno(fechaInicio, fechaFin, ev.description || '');
       parsed.servicios.forEach(function (sv) {
         sv.guess = adivinarServicio(sv.origen, sv.destino, sv.hSalida);
       });
-      var existente = turnosOfDay(fecha)[0] || null;
+      // Dormida: el turno guardado puede estar indexado por cualquiera de
+      // los dos días — se busca en ambos.
+      var existente = turnosOfDay(fechaInicio)[0] || turnosOfDay(fechaFin)[0] || null;
       var prop = {
-        fecha: fecha, codigo: (ev.summary || '').replace(/^\*\s*/, ''),
+        fecha: fechaInicio, fechaFin: fechaFin, codigo: (ev.summary || '').replace(/^\*\s*/, ''),
         toma: parsed.toma, deje: parsed.deje, descansoMin: parsed.descansoMin,
         servicios: parsed.servicios, existente: existente, cambioHorario: null
       };
-      if (existente && fecha === ayer && existente.turnoHorarioActivo &&
+      var esAyer = fechaInicio === ayer || fechaFin === ayer;
+      if (existente && esAyer && existente.turnoHorarioActivo &&
         (existente.toma || existente.deje || existente.descanso)) {
         var distinto = existente.toma !== parsed.toma || existente.deje !== parsed.deje ||
           String(existente.descanso || '') !== String(parsed.descansoMin);
@@ -3552,14 +3604,23 @@
   }
   function gcalEjecutarChequeo(desde, hasta, interactive) {
     gcalChecking = true;
+    gcalUltimoError = null;
     return gcalEnsureToken(interactive).then(function (token) {
-      if (!token) { gcalChecking = false; gcalPropuestas = null; return null; }
+      if (!token) {
+        gcalChecking = false; gcalPropuestas = null;
+        gcalUltimoError = 'No se obtuvo token de Google (revisa el Client ID o vincula de nuevo).';
+        return null;
+      }
       return gcalFetchEventos(desde, hasta).then(function (eventos) {
         gcalPropuestas = gcalConstruirPropuestas(eventos);
         gcalChecking = false;
         return gcalPropuestas;
       });
-    }).catch(function () { gcalChecking = false; return null; });
+    }).catch(function (err) {
+      gcalChecking = false; gcalPropuestas = null;
+      gcalUltimoError = (err && err.message) || String(err);
+      return null;
+    });
   }
   // Aplica lo confirmado en pantalla — lee el DOM (checkboxes/inputs ya
   // editados por el usuario), nunca sobrescribe un campo que ya tenía
@@ -3584,10 +3645,11 @@
         if (t.toma || t.deje || t.descanso) t.turnoHorarioActivo = true;
         prop.servicios.forEach(function (sv, si) {
           var yaHay = t.servicios.some(function (s) {
-            return s.origen === sv.origen && s.destino === sv.destino && s.hSalida === sv.hSalida;
+            return s.fecha === sv.fecha && s.origen === sv.origen &&
+              s.destino === sv.destino && s.hSalida === sv.hSalida;
           });
           if (!yaHay) {
-            var ns = blankServicio(prop.fecha);
+            var ns = blankServicio(sv.fecha);
             ns.origen = sv.origen; ns.destino = sv.destino;
             ns.hSalida = sv.hSalida; ns.hDestino = sv.hDestino;
             ns.servicioComercial = numeros[si] || '';
@@ -3602,7 +3664,7 @@
       } else {
         var nt = blankTurno(prop.fecha);
         nt.servicios = prop.servicios.map(function (sv, si) {
-          var ns = blankServicio(prop.fecha);
+          var ns = blankServicio(sv.fecha);
           ns.origen = sv.origen; ns.destino = sv.destino;
           ns.hSalida = sv.hSalida; ns.hDestino = sv.hDestino;
           ns.servicioComercial = numeros[si] || '';
@@ -3628,9 +3690,11 @@
     var h = '<div class="stat-list" style="margin-top:12px">';
     gcalPropuestas.forEach(function (prop, gi) {
       var esNuevo = !prop.existente;
+      var esDormida = prop.fecha !== prop.fechaFin;
+      var fechaLabel = esDormida ? (esc(ymdNice(prop.fecha)) + ' → ' + esc(ymdNice(prop.fechaFin))) : esc(ymdNice(prop.fecha));
       h += '<div class="card" style="background:var(--panel-2)">';
       h += '<div class="card-title" style="display:flex;align-items:center;gap:8px">' +
-        '<span style="flex:1">' + esc(ymdNice(prop.fecha)) + ' · ' + esc(prop.codigo) + '</span>' +
+        '<span style="flex:1">' + fechaLabel + ' · ' + esc(prop.codigo) + (esDormida ? ' · Dormida' : '') + '</span>' +
         '<label style="font-size:12px;display:flex;align-items:center;gap:4px">' +
         '<input type="checkbox" data-gcal-incluir data-gi="' + gi + '" checked>' +
         (esNuevo ? 'Crear turno' : 'Completar huecos') + '</label></div>';
@@ -3641,7 +3705,7 @@
       }
       prop.servicios.forEach(function (sv, si) {
         h += '<div class="field-grid" style="grid-template-columns:1fr 1fr 90px;margin-top:6px">' +
-          '<div class="field"><label>Origen</label><div class="hint" style="margin:0">' + esc(prettyEstacion(sv.origen)) + '</div></div>' +
+          '<div class="field"><label>Origen' + (esDormida ? ' (' + esc(ymdNice(sv.fecha)) + ')' : '') + '</label><div class="hint" style="margin:0">' + esc(prettyEstacion(sv.origen)) + '</div></div>' +
           '<div class="field"><label>Destino</label><div class="hint" style="margin:0">' + esc(prettyEstacion(sv.destino)) + '</div></div>' +
           '<div class="field"><label>Nº tren</label><input type="text" class="gcal-num" data-gi="' + gi + '" data-si="' + si + '" value="' +
           esc((sv.guess && sv.guess.servicio) || '') + '"></div>' +
@@ -4925,7 +4989,7 @@
       gcalEjecutarChequeo(gcalRangoDesde, gcalRangoHasta, true).then(function (result) {
         renderSettings();
         if (!result) {
-          appModal.alert({ title: 'No se pudo sincronizar', message: 'Revisa la vinculación con Google o inténtalo de nuevo.' });
+          appModal.alert({ title: 'No se pudo sincronizar', message: gcalUltimoError || 'Revisa la vinculación con Google o inténtalo de nuevo.' });
         }
       });
       return;
