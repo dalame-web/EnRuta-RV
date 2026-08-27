@@ -13,7 +13,7 @@
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
   var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
-  var APP_VERSION = 'enruta-v39';
+  var APP_VERSION = 'enruta-v40';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1259,6 +1259,9 @@
     if (t.toma == null) t.toma = '';
     if (t.deje == null) t.deje = '';
     if (t.descanso == null) t.descanso = '';
+    // Migración: versiones anteriores guardaban minutos sueltos ("826").
+    // Un input type="time" no admite ese formato — se convierte a HH:MM.
+    if (/^\d+$/.test(t.descanso)) t.descanso = minToHHMM(+t.descanso);
     if (!t.servicios) t.servicios = [];
     t.servicios.forEach(function (s, si) {
       if (s.origen == null) s.origen = '';
@@ -1633,7 +1636,7 @@
     if (prop.toma || prop.deje || prop.descansoMin) {
       t.turnoHorarioActivo = true;
       t.toma = prop.toma || ''; t.deje = prop.deje || '';
-      t.descanso = prop.descansoMin ? String(prop.descansoMin) : '';
+      t.descanso = prop.descansoMin ? minToHHMM(prop.descansoMin) : '';
     }
     if (prop.servicios && prop.servicios.length) {
       t.servicios = prop.servicios.map(function (sv) {
@@ -2231,7 +2234,7 @@
     if (t.turnoHorarioActivo) {
       h += '<div class="field-grid" style="grid-template-columns:repeat(3,1fr)">' +
         '<div class="field"><label>Toma</label><input type="time" data-bind="toma" value="' + esc(t.toma) + '"></div>' +
-        '<div class="field"><label>Descanso</label><input type="text" data-bind="descanso" value="' + esc(t.descanso) + '" placeholder="min"></div>' +
+        '<div class="field"><label>Descanso</label><input type="time" data-bind="descanso" value="' + esc(t.descanso) + '"></div>' +
         '<div class="field"><label>Deje</label><input type="time" data-bind="deje" value="' + esc(t.deje) + '"></div>' +
         '</div>';
     }
@@ -3486,6 +3489,14 @@
     if (min < 60) return min + ' min';
     return Math.floor(min / 60) + 'h ' + pad2(min % 60) + 'm';
   }
+  // Campo "Descanso" del editor (t.descanso) se guarda en HH:MM, igual que
+  // Toma/Deje — antes se guardaban minutos sueltos ("826") y una dormida
+  // salía ilegible. minToHHMM convierte los minutos que llegan de Calendar;
+  // el editor ya trabaja directamente en HH:MM (input type="time").
+  function minToHHMM(min) {
+    min = Math.round(min || 0);
+    return pad2(Math.floor(min / 60)) + ':' + pad2(min % 60);
+  }
   function gcalLoadScript() {
     if (gcalScriptRequested || document.getElementById('gis-script')) return;
     gcalScriptRequested = true;
@@ -3679,7 +3690,7 @@
       };
       if (existente.turnoHorarioActivo && (existente.toma || existente.deje || existente.descanso)) {
         var distinto = existente.toma !== parsed.toma || existente.deje !== parsed.deje ||
-          String(existente.descanso || '') !== String(parsed.descansoMin);
+          String(existente.descanso || '') !== minToHHMM(parsed.descansoMin);
         if (distinto) {
           prop.cambioHorario = {
             tomaGuardado: existente.toma, dejeGuardado: existente.deje, descansoGuardado: existente.descanso,
@@ -3733,7 +3744,7 @@
       var t = prop.existente;
       if (!t.toma && prop.toma) t.toma = prop.toma;
       if (!t.deje && prop.deje) t.deje = prop.deje;
-      if (!t.descanso && prop.descansoMin) t.descanso = String(prop.descansoMin);
+      if (!t.descanso && prop.descansoMin) t.descanso = minToHHMM(prop.descansoMin);
       if (t.toma || t.deje || t.descanso) t.turnoHorarioActivo = true;
       prop.servicios.forEach(function (sv, si) {
         var yaHay = t.servicios.some(function (s) {
@@ -3751,7 +3762,7 @@
       if (actualizarCambio && prop.cambioHorario) {
         t.toma = prop.cambioHorario.tomaNuevo;
         t.deje = prop.cambioHorario.dejeNuevo;
-        t.descanso = String(prop.cambioHorario.descansoNuevoMin);
+        t.descanso = minToHHMM(prop.cambioHorario.descansoNuevoMin);
       }
       cambios++;
     });
