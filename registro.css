@@ -17,12 +17,24 @@
   --bg:#0d1117; --panel:#161b22; --panel-2:#1f242c; --border:#30363d;
   --fg:#e6edf3; --fg-dim:#9ba3ad; --accent:#58a6ff; --warn:#f0883e;
   --ok:#3fb950; --bad:#f85149; --iryo:#e8201c; --tel-maquinista:#ec4899;
+  --rc-normal:#2dd4bf;
 }
 
 /* ==== RV Iryo CSS (componentes) ==== */
 h2{font-family:Poppins,sans-serif; font-size:18px; margin:0 0 12px}
 h3{font-family:Poppins,sans-serif; font-size:15px; margin:18px 0 8px;
    color:var(--accent)}
+/* Título de sección plegable (Comprobaciones...) — mismo aspecto que un
+ * <h3>, pero clicable con flecha. Genérico, no depende de .svc-card-title
+ * (a diferencia de .title-toggle, que sí). */
+.section-toggle{
+  display:flex; align-items:center; gap:8px; width:100%;
+  font-family:Poppins,sans-serif; font-size:15px; font-weight:700;
+  color:var(--accent); background:transparent; border:none; padding:0;
+  margin:18px 0 8px; cursor:pointer; text-align:left;
+}
+.section-toggle:hover{opacity:.85}
+.section-toggle .chev{font-size:14px; color:var(--fg-dim)}
 
 /* ---- Botones ---- */
 button.btn{
@@ -46,11 +58,10 @@ button.btn.rec:hover{border-color:#fff}
 .tel-cats .btn{flex:0 0 auto; white-space:nowrap; font-size:13px; padding:7px 12px; min-height:36px}
 
 /* Atajos de Observaciones (Vmeta, MV...) — entre la etiqueta y el textarea,
-   desplazables como .tel-cats, insertan una frase ya compuesta. */
-.obs-atajos{display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch;
-  scrollbar-width:none; margin:6px 0 8px; padding-bottom:2px}
-.obs-atajos::-webkit-scrollbar{display:none}
-.obs-atajos .btn{flex:0 0 auto; white-space:nowrap; font-size:13px; padding:7px 12px; min-height:36px}
+   insertan una frase ya compuesta. Envuelven en varias líneas (no
+   desplazan) para que quepan siempre en pantalla sin arrastrar. */
+.obs-atajos{display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 8px}
+.obs-atajos .btn{white-space:nowrap; font-size:13px; padding:7px 12px; min-height:36px}
 /* Modal de atajo: la frase completa corrida, con los huecos insertados en
    línea dentro del propio texto — se ve el contexto de lo que se rellena. */
 .atajo-frase{font-size:15px; line-height:1.9; margin-bottom:16px}
@@ -402,12 +413,8 @@ button.btn:disabled{opacity:.45; cursor:default}
   background:rgba(88,166,255,.13);
   border-color:rgba(88,166,255,.4);
 }
-.cal-day.pair-end-right{
-  border-right:3px solid var(--warn);
-}
-.cal-day.pair-end-left{
-  border-left:3px solid var(--warn);
-}
+/* pair-end-left/right: sin borde propio por ahora — a revisar cuando se
+   rediseñe la vista de dormida (pendiente, punto 9). */
 .cal-day .dot{
   position:absolute; bottom:5px; left:50%; transform:translateX(-50%);
   width:7px; height:7px; border-radius:50%;
@@ -426,6 +433,10 @@ button.btn:disabled{opacity:.45; cursor:default}
   font-size:9px; line-height:1.15; color:var(--fg-dim);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
+.cal-day .svc-route{
+  font-size:10px; line-height:1.15; color:var(--fg); font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
 /* Traslados — distintos de un servicio normal, misma franja de color que
  * usa el resto de la app para "no es RC" (rosa, var(--tel-maquinista)). */
 .svc-tag{
@@ -433,13 +444,20 @@ button.btn:disabled{opacity:.45; cursor:default}
   color:var(--tel-maquinista); border:1px solid var(--tel-maquinista);
   border-radius:3px; padding:0 3px; margin-right:3px; vertical-align:middle;
 }
+.svc-tag.normal{color:var(--rc-normal); border-color:var(--rc-normal)}
 .cal-day .svc-block.traslado{border-left:2px solid var(--tel-maquinista); padding-left:4px}
 .cal-day .svc-block.traslado .svc-head b{color:var(--tel-maquinista)}
-.list-row .lr-svc-line.traslado{color:var(--tel-maquinista)}
+.list-row .lr-svc-line.traslado{color:var(--tel-maquinista); border-left-color:var(--tel-maquinista)}
 .list-row .lr-svc-line.traslado b{color:var(--tel-maquinista)}
+/* Servicios normales (no traslado) — mismo tratamiento que traslado
+ * (etiqueta + barra lateral del mismo color), en teal en vez de rosa. */
+.cal-day .svc-block.normal{border-left:2px solid var(--rc-normal); padding-left:4px}
+.cal-day .svc-block.normal .svc-head b{color:var(--rc-normal)}
+.list-row .lr-svc-line.normal{border-left-color:var(--rc-normal)}
+.list-row .lr-svc-line.normal b{color:var(--rc-normal)}
 .cal-day .estado{
   font-size:9px; font-weight:700; line-height:1.15; margin-top:auto; padding-top:3px;
-  text-transform:uppercase; letter-spacing:.3px;
+  text-transform:uppercase; letter-spacing:.3px; align-self:flex-end;
 }
 .cal-day .estado.en_curso{color:var(--warn)}
 .cal-day .estado.cerrado{color:var(--ok)}
@@ -447,6 +465,11 @@ button.btn:disabled{opacity:.45; cursor:default}
   position:absolute; top:4px; right:5px; font-size:18px; margin:0;
   line-height:1; filter:drop-shadow(0 1px 1px rgba(0,0,0,.35));
 }
+/* Si en esta celda también hay luna de dormida, el informe se corre al
+ * lado para no solaparse — la luna se queda en la esquina real. El
+ * combinador ~ solo aplica cuando el icono de luna existe de verdad como
+ * hermano anterior (no en días normales sin dormida). */
+.cal-day .dormida-icon ~ .inc-badge{right:22px}
 
 .cal-toggle{
   cursor:pointer; width:44px; height:44px; border-radius:8px;
@@ -634,6 +657,11 @@ input[type=number]::-webkit-inner-spin-button{
 .ltv-inline select{
   min-height:30px; padding:2px 8px; font-size:12px; width:auto;
 }
+.turno-horario-check{
+  display:flex; align-items:center; gap:4px; font-size:11px;
+  color:var(--fg-dim); cursor:pointer; user-select:none;
+}
+.turno-horario-check input{width:16px; height:16px; min-height:0}
 
 /* Estaciones — card por estación con sub-columnas */
 .stations{display:flex; flex-direction:column; gap:10px; margin:10px 0}
@@ -765,12 +793,16 @@ input[type=number]::-webkit-inner-spin-button{
   display:grid; grid-template-columns:1fr 1fr;
   grid-template-rows:repeat(7,auto); grid-auto-flow:column;
   gap:2px 10px;
+  /* Misma tarjeta que .station-card — se nota del fondo, como las
+     paradas, en vez de flotar suelta sobre el panel. */
+  background:var(--panel-2); border:1px solid var(--border);
+  border-radius:10px; padding:10px 12px;
 }
 .check-item{
   display:flex; align-items:center; gap:10px; padding:9px 6px;
   border-radius:7px; cursor:pointer; min-height:44px;
 }
-.check-item:hover{background:var(--panel-2)}
+.check-item:hover{background:var(--border)}
 .check-item input{width:22px; height:22px; min-height:0; flex:0 0 auto}
 .check-item span{font-size:14px}
 
@@ -823,6 +855,23 @@ input[type=number]::-webkit-inner-spin-button{
   color:var(--accent);
 }
 .stat-box .lbl{font-size:12px; color:var(--fg-dim); margin-top:4px}
+.stat-box[data-action]{cursor:pointer}
+.stat-box[data-action]:hover{border-color:var(--accent)}
+.stat-list{display:flex; flex-direction:column; gap:6px; margin-top:8px}
+.stat-row{
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+  padding:8px 10px; background:var(--panel-2); border-radius:8px; font-size:13px;
+}
+.stat-row .ret{color:var(--warn); font-weight:600}
+.stat-sub{margin-top:14px}
+.stat-sub:first-child{margin-top:0}
+.stat-sub b{display:block; font-size:12px; color:var(--fg-dim); margin-bottom:6px;
+  text-transform:uppercase; letter-spacing:.3px; font-weight:700}
+.stat-linea-row{
+  display:flex; align-items:center; gap:8px; margin-bottom:10px;
+}
+.stat-linea-row label{font-size:12px; color:var(--fg-dim); flex:0 0 auto}
+.stat-linea-row select{width:auto; min-width:0; flex:0 0 auto}
 
 /* ---- Lista vacía / avisos ---- */
 .empty-msg{

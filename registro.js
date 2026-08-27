@@ -12,7 +12,7 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v30';
+  var APP_VERSION = 'enruta-v34';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -71,8 +71,36 @@
       { t: 'campo', id: 'observa', label: 'Qué se observa' },
       { t: 'text', v: ' en el PK ' },
       { t: 'campo', id: 'pk', label: 'PK' }
+    ] },
+    { id: 'balizas', label: 'Error lectura grupo de balizas', partes: [
+      { t: 'text', v: 'Error lectura grupo de baliza, el error en el PK ' },
+      { t: 'campo', id: 'pkError', label: 'PK del error' },
+      { t: 'text', v: ', me detengo en el PK ' },
+      { t: 'campo', id: 'pkDetencion', label: 'PK detención' },
+      // Tramo condicional: si no se rellena, no deja ni rastro en el
+      // texto final (ni el prefijo ni un hueco vacío).
+      { t: 'campoCondicional', id: 'obs', label: 'Observaciones', prefijo: '. Observaciones: ' }
     ] }
   ];
+
+  // Mapeo ruta → línea para Estadísticas (punto 6). Sin sentido de
+  // dirección: Madrid→Barcelona y Barcelona→Madrid cuentan igual como
+  // L50. Confirmado con el usuario. Traslados/maniobras (sin origen o
+  // destino real) no encajan en ninguna línea.
+  var LINEAS_RUTA = [
+    { linea: 'L50', a: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', b: 'BARCELONA-SANTS' },
+    { linea: 'L10', a: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', b: 'SEVILLA-SANTA JUSTA' },
+    { linea: 'L30', a: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', b: 'MALAGA MARIA ZAMBRANO' },
+    { linea: 'L40', a: 'MADRID-CHAMARTIN-CLARA CAMP.', b: 'VALENCIA-JOAQUIN SOROLLA' },
+    { linea: 'L42', a: 'MADRID-CHAMARTIN-CLARA CAMP.', b: 'ALACANT-TERMINAL' }
+  ];
+  function lineaDeServicio(s) {
+    if (!s.origen || !s.destino) return null;
+    var r = LINEAS_RUTA.find(function (x) {
+      return (x.a === s.origen && x.b === s.destino) || (x.a === s.destino && x.b === s.origen);
+    });
+    return r ? r.linea : null;
+  }
 
   // Cada variante se compone de "partes": texto fijo, campos a rellenar (con
   // pista opcional de las opciones entre paréntesis del original) y bloques
@@ -744,6 +772,16 @@
   var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
     'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   var DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  var DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  // Día de la semana (0=Lunes..6=Domingo, mismo criterio que el calendario)
+  // a partir de una fecha 'YYYY-MM-DD' — por componentes, evita líos de
+  // zona horaria de new Date('YYYY-MM-DD').
+  function diaSemanaIdx(fecha) {
+    var p = (fecha || '').split('-');
+    if (p.length !== 3) return null;
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    return (d.getDay() + 6) % 7;
+  }
 
   // ===== Estado =====
   var turnos = [];
@@ -753,6 +791,15 @@
   var editId = null;
   var expandedSvc = 0;
   var incidenciaAbierta = {}; // svc index -> bool. Estado de UI, no se persiste.
+  // Comprobaciones: svc index -> bool, solo cuando el usuario ha tocado el
+  // toggle a mano (si no está la clave, el estado se deriva de si ya hay
+  // hora de salida real — ver comprobacionesOpen). Estado de UI, no se
+  // persiste.
+  var comprobacionesAbierta = {};
+  function comprobacionesOpen(si, s) {
+    if (comprobacionesAbierta.hasOwnProperty(si)) return comprobacionesAbierta[si];
+    return !s.rSalida;
+  }
   var calYear, calMonth;
   // Estado de la pestaña Informe — solo en memoria, nunca en localStorage.
   // null → sin elegir modo (dispara modal al entrar en la pestaña).
@@ -760,6 +807,12 @@
   // {modo:'form', origen:'registro'|'cero', s:{...}, inc:{...}} → formulario.
   var informeState = null;
   var statsRange = null;
+  // Listado desplegable de Estadísticas (Turnos/Retraso acumulado
+  // clicables) — solo en memoria, no se persiste.
+  var statsListMode = null;    // null | 'turnos' | 'retrasos'
+  var statsListLinea = '';     // '' = todas las líneas
+  var statsListOrden = 'desc'; // 'desc' = más reciente primero
+  var statsOtrasAbierta = false; // "Otras estadísticas" — plegada por defecto
 
   // ===== Utilidades =====
   function $(id) { return document.getElementById(id); }
@@ -905,6 +958,9 @@
     // por defecto — se activa tocando 7 veces "Versión instalada" en
     // Ajustes (mismo gesto que el modo desarrollador de Android).
     if (settings.telDevMode == null) settings.telDevMode = false;
+    // Sincronización con Google Calendar (solo modo desarrollador).
+    if (settings.gcalClientId == null) settings.gcalClientId = '';
+    if (settings.gcalCalendarId == null) settings.gcalCalendarId = 'primary';
     // Carpeta de turnos en el dispositivo (ver bloque más abajo).
     if (settings.folderSetupSeen == null) settings.folderSetupSeen = false;
     if (settings.folderLinked == null) settings.folderLinked = false;
@@ -1169,6 +1225,7 @@
   function blankTurno(fecha) {
     return {
       id: uid(), estado: 'en_curso', horaLTV: '',
+      turnoHorarioActivo: false, toma: '', deje: '', descanso: '',
       servicios: [blankServicio(fecha)]
     };
   }
@@ -1179,6 +1236,10 @@
   // Migración defensiva: asegura que un turno tiene la forma esperada.
   function normTurno(t) {
     if (t.horaLTV == null) t.horaLTV = '';
+    if (t.turnoHorarioActivo == null) t.turnoHorarioActivo = false;
+    if (t.toma == null) t.toma = '';
+    if (t.deje == null) t.deje = '';
+    if (t.descanso == null) t.descanso = '';
     if (!t.servicios) t.servicios = [];
     t.servicios.forEach(function (s, si) {
       if (s.origen == null) s.origen = '';
@@ -1325,19 +1386,52 @@
   }
 
   // ===== Calendario =====
+  // Primeras 3 letras de la primera palabra del nombre de estación
+  // (p.ej. "MADRID-P.ATOCHA-ALMUDENA GRANDES" → "Mad") — recorrido corto
+  // para que quepa en la celda diminuta del calendario.
+  function abreviarEstacion(nombre) {
+    var palabra = String(nombre || '').split(/[-\s]/)[0];
+    return palabra ? palabra.charAt(0).toUpperCase() + palabra.slice(1, 3).toLowerCase() : '';
+  }
+  // Nombre de estación "bien escrito" para los listados de Estadísticas
+  // — "MADRID-P.ATOCHA-ALMUDENA GRANDES" → "Madrid-P.Atocha-Almudena
+  // Grandes". Solo se usa ahí, el resto de la app sigue mostrando el
+  // nombre tal cual viene de data.js.
+  function prettyEstacion(nombre) {
+    return String(nombre || '').toLowerCase().replace(/(^|[\s\-.])([a-zà-ÿ])/g,
+      function (m, sep, c) { return sep + c.toUpperCase(); });
+  }
+  // Icono de ordenar (barras decrecientes + flecha) — no hay glifo Unicode
+  // decente para esto, así que es un SVG mínimo en línea, sin depender de
+  // ninguna librería de iconos. desc=true → flecha abajo (más reciente
+  // primero); false → flecha arriba (más antiguo primero).
+  function sortIconSvg(desc) {
+    var flecha = desc
+      ? '<path d="M13 2v10m0 0l-3-3m3 3l3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+      : '<path d="M13 12V2m0 0l-3 3m3-3l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
+    return '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle">' +
+      '<line x1="1" y1="3" x2="9" y2="3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+      '<line x1="1" y1="7" x2="6.5" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+      '<line x1="1" y1="11" x2="4" y2="11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+      flecha + '</svg>';
+  }
   function renderSvcBlock(s) {
     var esTraslado = !!s.esTraslado;
     var numTxt = s.servicioComercial || (esTraslado ? (s.maniobraNombre || 'Traslado') : '');
     var num = numTxt ? '<b>' + esc(numTxt) + '</b>' : '';
     var rd = parseInt(String(s.rLlegDestino || '').replace(/^\+/, ''), 10);
     var ret = (!isNaN(rd) && rd > 0) ? ' <span class="ret">+' + rd + 'm</span>' : '';
-    var tag = esTraslado ? '<span class="svc-tag">TRASLADO</span>' : '';
+    var tag = esTraslado ? '<span class="svc-tag">TRASLADO</span>' :
+      (num ? '<span class="svc-tag normal">SERVICIO</span>' : '');
     var line1 = tag + num + ret;
-    var line2 = (s.hSalida && s.hDestino) ? esc(s.hSalida + '→' + s.hDestino) : '';
-    if (!num && !line2 && !esTraslado) return '';
-    var out = '<span class="svc-block' + (esTraslado ? ' traslado' : '') + '">';
+    var lineRuta = (!esTraslado && s.origen && s.destino) ?
+      esc(abreviarEstacion(s.origen) + ' - ' + abreviarEstacion(s.destino)) : '';
+    var lineHora = (s.hSalida && s.hDestino) ? esc(s.hSalida + '→' + s.hDestino) : '';
+    if (!num && !lineHora && !esTraslado) return '';
+    var out = '<span class="svc-block' + (esTraslado ? ' traslado' : ' normal') + '">';
     if (line1) out += '<span class="svc-head">' + line1 + '</span>';
-    if (line2) out += '<span class="svc-hrs">' + line2 + '</span>';
+    if (lineRuta) out += '<span class="svc-route">' + lineRuta + '</span>';
+    if (lineHora) out += '<span class="svc-hrs">' + lineHora + '</span>';
     out += '</span>';
     return out;
   }
@@ -1490,7 +1584,7 @@
           ? ' · <span class="ret">+' + rd + 'm</span>'
           : '';
         var tagHtml = esTraslado ? '<span class="svc-tag">TRASLADO</span> ' : '';
-        h += '<div class="lr-svc-line' + (esTraslado ? ' traslado' : '') + '">' +
+        h += '<div class="lr-svc-line' + (esTraslado ? ' traslado' : ' normal') + '">' +
           tagHtml + '<b>' + (esTraslado ? 'Traslado ' : 'Servicio ') + esc(num) + '</b> · ' + esc(hrs) + esc(ruta) + retHtml +
           '</div>';
       });
@@ -1814,6 +1908,12 @@
     var startIdx = ownerIdx + 1;
     for (var i = startIdx; i < s.paradas.length; i++) add(s.paradas[i].nombre);
     add(s.destino);
+    // Opción final para cuando el pasajero se baja en un punto no listado
+    // (no es ninguna parada real del servicio) — se guarda tal cual en
+    // p.baja, igual que cualquier otro nombre de parada.
+    opts.push('<option value="OTRA"' +
+      (selected === 'OTRA' ? ' selected' : '') +
+      '>OTRA</option>');
     return opts.join('');
   }
 
@@ -2048,11 +2148,24 @@
       h += '<span class="inc-badge" title="Informe de incidencia generado">📋</span>';
     }
     h += '<div class="ltv-inline">' +
+      '<label class="turno-horario-check" title="Horario de turno (toma / deje / descanso)">' +
+      '<span>Turno</span><input type="checkbox" data-action="turno-horario-toggle"' +
+      (t.turnoHorarioActivo ? ' checked' : '') + '></label>' +
       '<label>Hora LTV</label>' +
       '<select data-bind="srv.' + si + '.horaLTV">' +
       horaLtvOptions(s.horaLTV) + '</select>' +
       '</div>';
     h += '</div>';
+
+    // Horario de turno (toma/deje/descanso) — opcional, dato de todo el
+    // turno (no del servicio), igual en las dos cards si es dormida.
+    if (t.turnoHorarioActivo) {
+      h += '<div class="field-grid" style="grid-template-columns:repeat(3,1fr)">' +
+        '<div class="field"><label>Toma</label><input type="time" data-bind="toma" value="' + esc(t.toma) + '"></div>' +
+        '<div class="field"><label>Deje</label><input type="time" data-bind="deje" value="' + esc(t.deje) + '"></div>' +
+        '<div class="field"><label>Descanso</label><input type="text" data-bind="descanso" value="' + esc(t.descanso) + '" placeholder="min"></div>' +
+        '</div>';
+    }
 
     // Fecha + Servicio Comercial [+ Nº de traslado, seguido a la derecha
     // del desplegable, en la misma fila — no en una fila aparte].
@@ -2096,15 +2209,23 @@
     // Estaciones (card por estación)
     h += stationsBlock(s, si);
 
-    // Comprobaciones
-    h += '<h3>Comprobaciones</h3><div class="checks">';
-    COMPROBACIONES.forEach(function (c, ci) {
-      h += '<label class="check-item">' +
-        '<input type="checkbox" data-bind="srv.' + si + '.chk.' + ci + '"' +
-        (s.comprobaciones[ci] ? ' checked' : '') + '>' +
-        '<span>' + esc(c) + '</span></label>';
-    });
-    h += '</div>';
+    // Comprobaciones — plegable (abierto por defecto, se pliega solo en
+    // cuanto hay hora de salida real; el toggle manual manda siempre que
+    // se haya tocado). Estilo plano, mismo patrón que el título del
+    // servicio (title-toggle + chev), sin tarjeta ni color propio.
+    var chkAbierto = comprobacionesOpen(si, s);
+    h += '<button type="button" class="section-toggle" data-action="comprobaciones-toggle" ' +
+      'data-svc="' + si + '">Comprobaciones<span class="chev">' + (chkAbierto ? '▴' : '▾') + '</span></button>';
+    if (chkAbierto) {
+      h += '<div class="checks">';
+      COMPROBACIONES.forEach(function (c, ci) {
+        h += '<label class="check-item">' +
+          '<input type="checkbox" data-bind="srv.' + si + '.chk.' + ci + '"' +
+          (s.comprobaciones[ci] ? ' checked' : '') + '>' +
+          '<span>' + esc(c) + '</span></label>';
+      });
+      h += '</div>';
+    }
 
     // Observaciones a ancho completo; telefonemas ya recibidos en este
     // servicio justo debajo, también a ancho completo.
@@ -2441,7 +2562,11 @@
   // vacío se marca con '___' en vez de quedarse en blanco sin más.
   function componerTextoAtajo(atajo, valores) {
     return atajo.partes.map(function (p) {
-      return p.t === 'text' ? p.v : (valores[p.id] || '___');
+      if (p.t === 'text') return p.v;
+      // Tramo condicional: si el campo se deja vacío, no añade nada (ni
+      // el prefijo fijo ni '___') — a diferencia de un 'campo' normal.
+      if (p.t === 'campoCondicional') return valores[p.id] ? p.prefijo + valores[p.id] : '';
+      return valores[p.id] || '___';
     }).join('');
   }
   function abrirObsAtajo(atajoId, si) {
@@ -2506,7 +2631,9 @@
       var s = t && t.servicios[si];
       if (!s) return;
       var linea = componerTextoAtajo(atajo, valores);
-      s.observaciones = (s.observaciones ? s.observaciones + '\n' : '') + linea;
+      // Viñeta delante — se nota como "punto aparte" generado por un
+      // atajo, distinto de lo escrito a mano o dictado.
+      s.observaciones = (s.observaciones ? s.observaciones + '\n' : '') + '• ' + linea;
       autosave();
       var ta = document.querySelector('[data-bind="srv.' + si + '.observaciones"]');
       if (ta) ta.value = s.observaciones;
@@ -3100,6 +3227,11 @@
       return d && d >= statsRange.desde && d <= statsRange.hasta;
     };
     var nTurnos = 0, nServicios = 0, totalMin = 0, totalRetrasoMin = 0;
+    var serviciosRango = []; // todos los servicios del rango, para el listado desplegable
+    var porDia = [0, 0, 0, 0, 0, 0, 0]; // servicios por día de la semana, Lunes..Domingo
+    var nDormidas = 0;
+    var porManiobra = {}; // maniobraNombre -> nº de traslados
+    var mayorRetraso = null; // { fecha, num, destino, min }
     var addRet = function (v) {
       var n = parseRetraso(v);
       if (n != null && n > 0) totalRetrasoMin += n;
@@ -3108,9 +3240,11 @@
       var hit = t.servicios.some(function (s) { return inRange(s.fecha); });
       if (!hit) return;
       nTurnos++;
+      if (isDormida(t)) nDormidas++;
       t.servicios.forEach(function (s) {
         if (!inRange(s.fecha)) return;
         nServicios++;
+        serviciosRango.push(s);
         var d = durMin(s.hSalida, s.hDestino);
         if (d != null) totalMin += d;
         addRet(s.rSalida);
@@ -3119,6 +3253,16 @@
           addRet(p.rLleg);
           addRet(p.rSal);
         });
+        var di = diaSemanaIdx(s.fecha);
+        if (di != null) porDia[di]++;
+        if (s.esTraslado && s.maniobraNombre) {
+          porManiobra[s.maniobraNombre] = (porManiobra[s.maniobraNombre] || 0) + 1;
+        }
+        var mLleg = parseRetraso(s.rLlegDestino);
+        if (mLleg != null && mLleg > 0 && (!mayorRetraso || mLleg > mayorRetraso.min)) {
+          mayorRetraso = { fecha: s.fecha, num: s.servicioComercial || s.maniobraNombre || '—',
+            destino: s.destino || '—', min: mLleg };
+        }
       });
     });
 
@@ -3130,15 +3274,102 @@
       '<input type="date" id="st-hasta" value="' + statsRange.hasta + '"></div>' +
       '</div></div>';
     h += '<div class="stat-grid">' +
-      '<div class="stat-box"><div class="num">' + nTurnos + '</div>' +
+      '<div class="stat-box" data-action="stats-open" data-modo="turnos"><div class="num">' + nTurnos + '</div>' +
       '<div class="lbl">Turnos</div></div>' +
       '<div class="stat-box"><div class="num">' + nServicios + '</div>' +
       '<div class="lbl">Servicios</div></div>' +
       '<div class="stat-box"><div class="num">' + fmtDur(totalMin) + '</div>' +
       '<div class="lbl">Horas de servicio</div></div>' +
-      '<div class="stat-box"><div class="num">' + fmtDur(totalRetrasoMin) + '</div>' +
+      '<div class="stat-box" data-action="stats-open" data-modo="retrasos"><div class="num">' + fmtDur(totalRetrasoMin) + '</div>' +
       '<div class="lbl">Retraso acumulado</div></div>' +
       '</div>';
+
+    h += '<div class="card">';
+    h += '<button type="button" class="section-toggle" data-action="stats-otras-toggle">Otras estadísticas' +
+      '<span class="chev">' + (statsOtrasAbierta ? '▴' : '▾') + '</span></button>';
+    if (statsOtrasAbierta) {
+      h += '<div class="stat-sub"><b>Servicios por día de la semana</b><div class="stat-list">';
+      DIAS_SEMANA.forEach(function (nombre, i) {
+        h += '<div class="stat-row"><span>' + nombre + '</span><span>' + porDia[i] + '</span></div>';
+      });
+      h += '</div></div>';
+
+      h += '<div class="stat-sub"><b>Dormidas</b>' +
+        '<div class="hint">' + nDormidas + ' de ' + nTurnos + ' turnos en este rango.</div></div>';
+
+      h += '<div class="stat-sub"><b>Traslados por maniobra</b>';
+      var maniobras = Object.keys(porManiobra).sort(function (a, b) { return porManiobra[b] - porManiobra[a]; });
+      if (!maniobras.length) {
+        h += '<div class="hint">Sin traslados en este rango.</div>';
+      } else {
+        h += '<div class="stat-list">';
+        maniobras.forEach(function (nombre) {
+          h += '<div class="stat-row"><span>' + esc(nombre) + '</span><span>' + porManiobra[nombre] + '</span></div>';
+        });
+        h += '</div>';
+      }
+      h += '</div>';
+
+      h += '<div class="stat-sub"><b>Mayor retraso del periodo</b>';
+      if (!mayorRetraso) {
+        h += '<div class="hint">Sin retrasos en este rango.</div>';
+      } else {
+        h += '<div class="stat-row"><span>' + esc(ymdNice(mayorRetraso.fecha)) + ' · <b>' +
+          esc(mayorRetraso.num) + '</b> · ' + esc(prettyEstacion(mayorRetraso.destino)) +
+          '</span><span class="ret">+' + mayorRetraso.min + 'm</span></div>';
+      }
+      h += '</div>';
+    }
+    h += '</div>'; // fin card Otras estadísticas
+
+    if (statsListMode) {
+      var lista = statsListMode === 'retrasos'
+        ? serviciosRango.filter(function (s) { var m = parseRetraso(s.rLlegDestino); return m != null && m >= 5; })
+        : serviciosRango.slice();
+      if (statsListLinea) {
+        lista = lista.filter(function (s) { return lineaDeServicio(s) === statsListLinea; });
+      }
+      lista.sort(function (a, b) {
+        return statsListOrden === 'asc' ? (a.fecha || '').localeCompare(b.fecha || '') :
+          (b.fecha || '').localeCompare(a.fecha || '');
+      });
+      h += '<div class="card">' +
+        '<div class="card-title" style="display:flex;align-items:center;gap:8px">' +
+        '<span style="flex:1">' + (statsListMode === 'retrasos' ? 'Servicios con retraso a destino' : 'Todos los servicios') + '</span>' +
+        '<button type="button" class="btn ghost" data-action="stats-list-orden" title="' +
+        (statsListOrden === 'desc' ? 'Más reciente primero' : 'Más antiguo primero') +
+        '" style="padding:4px 9px;min-height:28px;line-height:0">' + sortIconSvg(statsListOrden === 'desc') + '</button>' +
+        '<button class="btn ghost" data-action="stats-list-close" style="padding:4px 10px;min-height:28px">✕</button>' +
+        '</div>';
+      if (statsListMode === 'retrasos') {
+        h += '<div class="hint" style="margin:-4px 0 8px">Solo se listan los servicios con 5 min o más de retraso a destino.</div>';
+      }
+      h += '<div class="stat-linea-row">' +
+        '<label for="st-list-linea">Línea</label>' +
+        '<select id="st-list-linea">' +
+        '<option value="">— todas —</option>' +
+        ['L10', 'L30', 'L40', 'L42', 'L50'].map(function (l) {
+          return '<option value="' + l + '"' + (statsListLinea === l ? ' selected' : '') + '>' + l + '</option>';
+        }).join('') +
+        '</select></div>';
+      if (!lista.length) {
+        h += '<div class="hint">Sin servicios que cumplan el filtro en este rango.</div>';
+      } else {
+        h += '<div class="stat-list">';
+        lista.forEach(function (s) {
+          var num = s.servicioComercial || s.maniobraNombre || '—';
+          var hrs = (s.hSalida && s.hDestino) ? (s.hSalida + ' → ' + s.hDestino) : '—';
+          var ruta = (s.origen && s.destino) ? (prettyEstacion(s.origen) + ' → ' + prettyEstacion(s.destino)) : '—';
+          var min = parseRetraso(s.rLlegDestino);
+          var retHtml = (min != null && min > 0) ? '<span class="ret">+' + min + 'm</span>' : '';
+          h += '<div class="stat-row"><span>' + esc(ymdNice(s.fecha)) + ' · <b>' + esc(num) + '</b> · ' +
+            esc(ruta) + ' · ' + esc(hrs) + '</span>' + retHtml + '</div>';
+        });
+        h += '</div>';
+      }
+      h += '</div>';
+    }
+
     pane.innerHTML = h;
 
     $('st-desde').addEventListener('change', function (e) {
@@ -3146,6 +3377,10 @@
     });
     $('st-hasta').addEventListener('change', function (e) {
       statsRange.hasta = e.target.value; renderStats();
+    });
+    var selListLinea = $('st-list-linea');
+    if (selListLinea) selListLinea.addEventListener('change', function (e) {
+      statsListLinea = e.target.value; renderStats();
     });
   }
 
@@ -3988,6 +4223,28 @@
       return;
     }
 
+    if (act === 'stats-otras-toggle') {
+      statsOtrasAbierta = !statsOtrasAbierta;
+      renderStats();
+      return;
+    }
+    if (act === 'stats-open') {
+      var modo = el.getAttribute('data-modo');
+      var abriendo = statsListMode !== modo;
+      statsListMode = abriendo ? modo : null;
+      // Al abrir, siempre "todas las líneas" primero — el filtro se
+      // aplica a mano después, no se arrastra de la vez anterior.
+      if (abriendo) statsListLinea = '';
+      renderStats();
+      return;
+    }
+    if (act === 'stats-list-close') { statsListMode = null; renderStats(); return; }
+    if (act === 'stats-list-orden') {
+      statsListOrden = statsListOrden === 'desc' ? 'asc' : 'desc';
+      renderStats();
+      return;
+    }
+
     if (act === 'add-servicio' && t) {
       // Fecha del 2º servicio = el día real de hoy (igual que al crear un registro
       // nuevo). Así una dormida creada al día siguiente sale con la fecha correcta
@@ -4185,6 +4442,20 @@
         editId = null;
         renderCalendar(); setView('calendario');
       });
+      return;
+    }
+    if (act === 'comprobaciones-toggle' && t) {
+      var siChk = +el.getAttribute('data-svc');
+      var svcChk = t.servicios[siChk];
+      if (!svcChk) return;
+      comprobacionesAbierta[siChk] = !comprobacionesOpen(siChk, svcChk);
+      refreshServicioCard(siChk);
+      return;
+    }
+    if (act === 'turno-horario-toggle' && t) {
+      t.turnoHorarioActivo = !t.turnoHorarioActivo;
+      autosave();
+      renderEditor(); // repinta las dos cards si es dormida (mismos datos)
       return;
     }
     if (act === 'incidencia' && t) {
