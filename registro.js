@@ -13,7 +13,7 @@
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
   var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
-  var APP_VERSION = 'enruta-v40';
+  var APP_VERSION = 'enruta-v41';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -34,16 +34,20 @@
   // aquí, sin tocar el resto del código.
   var OBS_ATAJOS = [
     { id: 'vmeta0', label: 'Vmeta = 0', partes: [
-      { t: 'text', v: 'Vmeta = 0 en el PK ' },
-      { t: 'campo', id: 'pk', label: 'PK' },
+      { t: 'text', v: 'Vmeta = 0 en ' },
+      { t: 'campo', id: 'tipoPk', label: 'PK / Señal', options: ['PK', 'Señal'] },
+      { t: 'text', v: ' ' },
+      { t: 'campo', id: 'pk', label: 'Número' },
       { t: 'text', v: ' y se valida en ' },
       { t: 'campo', id: 'tipoValidacion', label: 'Se valida en', options: ['Pantalla', 'Señal'] },
       { t: 'text', v: ' ' },
       { t: 'campo', id: 'numeroValidacion', label: 'Número' }
     ] },
     { id: 'vmeta40', label: 'Vmeta = 40', partes: [
-      { t: 'text', v: 'Vmeta = 40 en el PK ' },
-      { t: 'campo', id: 'pk', label: 'PK' },
+      { t: 'text', v: 'Vmeta = 40 en ' },
+      { t: 'campo', id: 'tipoPk', label: 'PK / Señal', options: ['PK', 'Señal'] },
+      { t: 'text', v: ' ' },
+      { t: 'campo', id: 'pk', label: 'Número' },
       { t: 'text', v: ' y se valida en ' },
       { t: 'campo', id: 'tipoValidacion', label: 'Se valida en', options: ['Pantalla', 'Señal'] },
       { t: 'text', v: ' ' },
@@ -61,11 +65,12 @@
     ] },
     { id: 'parada', label: 'Punto de parada', partes: [
       { t: 'text', v: 'Detenido ante la ' },
-      { t: 'campo', id: 'tipo', label: 'Tipo', options: ['Señal', 'Pantalla'] },
+      { t: 'campo', id: 'tipo', label: 'Tipo', options: ['Pantalla', 'Señal', 'PK'] },
       { t: 'text', v: ' ' },
       { t: 'campo', id: 'numero', label: 'Número' },
       { t: 'text', v: ', se reanuda la marcha con ' },
-      { t: 'campo', id: 'condiciones', label: 'Condiciones' }
+      { t: 'campo', id: 'minutos', label: 'Minutos' },
+      { t: 'text', v: ' min' }
     ] },
     { id: 'crc', label: 'Comunica al CRC', partes: [
       { t: 'text', v: 'Se comunica al CRC que se observa ' },
