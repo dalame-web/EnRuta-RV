@@ -13,7 +13,7 @@
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
   var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
-  var APP_VERSION = 'enruta-v38';
+  var APP_VERSION = 'enruta-v39';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1555,8 +1555,10 @@
           // servicio real) — se autorrellena al pulsar "Crear turno".
           var prevista = gcalCacheFind(ds);
           if (prevista) {
+            var horarioTxt = (prevista.toma || prevista.deje) ?
+              ' ' + esc(prevista.toma || '—') + '-' + esc(prevista.deje || '—') : '';
             h += '<span class="gcal-preview" title="Previsto en Google Calendar, aún no creado">' +
-              esc(prevista.codigo) + '</span>';
+              esc(prevista.codigo) + horarioTxt + '</span>';
           }
         }
       }
@@ -1636,9 +1638,26 @@
     if (prop.servicios && prop.servicios.length) {
       t.servicios = prop.servicios.map(function (sv) {
         var ns = blankServicio(sv.fecha);
-        ns.origen = sv.origen; ns.destino = sv.destino;
-        ns.hSalida = sv.hSalida; ns.hDestino = sv.hDestino;
-        ns.servicioComercial = (sv.guess && sv.guess.servicio) || '';
+        // Origen/destino/horas/paradas SOLO se rellenan si se ha
+        // encontrado el servicio en el Libro de Horarios (mismo efecto que
+        // elegirlo a mano en el desplegable "Servicio Comercial") — nunca
+        // se copian directamente del texto de Google Calendar, porque los
+        // nombres de estación de ahí no siempre casan con el desplegable.
+        var hr = sv.guess && sv.guess.hr;
+        if (hr) {
+          ns.servicioComercial = hr.servicio;
+          ns.origen = hr.origen || ''; ns.destino = hr.destino || '';
+          ns.hSalida = hr.hSalida || ''; ns.hDestino = hr.hDestino || '';
+          ns.paradas = (hr.paradas || []).map(function (p) {
+            var tP = typeof p.tParada === 'number' ? p.tParada : 0;
+            return {
+              nombre: p.nombre,
+              hLleg: tP > 0 ? subMinutos(p.hora, tP) : (p.hLleg || ''),
+              hora: p.hora, tParada: tP, rLleg: '', rSal: '',
+              viajeros: '', asistencias: ''
+            };
+          });
+        }
         return ns;
       });
     }
@@ -2212,8 +2231,8 @@
     if (t.turnoHorarioActivo) {
       h += '<div class="field-grid" style="grid-template-columns:repeat(3,1fr)">' +
         '<div class="field"><label>Toma</label><input type="time" data-bind="toma" value="' + esc(t.toma) + '"></div>' +
-        '<div class="field"><label>Deje</label><input type="time" data-bind="deje" value="' + esc(t.deje) + '"></div>' +
         '<div class="field"><label>Descanso</label><input type="text" data-bind="descanso" value="' + esc(t.descanso) + '" placeholder="min"></div>' +
+        '<div class="field"><label>Deje</label><input type="time" data-bind="deje" value="' + esc(t.deje) + '"></div>' +
         '</div>';
     }
 
@@ -3563,7 +3582,11 @@
       var diff = Math.abs(hrMin - hMin);
       if (diff <= 20 && diff < mejorDiff) { mejorDiff = diff; mejor = hr; }
     });
-    return mejor ? { servicio: mejor.servicio } : null;
+    // Se devuelve también el registro completo del Libro de Horarios (no
+    // solo el número) para que aplicarCacheATurno pueda autorrellenar
+    // origen/destino/horas/paradas exactamente igual que al elegir el
+    // servicio a mano en el desplegable — nunca desde el texto de Calendar.
+    return mejor ? { servicio: mejor.servicio, hr: mejor } : null;
   }
   // Pide un token de acceso a Google. interactive=true abre la ventana de
   // consentimiento si hace falta (botón "Vincular con Google" — requiere
