@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v36';
+  var APP_VERSION = 'enruta-v37';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -828,8 +828,9 @@
   var statsOtrasAbierta = false; // "Otras estadísticas" — plegada por defecto
 
   // Sincronización con Google Calendar (solo modo desarrollador). Estado
-  // en memoria, nunca persistido (el token de Google tampoco) — ver
-  // sección dedicada más abajo.
+  // en memoria, no persistido — salvo gcalToken, que SÍ se guarda (junto
+  // con su caducidad, K_GCAL_TOKEN) para no pedir vincular en cada
+  // apertura de la app — ver sección dedicada más abajo.
   var GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
   var gcalTokenClient = null;
   var gcalToken = null;
@@ -1090,7 +1091,7 @@
     if (!folderHandle) return;
     var liveFechas = {};
     turnos.forEach(function (t) {
-      if (isEmptyTurno(t)) return;
+      if (t._deCache || isEmptyTurno(t)) return;
       (t.servicios || []).forEach(function (s) { if (s.fecha) liveFechas[s.fecha] = true; });
     });
     Object.keys(liveFechas).forEach(writeDayFile);
@@ -1111,6 +1112,11 @@
   function scheduleTurnoFolderSync() {
     if (!folderHandle) return;
     var t = editId != null ? getTurno(editId) : null;
+    // _deCache: turno autorrellenado aún sin confirmar por el usuario (ver
+    // save()) — no debe escribirse como archivo tampoco, aunque este save()
+    // en concreto lo dispare otro turno sin relación mientras este sigue
+    // abierto sin tocar.
+    if (t && t._deCache) t = null;
     if (t) syncTurnoDates(t);
     else syncFolderFull();
   }
@@ -3704,8 +3710,15 @@
   // interactive=false lo intenta sin abrir nada (chequeo automático al
   // abrir la app) — si no hay sesión ya vigente, resuelve null sin
   // molestar, sin más reintentos.
+  // Petición de token en curso, si hay una — google.accounts.oauth2 solo
+  // tiene UN callback por cliente; si se pisara con una segunda llamada
+  // solapada (doble toque en "Vincular", o el botón 🔄 mientras Ajustes
+  // también está sincronizando) la primera promesa se quedaría colgada
+  // para siempre. Reutilizar la misma promesa evita eso.
+  var gcalTokenEnCurso = null;
   function gcalEnsureToken(interactive) {
-    return new Promise(function (resolve) {
+    if (gcalTokenEnCurso) return gcalTokenEnCurso;
+    gcalTokenEnCurso = new Promise(function (resolve) {
       if (gcalToken) { resolve(gcalToken); return; }
       if (!settings.gcalClientId || !window.google || !google.accounts || !google.accounts.oauth2) {
         resolve(null); return;
@@ -3728,6 +3741,16 @@
         }
         resolve(gcalToken);
       };
+      // Sin esto, si Google no puede completar el login (el usuario cierra
+      // la ventana, el navegador bloquea el popup, red caída...) `callback`
+      // nunca se llama y la promesa se queda colgada para siempre —
+      // bloqueando además cualquier vinculación futura por el guard de
+      // gcalTokenEnCurso de arriba.
+      gcalTokenClient.error_callback = function (err) {
+        gcalUltimoError = 'Google no completó el inicio de sesión' +
+          ((err && err.type) ? (' (' + err.type + ')') : '') + '.';
+        resolve(null);
+      };
       try {
         // interactive (botón "Vincular con Google"): fuerza el selector de
         // cuentas de Google con prompt: 'select_account' — sin esto, en un
@@ -3737,7 +3760,8 @@
         // prompt para no molestar si no hay sesión ya vigente.
         gcalTokenClient.requestAccessToken(interactive ? { prompt: 'select_account' } : { prompt: '' });
       } catch (e) { resolve(null); }
-    });
+    }).then(function (tok) { gcalTokenEnCurso = null; return tok; });
+    return gcalTokenEnCurso;
   }
   var gcalUltimoError = null; // texto del último fallo real (auth/HTTP/red), para mostrarlo en vez de tragárselo
   // Desfase horario local en formato "+02:00" — sin esto, Google interpreta
@@ -3835,7 +3859,9 @@
     return gcalEnsureToken(interactive).then(function (token) {
       if (!token) {
         gcalChecking = false; gcalPropuestas = null;
-        gcalUltimoError = 'No se obtuvo token de Google (revisa el Client ID o vincula de nuevo).';
+        // Si error_callback (gcalEnsureToken) ya dejó un motivo concreto,
+        // no lo taparlo con este genérico.
+        if (!gcalUltimoError) gcalUltimoError = 'No se obtuvo token de Google (revisa el Client ID o vincula de nuevo).';
         return null;
       }
       return gcalFetchEventos(desde, hasta).then(function (eventos) {
@@ -5256,11 +5282,12 @@
     }
     if (act === 'gcal-vincular') {
       gcalLoadScript();
-      gcalToken = null;
+      gcalToken = null; save(K_GCAL_TOKEN, null); // fuerza pedir cuenta de nuevo, sin quedarse el token viejo si la recarga interrumpe justo aquí
+      gcalUltimoError = null;
       gcalEnsureToken(true).then(function (token) {
         renderSettings();
         if (!token) {
-          appModal.alert({ title: 'No se pudo vincular', message: 'Revisa el Client ID de Google en Ajustes o inténtalo de nuevo.' });
+          appModal.alert({ title: 'No se pudo vincular', message: gcalUltimoError || 'Revisa el Client ID de Google en Ajustes o inténtalo de nuevo.' });
         }
       });
       return;
