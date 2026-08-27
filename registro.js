@@ -13,7 +13,7 @@
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
   var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
-  var APP_VERSION = 'enruta-v31';
+  var APP_VERSION = 'enruta-v32';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -3663,7 +3663,13 @@
         resolve(gcalToken);
       };
       try {
-        gcalTokenClient.requestAccessToken(interactive ? {} : { prompt: '' });
+        // interactive (botón "Vincular con Google"): fuerza el selector de
+        // cuentas de Google con prompt: 'select_account' — sin esto, en un
+        // dispositivo con una cuenta ya conectada (p.ej. la de la tablet)
+        // Google reutiliza esa sesión directamente y nunca deja elegir
+        // otra cuenta. El chequeo automático en segundo plano sigue sin
+        // prompt para no molestar si no hay sesión ya vigente.
+        gcalTokenClient.requestAccessToken(interactive ? { prompt: 'select_account' } : { prompt: '' });
       } catch (e) { resolve(null); }
     });
   }
