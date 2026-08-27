@@ -13,7 +13,7 @@
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
   var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
-  var APP_VERSION = 'enruta-v33';
+  var APP_VERSION = 'enruta-v34';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -3795,19 +3795,27 @@
       if (!t.descanso && prop.descansoMin) t.descanso = minToHHMM(prop.descansoMin);
       if (t.toma || t.deje || t.descanso) t.turnoHorarioActivo = true;
       prop.servicios.forEach(function (sv, si) {
+        // Mismo criterio que aplicarCacheATurno: origen/destino/horas/
+        // paradas SOLO del Libro de Horarios, nunca del texto de
+        // Calendar — se busca por el nº de tren (el que haya en el
+        // campo, editado o no) para respetar la corrección manual del
+        // usuario si cambió el número que se había adivinado.
+        var numTren = numeros[si] || (sv.guess && sv.guess.servicio) || '';
+        var hr = buscarHorarioPorServicio(numTren, sv.origen, sv.destino, sv.hSalida);
+        // "¿Ya está?" se compara contra lo que se ACABARÍA guardando (el
+        // origen/destino/hSalida oficiales), no contra el texto en bruto
+        // de Calendar — si no, cada vez que se vuelve a sincronizar el
+        // mismo día no reconoce el servicio ya añadido (nunca coincide
+        // con el texto de Calendar) y mete un duplicado nuevo.
+        var origenCmp = hr ? hr.origen : sv.origen;
+        var destinoCmp = hr ? hr.destino : sv.destino;
+        var hSalidaCmp = hr ? hr.hSalida : sv.hSalida;
         var yaHay = t.servicios.some(function (s) {
-          return s.fecha === sv.fecha && s.origen === sv.origen &&
-            s.destino === sv.destino && s.hSalida === sv.hSalida;
+          return s.fecha === sv.fecha && s.origen === origenCmp &&
+            s.destino === destinoCmp && s.hSalida === hSalidaCmp;
         });
         if (!yaHay) {
           var ns = blankServicio(sv.fecha);
-          // Mismo criterio que aplicarCacheATurno: origen/destino/horas/
-          // paradas SOLO del Libro de Horarios, nunca del texto de
-          // Calendar — se busca por el nº de tren (el que haya en el
-          // campo, editado o no) para respetar la corrección manual del
-          // usuario si cambió el número que se había adivinado.
-          var numTren = numeros[si] || (sv.guess && sv.guess.servicio) || '';
-          var hr = buscarHorarioPorServicio(numTren, sv.origen, sv.destino, sv.hSalida);
           if (hr) aplicarHorarioAServicio(ns, hr);
           else ns.servicioComercial = numTren;
           t.servicios.push(ns);
