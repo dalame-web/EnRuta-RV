@@ -13,7 +13,7 @@
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
   var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
-  var APP_VERSION = 'enruta-v41';
+  var APP_VERSION = 'enruta-v42';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1652,20 +1652,7 @@
         // se copian directamente del texto de Google Calendar, porque los
         // nombres de estación de ahí no siempre casan con el desplegable.
         var hr = sv.guess && sv.guess.hr;
-        if (hr) {
-          ns.servicioComercial = hr.servicio;
-          ns.origen = hr.origen || ''; ns.destino = hr.destino || '';
-          ns.hSalida = hr.hSalida || ''; ns.hDestino = hr.hDestino || '';
-          ns.paradas = (hr.paradas || []).map(function (p) {
-            var tP = typeof p.tParada === 'number' ? p.tParada : 0;
-            return {
-              nombre: p.nombre,
-              hLleg: tP > 0 ? subMinutos(p.hora, tP) : (p.hLleg || ''),
-              hora: p.hora, tParada: tP, rLleg: '', rSal: '',
-              viajeros: '', asistencias: ''
-            };
-          });
-        }
+        if (hr) aplicarHorarioAServicio(ns, hr);
         return ns;
       });
     }
@@ -3502,6 +3489,12 @@
     min = Math.round(min || 0);
     return pad2(Math.floor(min / 60)) + ':' + pad2(min % 60);
   }
+  // Igual que minToHHMM pero 0/sin minutos → '' (no "00:00") — así un
+  // descanso vacío en Calendar compara igual que un t.descanso vacío en
+  // vez de disparar un falso "cambió en Calendar" en cada sincronización.
+  function descansoTxt(min) {
+    return min ? minToHHMM(min) : '';
+  }
   function gcalLoadScript() {
     if (gcalScriptRequested || document.getElementById('gis-script')) return;
     gcalScriptRequested = true;
@@ -3604,6 +3597,50 @@
     // servicio a mano en el desplegable — nunca desde el texto de Calendar.
     return mejor ? { servicio: mejor.servicio, hr: mejor } : null;
   }
+  // Busca el registro del Libro de Horarios para un número de servicio ya
+  // conocido (p.ej. el que el usuario ha tecleado/corregido a mano en la
+  // revisión de sincronización) — un mismo número puede tener ida y vuelta,
+  // se desempata por la ruta/hora que trae Calendar. Se usa para que
+  // origen/destino/paradas SIEMPRE vengan del Libro de Horarios, nunca del
+  // texto de Calendar (mismos motivos que adivinarServicio/aplicarCacheATurno).
+  function buscarHorarioPorServicio(servicio, origen, destino, hSalida) {
+    if (!servicio) return null;
+    var candidatos = horarios.filter(function (h) { return String(h.servicio) === String(servicio); });
+    if (!candidatos.length) return null;
+    if (candidatos.length === 1) return candidatos[0];
+    var oPal = normalizaEstacion(origen).split(' ')[0];
+    var dPal = normalizaEstacion(destino).split(' ')[0];
+    var hMin = hhmmToMin(hSalida);
+    var mejor = candidatos[0], mejorScore = -1;
+    candidatos.forEach(function (h) {
+      var score = 0;
+      if (normalizaEstacion(h.origen).split(' ')[0] === oPal) score += 2;
+      if (normalizaEstacion(h.destino).split(' ')[0] === dPal) score += 2;
+      if (hMin != null) {
+        var hrMin = hhmmToMin(h.hSalida);
+        if (hrMin != null && Math.abs(hrMin - hMin) <= 20) score += 1;
+      }
+      if (score > mejorScore) { mejorScore = score; mejor = h; }
+    });
+    return mejor;
+  }
+  // Aplica al servicio los campos del Libro de Horarios (mismos que
+  // autofillServicio al elegir a mano) — helper común para
+  // aplicarCacheATurno y gcalAplicarPropuestas.
+  function aplicarHorarioAServicio(ns, hr) {
+    ns.servicioComercial = hr.servicio;
+    ns.origen = hr.origen || ''; ns.destino = hr.destino || '';
+    ns.hSalida = hr.hSalida || ''; ns.hDestino = hr.hDestino || '';
+    ns.paradas = (hr.paradas || []).map(function (p) {
+      var tP = typeof p.tParada === 'number' ? p.tParada : 0;
+      return {
+        nombre: p.nombre,
+        hLleg: tP > 0 ? subMinutos(p.hora, tP) : (p.hLleg || ''),
+        hora: p.hora, tParada: tP, rLleg: '', rSal: '',
+        viajeros: '', asistencias: ''
+      };
+    });
+  }
   // Pide un token de acceso a Google. interactive=true abre la ventana de
   // consentimiento si hace falta (botón "Vincular con Google" — requiere
   // el toque del usuario, los navegadores bloquean popups sin gesto).
@@ -3695,7 +3732,7 @@
       };
       if (existente.turnoHorarioActivo && (existente.toma || existente.deje || existente.descanso)) {
         var distinto = existente.toma !== parsed.toma || existente.deje !== parsed.deje ||
-          String(existente.descanso || '') !== minToHHMM(parsed.descansoMin);
+          String(existente.descanso || '') !== descansoTxt(parsed.descansoMin);
         if (distinto) {
           prop.cambioHorario = {
             tomaGuardado: existente.toma, dejeGuardado: existente.deje, descansoGuardado: existente.descanso,
@@ -3758,16 +3795,22 @@
         });
         if (!yaHay) {
           var ns = blankServicio(sv.fecha);
-          ns.origen = sv.origen; ns.destino = sv.destino;
-          ns.hSalida = sv.hSalida; ns.hDestino = sv.hDestino;
-          ns.servicioComercial = numeros[si] || '';
+          // Mismo criterio que aplicarCacheATurno: origen/destino/horas/
+          // paradas SOLO del Libro de Horarios, nunca del texto de
+          // Calendar — se busca por el nº de tren (el que haya en el
+          // campo, editado o no) para respetar la corrección manual del
+          // usuario si cambió el número que se había adivinado.
+          var numTren = numeros[si] || (sv.guess && sv.guess.servicio) || '';
+          var hr = buscarHorarioPorServicio(numTren, sv.origen, sv.destino, sv.hSalida);
+          if (hr) aplicarHorarioAServicio(ns, hr);
+          else ns.servicioComercial = numTren;
           t.servicios.push(ns);
         }
       });
       if (actualizarCambio && prop.cambioHorario) {
         t.toma = prop.cambioHorario.tomaNuevo;
         t.deje = prop.cambioHorario.dejeNuevo;
-        t.descanso = minToHHMM(prop.cambioHorario.descansoNuevoMin);
+        t.descanso = descansoTxt(prop.cambioHorario.descansoNuevoMin);
       }
       cambios++;
     });
@@ -3835,6 +3878,11 @@
           '<div class="btn-row" style="margin-top:10px">' +
           '<button class="btn ghost" data-action="gcal-modal-cerrar">Cerrar</button></div>';
       }
+    }).then(function () {
+      // Se cierre como se cierre (Cerrar, Aplicar, backdrop o ESC) — evita
+      // dejar una referencia colgada que resuelva un modal distinto que
+      // esté abierto más tarde (appModal.resolveWith es un singleton).
+      gcalModalResolve = null;
     });
   }
   function renderGcalCard() {
