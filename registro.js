@@ -12,7 +12,8 @@
   // ===== Constantes =====
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
-  var APP_VERSION = 'enruta-v37';
+  var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
+  var APP_VERSION = 'enruta-v38';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -822,9 +823,14 @@
   var gcalToken = null;
   var gcalScriptRequested = false;
   var gcalChecking = false;
-  var gcalPropuestas = null; // resultado del último chequeo, listo para revisar
+  var gcalPropuestas = null; // días con turno YA creado — listos para revisar/completar
   var gcalRangoDesde = null;
   var gcalRangoHasta = null;
+  // Caché de lo que dice Google Calendar para días SIN turno creado
+  // todavía — puramente informativa (Calendario) hasta que el usuario
+  // cree el turno a mano, momento en que se usa para autorrellenarlo.
+  var gcalCache = {};
+  var gcalModalResolve = null; // resolveWith del modal de revisión abierto desde Calendario, si hay uno
 
   // ===== Utilidades =====
   function $(id) { return document.getElementById(id); }
@@ -957,6 +963,7 @@
   function loadAll() {
     turnos = load(K_TURNOS, []);
     settings = load(K_SETTINGS, {});
+    gcalCache = load(K_GCAL_CACHE, {});
     if (!settings.ramas || !settings.ramas.length) settings.ramas = DEFAULT_RAMAS.slice();
     if (settings.telefono == null) settings.telefono = '';
     if (settings.nombre == null) settings.nombre = '';
@@ -1480,6 +1487,8 @@
       '<button class="cal-nav" data-action="cal-prev">‹</button>' +
       '<div class="cal-title">' + MESES[calMonth] + ' ' + calYear + '</div>' +
       '<button class="cal-nav" data-action="cal-next">›</button>' +
+      (settings.telDevMode ? '<button class="cal-toggle" data-action="gcal-sync-cal" title="Sincronizar Google Calendar (2 días atrás + 7 adelante)">' +
+        (gcalChecking ? '⏳' : '🔄') + '</button>' : '') +
       '<button class="cal-toggle" data-action="cal-toggle" title="Vista lista">≡</button>' +
       '</div>';
     h += '<div class="cal-grid">';
@@ -1539,6 +1548,15 @@
             (t0.estado === 'cerrado' ? 'Cerrado' : 'En curso') + '</span>';
           if (tod.some(turnoConInformeGenerado)) {
             h += '<span class="inc-badge" title="Informe de incidencia generado">📋</span>';
+          }
+        } else {
+          // Sin turno creado todavía: si hay algo en la caché de Google
+          // Calendar para este día, un aviso discreto (no un bloque de
+          // servicio real) — se autorrellena al pulsar "Crear turno".
+          var prevista = gcalCacheFind(ds);
+          if (prevista) {
+            h += '<span class="gcal-preview" title="Previsto en Google Calendar, aún no creado">' +
+              esc(prevista.codigo) + '</span>';
           }
         }
       }
@@ -1607,10 +1625,30 @@
     pane.innerHTML = h;
   }
 
+  // Rellena un turno recién creado con lo que ya sabíamos de Google
+  // Calendar (caché) — el usuario sigue completando el resto a mano.
+  function aplicarCacheATurno(t, prop) {
+    if (prop.toma || prop.deje || prop.descansoMin) {
+      t.turnoHorarioActivo = true;
+      t.toma = prop.toma || ''; t.deje = prop.deje || '';
+      t.descanso = prop.descansoMin ? String(prop.descansoMin) : '';
+    }
+    if (prop.servicios && prop.servicios.length) {
+      t.servicios = prop.servicios.map(function (sv) {
+        var ns = blankServicio(sv.fecha);
+        ns.origen = sv.origen; ns.destino = sv.destino;
+        ns.hSalida = sv.hSalida; ns.hDestino = sv.hDestino;
+        ns.servicioComercial = (sv.guess && sv.guess.servicio) || '';
+        return ns;
+      });
+    }
+  }
   function openDay(ds) {
     var tod = turnosOfDay(ds);
     if (tod.length === 0) {
       var t = blankTurno(ds);
+      var cache = gcalCacheFind(ds);
+      if (cache) aplicarCacheATurno(t, cache);
       turnos.push(t);
       // NO save() aquí — el turno solo se persiste cuando el usuario
       // añade algún dato (autosave lo guardará). Si sale sin tocar,
@@ -3421,6 +3459,14 @@
   //   12:54 ▸ Break
   //         MALAGA M.ZAMB
   // "Travel time" (viaja como pasajero) se descarta, no genera servicio.
+  // "46 min" por debajo de 1h, "13h 46m" a partir de 1h — a diferencia de
+  // fmtDur (que siempre usa formato "Xh Ym"), aquí interesa el minuto
+  // suelto para descansos cortos (Break) y horas para los largos (dormida).
+  function fmtDescansoMin(min) {
+    min = min || 0;
+    if (min < 60) return min + ' min';
+    return Math.floor(min / 60) + 'h ' + pad2(min % 60) + 'm';
+  }
   function gcalLoadScript() {
     if (gcalScriptRequested || document.getElementById('gis-script')) return;
     gcalScriptRequested = true;
@@ -3483,6 +3529,11 @@
       // 'traveltime'/'passageconnection'/'preparation' se descartan a
       // propósito — traslados o preparación tipo pasajero, no servicio.
     });
+    // "Horario: HH:MM - HH:MM" de la cabecera SIEMPRE está presente (a
+    // diferencia de las líneas sueltas "Toma"/"Deje", que en turnos de
+    // reserva no aparecen) — manda sobre lo detectado tramo a tramo.
+    var mHorario = String(descripcion || '').match(/Horario:\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/i);
+    if (mHorario) { toma = mHorario[1]; deje = mHorario[2]; }
     return { fechaInicio: fechaInicioISO, fechaFin: fechaFinISO,
       toma: toma, deje: deje, descansoMin: descansoMin, servicios: servicios };
   }
@@ -3569,27 +3620,41 @@
   // Compara cada evento con lo que ya hay guardado ese día — nunca decide
   // sobrescribir, solo detecta huecos y (para "ayer") posibles cambios de
   // horario ya guardado con valor distinto.
-  function gcalConstruirPropuestas(eventos) {
-    var ayer = ymd(new Date(Date.now() - 86400000));
-    return eventos.map(function (ev) {
+  // Busca en la caché por fecha de inicio directa, o como segundo día de
+  // una dormida guardada bajo su fecha de inicio.
+  function gcalCacheFind(fecha) {
+    if (gcalCache[fecha]) return gcalCache[fecha];
+    var k = Object.keys(gcalCache).find(function (key) { return gcalCache[key].fechaFin === fecha; });
+    return k ? gcalCache[k] : null;
+  }
+  // Por cada evento: SIEMPRE se guarda en la caché (para autorrellenar al
+  // crear el turno, ver openDay). Si ese día YA tiene un turno creado,
+  // ADEMÁS entra en la lista de revisión (huecos / aviso de cambio) — los
+  // días sin turno no aparecen ahí, no hay nada que "aplicar" para ellos.
+  function gcalProcesarEventos(eventos) {
+    var props = [];
+    eventos.forEach(function (ev) {
       var fechaInicio = (ev.start && (ev.start.date || (ev.start.dateTime || '').slice(0, 10))) || '';
-      if (!fechaInicio) return null;
+      if (!fechaInicio) return;
       var fechaFin = (ev.end && (ev.end.date || (ev.end.dateTime || '').slice(0, 10))) || fechaInicio;
       var parsed = parseEventoTurno(fechaInicio, fechaFin, ev.description || '');
       parsed.servicios.forEach(function (sv) {
         sv.guess = adivinarServicio(sv.origen, sv.destino, sv.hSalida);
       });
+      var codigo = (ev.summary || '').replace(/^\*\s*/, '');
+      gcalCache[fechaInicio] = { codigo: codigo, fechaFin: fechaFin, toma: parsed.toma,
+        deje: parsed.deje, descansoMin: parsed.descansoMin, servicios: parsed.servicios };
+
       // Dormida: el turno guardado puede estar indexado por cualquiera de
       // los dos días — se busca en ambos.
       var existente = turnosOfDay(fechaInicio)[0] || turnosOfDay(fechaFin)[0] || null;
+      if (!existente) return; // sin turno creado → solo caché, no hay nada que revisar
       var prop = {
-        fecha: fechaInicio, fechaFin: fechaFin, codigo: (ev.summary || '').replace(/^\*\s*/, ''),
+        fecha: fechaInicio, fechaFin: fechaFin, codigo: codigo,
         toma: parsed.toma, deje: parsed.deje, descansoMin: parsed.descansoMin,
         servicios: parsed.servicios, existente: existente, cambioHorario: null
       };
-      var esAyer = fechaInicio === ayer || fechaFin === ayer;
-      if (existente && esAyer && existente.turnoHorarioActivo &&
-        (existente.toma || existente.deje || existente.descanso)) {
+      if (existente.turnoHorarioActivo && (existente.toma || existente.deje || existente.descanso)) {
         var distinto = existente.toma !== parsed.toma || existente.deje !== parsed.deje ||
           String(existente.descanso || '') !== String(parsed.descansoMin);
         if (distinto) {
@@ -3599,8 +3664,10 @@
           };
         }
       }
-      return prop;
-    }).filter(Boolean);
+      props.push(prop);
+    });
+    save(K_GCAL_CACHE, gcalCache);
+    return props;
   }
   function gcalEjecutarChequeo(desde, hasta, interactive) {
     gcalChecking = true;
@@ -3612,9 +3679,9 @@
         return null;
       }
       return gcalFetchEventos(desde, hasta).then(function (eventos) {
-        gcalPropuestas = gcalConstruirPropuestas(eventos);
+        gcalPropuestas = gcalProcesarEventos(eventos);
         gcalChecking = false;
-        return gcalPropuestas;
+        return { eventos: eventos.length, revision: gcalPropuestas.length };
       });
     }).catch(function (err) {
       gcalChecking = false; gcalPropuestas = null;
@@ -3637,72 +3704,59 @@
         document.querySelectorAll('.gcal-num[data-gi="' + gi + '"]'),
         function (el) { return el.value.trim(); }
       );
-      if (prop.existente) {
-        var t = prop.existente;
-        if (!t.toma && prop.toma) t.toma = prop.toma;
-        if (!t.deje && prop.deje) t.deje = prop.deje;
-        if (!t.descanso && prop.descansoMin) t.descanso = String(prop.descansoMin);
-        if (t.toma || t.deje || t.descanso) t.turnoHorarioActivo = true;
-        prop.servicios.forEach(function (sv, si) {
-          var yaHay = t.servicios.some(function (s) {
-            return s.fecha === sv.fecha && s.origen === sv.origen &&
-              s.destino === sv.destino && s.hSalida === sv.hSalida;
-          });
-          if (!yaHay) {
-            var ns = blankServicio(sv.fecha);
-            ns.origen = sv.origen; ns.destino = sv.destino;
-            ns.hSalida = sv.hSalida; ns.hDestino = sv.hDestino;
-            ns.servicioComercial = numeros[si] || '';
-            t.servicios.push(ns);
-          }
+      // Todas las filas que llegan aquí tienen `existente` garantizado
+      // (gcalProcesarEventos no mete en la revisión un día sin turno) —
+      // solo se completan huecos, nunca se crea un turno nuevo desde aquí.
+      var t = prop.existente;
+      if (!t.toma && prop.toma) t.toma = prop.toma;
+      if (!t.deje && prop.deje) t.deje = prop.deje;
+      if (!t.descanso && prop.descansoMin) t.descanso = String(prop.descansoMin);
+      if (t.toma || t.deje || t.descanso) t.turnoHorarioActivo = true;
+      prop.servicios.forEach(function (sv, si) {
+        var yaHay = t.servicios.some(function (s) {
+          return s.fecha === sv.fecha && s.origen === sv.origen &&
+            s.destino === sv.destino && s.hSalida === sv.hSalida;
         });
-        if (actualizarCambio && prop.cambioHorario) {
-          t.toma = prop.cambioHorario.tomaNuevo;
-          t.deje = prop.cambioHorario.dejeNuevo;
-          t.descanso = String(prop.cambioHorario.descansoNuevoMin);
-        }
-      } else {
-        var nt = blankTurno(prop.fecha);
-        nt.servicios = prop.servicios.map(function (sv, si) {
+        if (!yaHay) {
           var ns = blankServicio(sv.fecha);
           ns.origen = sv.origen; ns.destino = sv.destino;
           ns.hSalida = sv.hSalida; ns.hDestino = sv.hDestino;
           ns.servicioComercial = numeros[si] || '';
-          return ns;
-        });
-        if (!nt.servicios.length) nt.servicios = [blankServicio(prop.fecha)];
-        nt.turnoHorarioActivo = true;
-        nt.toma = prop.toma; nt.deje = prop.deje;
-        nt.descanso = prop.descansoMin ? String(prop.descansoMin) : '';
-        turnos.push(nt);
+          t.servicios.push(ns);
+        }
+      });
+      if (actualizarCambio && prop.cambioHorario) {
+        t.toma = prop.cambioHorario.tomaNuevo;
+        t.deje = prop.cambioHorario.dejeNuevo;
+        t.descanso = String(prop.cambioHorario.descansoNuevoMin);
       }
       cambios++;
     });
     gcalPropuestas = null;
     if (cambios) { save(K_TURNOS, turnos); renderCalendar(); }
     renderSettings();
+    if (gcalModalResolve) { gcalModalResolve(null); gcalModalResolve = null; }
     appModal.alert({ title: 'Sincronización aplicada', message: cambios + ' turno(s) actualizados.' });
   }
   function renderGcalPropuestasHtml() {
     if (!gcalPropuestas.length) {
-      return '<div class="hint" style="margin-top:10px">Sin turnos en Google Calendar para ese rango.</div>';
+      var nCache = Object.keys(gcalCache).length;
+      return '<div class="hint" style="margin-top:10px">Nada que completar en ese rango' +
+        (nCache ? ' — ' + nCache + ' turno(s) guardados en caché para cuando los crees.' : '.') + '</div>';
     }
     var h = '<div class="stat-list" style="margin-top:12px">';
     gcalPropuestas.forEach(function (prop, gi) {
-      var esNuevo = !prop.existente;
       var esDormida = prop.fecha !== prop.fechaFin;
       var fechaLabel = esDormida ? (esc(ymdNice(prop.fecha)) + ' → ' + esc(ymdNice(prop.fechaFin))) : esc(ymdNice(prop.fecha));
       h += '<div class="card" style="background:var(--panel-2)">';
       h += '<div class="card-title" style="display:flex;align-items:center;gap:8px">' +
         '<span style="flex:1">' + fechaLabel + ' · ' + esc(prop.codigo) + (esDormida ? ' · Dormida' : '') + '</span>' +
-        '<label style="font-size:12px;display:flex;align-items:center;gap:4px">' +
+        '<label class="gcal-check-sm">' +
         '<input type="checkbox" data-gcal-incluir data-gi="' + gi + '" checked>' +
-        (esNuevo ? 'Crear turno' : 'Completar huecos') + '</label></div>';
+        'Completar huecos</label></div>';
       h += '<div class="hint">Toma ' + esc(prop.toma || '—') + ' · Deje ' + esc(prop.deje || '—') +
-        ' · Descanso ' + (prop.descansoMin || 0) + ' min</div>';
-      if (!esNuevo) {
-        h += '<div class="hint">Ya hay un turno guardado ese día — solo se completarán los campos vacíos.</div>';
-      }
+        ' · Descanso ' + fmtDescansoMin(prop.descansoMin) + '</div>';
+      h += '<div class="hint">Ya hay un turno guardado ese día — solo se completarán los campos vacíos.</div>';
       prop.servicios.forEach(function (sv, si) {
         h += '<div class="field-grid" style="grid-template-columns:1fr 1fr 90px;margin-top:6px">' +
           '<div class="field"><label>Origen' + (esDormida ? ' (' + esc(ymdNice(sv.fecha)) + ')' : '') + '</label><div class="hint" style="margin:0">' + esc(prettyEstacion(sv.origen)) + '</div></div>' +
@@ -3715,8 +3769,8 @@
         h += '<div class="hint" style="color:var(--warn);margin-top:6px">⚠ Cambió en Google Calendar — Toma ' +
           esc(prop.cambioHorario.tomaGuardado || '—') + ' → ' + esc(prop.cambioHorario.tomaNuevo || '—') + ', Deje ' +
           esc(prop.cambioHorario.dejeGuardado || '—') + ' → ' + esc(prop.cambioHorario.dejeNuevo || '—') + ', Descanso ' +
-          esc(prop.cambioHorario.descansoGuardado || '—') + ' → ' + prop.cambioHorario.descansoNuevoMin + ' min</div>';
-        h += '<label style="font-size:12px;display:flex;align-items:center;gap:4px;margin-top:4px">' +
+          esc(prop.cambioHorario.descansoGuardado || '—') + ' → ' + fmtDescansoMin(prop.cambioHorario.descansoNuevoMin) + '</div>';
+        h += '<label class="gcal-check-sm" style="margin-top:4px">' +
           '<input type="checkbox" data-gcal-actualizar data-gi="' + gi + '"> Actualizar estos 3 campos</label>';
       }
       h += '</div>';
@@ -3727,9 +3781,26 @@
       '<button class="btn ghost" data-action="gcal-descartar">Descartar</button></div>';
     return h;
   }
+  // Modal de revisión lanzado desde el botón 🔄 del Calendario — reusa
+  // renderGcalPropuestasHtml() tal cual (los data-action de sus botones
+  // ya están delegados globalmente, funcionan igual dentro del modal).
+  function abrirRevisionGcalModal() {
+    appModal.custom({
+      className: 'wide',
+      backdropClose: true,
+      dismissValue: null,
+      render: function (box, resolveWith) {
+        gcalModalResolve = resolveWith;
+        box.innerHTML = '<div class="modal-title">Revisar turnos de Google Calendar</div>' +
+          renderGcalPropuestasHtml() +
+          '<div class="btn-row" style="margin-top:10px">' +
+          '<button class="btn ghost" data-action="gcal-modal-cerrar">Cerrar</button></div>';
+      }
+    });
+  }
   function renderGcalCard() {
     var h = '<div class="card"><div class="card-title">Sincronizar Google Calendar</div>';
-    h += '<div class="hint" style="margin-bottom:8px">Experimental — trae turnos ya subidos a Google Calendar y propone completarlos aquí. Nunca sobrescribe lo que ya tengas guardado.</div>';
+    h += '<div class="hint" style="margin-bottom:8px">Experimental — si el día ya tiene turno creado, propone completar huecos aquí (nunca sobrescribe). Si no lo tiene, solo se guarda para cuando lo crees en Calendario (botón 🔄).</div>';
     h += '<div class="field"><label>Client ID de Google</label>' +
       '<input type="text" id="set-gcal-client" value="' + esc(settings.gcalClientId) + '" placeholder="xxxx.apps.googleusercontent.com"></div>';
     h += '<div class="field"><label>ID de calendario</label>' +
@@ -3741,7 +3812,7 @@
     }
     h += '<div class="btn-row"><button class="btn primary" data-action="gcal-vincular">' +
       (gcalToken ? 'Volver a vincular' : 'Vincular con Google') + '</button></div>';
-    var desdeDefault = gcalRangoDesde || ymd(new Date(Date.now() - 86400000));
+    var desdeDefault = gcalRangoDesde || ymd(new Date(Date.now() - 2 * 86400000));
     var hastaDefault = gcalRangoHasta || ymd(new Date(Date.now() + 7 * 86400000));
     h += '<div class="field-grid" style="margin-top:10px">' +
       '<div class="field"><label>Desde</label><input type="date" id="gcal-desde" value="' + desdeDefault + '"></div>' +
@@ -4962,6 +5033,29 @@
       settings.ramas = arr.length ? arr : DEFAULT_RAMAS.slice();
       saveSettings(); flashSaved(); renderSettings(); return;
     }
+    if (act === 'gcal-sync-cal') {
+      gcalLoadScript();
+      gcalChecking = true;
+      renderCalendar();
+      var desdeCal = ymd(new Date(Date.now() - 2 * 86400000));
+      var hastaCal = ymd(new Date(Date.now() + 7 * 86400000));
+      gcalRangoDesde = desdeCal; gcalRangoHasta = hastaCal;
+      gcalEjecutarChequeo(desdeCal, hastaCal, true).then(function (result) {
+        renderCalendar();
+        if (!result) {
+          appModal.alert({ title: 'No se pudo sincronizar', message: gcalUltimoError || 'Revisa la vinculación con Google.' });
+        } else if (gcalPropuestas && gcalPropuestas.length) {
+          abrirRevisionGcalModal();
+        } else {
+          appModal.alert({ title: 'Calendario actualizado', message: 'Sin turnos ya creados que completar en ese rango.' });
+        }
+      });
+      return;
+    }
+    if (act === 'gcal-modal-cerrar') {
+      if (gcalModalResolve) { gcalModalResolve(null); gcalModalResolve = null; }
+      return;
+    }
     if (act === 'gcal-guardar-config') {
       settings.gcalClientId = $('set-gcal-client').value.trim();
       settings.gcalCalendarId = $('set-gcal-cal').value.trim() || 'primary';
@@ -5108,10 +5202,12 @@
     if (settings.telDevMode && settings.gcalClientId) {
       gcalLoadScript();
       setTimeout(function () {
-        gcalRangoDesde = ymd(new Date(Date.now() - 86400000));
+        gcalRangoDesde = ymd(new Date(Date.now() - 2 * 86400000));
         gcalRangoHasta = ymd(new Date(Date.now() + 7 * 86400000));
         gcalEjecutarChequeo(gcalRangoDesde, gcalRangoHasta, false).then(function (result) {
-          if (result && lastSetView === 'ajustes') renderSettings();
+          if (!result) return;
+          if (lastSetView === 'ajustes') renderSettings();
+          else if (lastSetView === 'calendario') renderCalendar();
         });
       }, 4000);
     }

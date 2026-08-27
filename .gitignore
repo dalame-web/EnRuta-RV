@@ -1,0 +1,12 @@
+# PDFs de Adif (documentos internos, no publicar) y sus extracciones intermedias.
+# horarios.json (el maestro fusionado) SI se versiona.
+tools/pdfs/*.pdf
+tools/out/*.json
+tools/__pycache__/
+
+# Credenciales OAuth (nunca en el repo)
+*credenciales*.json
+*crecenciales*.json
+
+# Output generado por /graphify (no es código fuente del proyecto)
+graphify-out/

@@ -661,7 +661,18 @@ input[type=number]::-webkit-inner-spin-button{
   display:flex; align-items:center; gap:4px; font-size:11px;
   color:var(--fg-dim); cursor:pointer; user-select:none;
 }
-.turno-horario-check input{width:16px; height:16px; min-height:0}
+.turno-horario-check input{width:16px; height:16px; min-height:0; padding:0; flex:0 0 auto}
+/* Ticks de la revisión de sincronización con Google Calendar — mismo
+   criterio que .turno-horario-check, sin depender de estilos inline. */
+.gcal-check-sm{
+  display:flex; align-items:center; gap:4px; font-size:12px;
+  cursor:pointer; user-select:none;
+}
+.gcal-check-sm input{width:16px; height:16px; min-height:0; padding:0; flex:0 0 auto}
+.gcal-preview{
+  display:inline-block; font-size:9px; color:var(--fg-dim);
+  border:1px dashed var(--border); border-radius:4px; padding:1px 4px; margin-top:3px;
+}
 
 /* Estaciones — card por estación con sub-columnas */
 .stations{display:flex; flex-direction:column; gap:10px; margin:10px 0}
