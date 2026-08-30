@@ -371,6 +371,14 @@ button.btn:disabled{opacity:.45; cursor:default}
 .cal-head{
   display:flex; align-items:center; gap:10px; margin-bottom:12px;
 }
+/* Banner de un toque para reactivar el guardado en archivos (Android no
+ * persiste el permiso de File System Access entre aperturas de la app). */
+.folder-banner{
+  cursor:pointer; margin-bottom:12px; padding:12px 14px; border-radius:8px;
+  border:1px solid var(--accent); background:rgba(232,32,28,.12);
+  color:var(--fg); font-size:13.5px; font-weight:600; line-height:1.4; text-align:center;
+}
+.folder-banner:active{background:rgba(232,32,28,.22)}
 .cal-head .cal-title{
   flex:1; text-align:center; font-family:Poppins,sans-serif;
   font-weight:700; font-size:17px; text-transform:capitalize;

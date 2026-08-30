@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v37';
+  var APP_VERSION = 'enruta-v38';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1021,6 +1021,13 @@
   // localStorage. El handle de la carpeta no es serializable a JSON, así
   // que se guarda en IndexedDB, no en settings/localStorage.
   var folderHandle = null; // vivo solo si hay permiso concedido esta sesión
+  // Handle ya guardado en IndexedDB cuyo permiso hay que reconfirmar con UN
+  // toque. Android Chrome (y también la PWA instalada) NO persiste el
+  // permiso de File System Access entre sesiones: al abrir la app
+  // queryPermission() devuelve 'prompt' aunque el handle siga siendo
+  // válido. En vez de perderlo y obligar a re-elegir carpeta + reindexar,
+  // lo guardamos aquí y un banner de un toque llama a requestPermission().
+  var folderPendingHandle = null;
   var FOLDER_DB = 'rviryo_folder_v1';
 
   function folderSupported() {
@@ -1149,15 +1156,23 @@
     renderSettings();
     flashSaved();
   }
-  async function relinkFolderPermission() {
-    var handle = await idbGetHandle();
-    if (!handle) return;
+  // Reactiva el guardado en archivos con UN solo toque: pide permiso sobre
+  // el handle que ya está guardado (NO reabre el selector de carpetas, NO
+  // reindexa nada). Los turnos no se pierden nunca — están también en la
+  // app. Hay que hacerlo una vez por apertura porque Android no recuerda
+  // el permiso, pero es solo pulsar "Permitir".
+  async function resumeFolderAccess() {
+    var handle = folderPendingHandle || await idbGetHandle();
+    if (!handle) { renderSettings(); return; }
     var perm;
     try { perm = await handle.requestPermission({ mode: 'readwrite' }); }
     catch (e) { perm = 'denied'; }
     if (perm !== 'granted') return;
     folderHandle = handle;
+    folderPendingHandle = null;
+    idbSetHandle(handle); // re-persistir por si el navegador lo había soltado
     syncFolderFull();
+    if (lastSetView === 'calendario') renderCalendar();
     renderSettings();
     flashSaved();
   }
@@ -1208,8 +1223,9 @@
     return idbGetHandle().then(function (handle) {
       if (!handle) return;
       return handle.queryPermission({ mode: 'readwrite' }).then(function (perm) {
-        folderHandle = (perm === 'granted') ? handle : null;
-      }).catch(function () { folderHandle = null; });
+        if (perm === 'granted') { folderHandle = handle; folderPendingHandle = null; }
+        else { folderHandle = null; folderPendingHandle = handle; } // un toque lo reactiva
+      }).catch(function () { folderHandle = null; folderPendingHandle = handle; });
     });
   }
   // Primer aviso, una sola vez (a quien instala de nuevo y a quien ya
@@ -1494,6 +1510,15 @@
     return out;
   }
 
+  // Banner de un toque en Calendario cuando la carpeta está vinculada pero
+  // el permiso se perdió al abrir la app (caso normal en Android). Pulsarlo
+  // reactiva el guardado sin reabrir el selector ni reindexar.
+  function folderBanner() {
+    if (!folderSupported() || !settings.folderLinked || folderHandle) return '';
+    return '<div class="folder-banner" data-action="folder-resume">' +
+      '💾 Toca para reactivar el guardado de turnos en archivos</div>';
+  }
+
   function renderCalendar() {
     if (settings.calView === 'list') { renderList(); return; }
     var pane = $('calendario-pane');
@@ -1522,7 +1547,7 @@
       pairInfo[f2] = { role: 'second', other: f1, sameRow: sameRow };
     });
 
-    var h = '<div class="cal-head">' +
+    var h = folderBanner() + '<div class="cal-head">' +
       '<button class="cal-nav" data-action="cal-prev">‹</button>' +
       '<div class="cal-title">' + MESES[calMonth] + ' ' + calYear + '</div>' +
       '<button class="cal-nav" data-action="cal-next">›</button>' +
@@ -1612,7 +1637,7 @@
 
   function renderList() {
     var pane = $('calendario-pane');
-    var h = '<div class="cal-head">' +
+    var h = folderBanner() + '<div class="cal-head">' +
       '<div class="cal-title" style="text-align:left;flex:1">Todos los turnos</div>' +
       '<button class="cal-toggle" data-action="cal-toggle" title="Vista cuadrícula">▦</button>' +
       '</div>';
@@ -4111,8 +4136,9 @@
         '<div class="btn-row"><button class="btn" data-action="folder-reindex">Reindexar desde archivos</button>' +
         '<button class="btn ghost" data-action="folder-unlink">Desvincular</button></div>';
     } else if (settings.folderLinked) {
-      h += '<div class="hint" style="color:var(--warn)">Se perdió el permiso de acceso a la carpeta vinculada.</div>' +
-        '<div class="btn-row"><button class="btn primary" data-action="folder-relink">Reconceder acceso</button></div>';
+      h += '<div class="hint">Guardado en pausa. Android pide confirmar el permiso cada vez que se abre la app — un solo toque y sigue funcionando (no hay que volver a elegir carpeta ni reindexar). Tus turnos no se pierden: están también dentro de la app.</div>' +
+        '<div class="btn-row"><button class="btn primary" data-action="folder-resume">Reactivar guardado</button>' +
+        '<button class="btn ghost" data-action="folder-unlink">Desvincular</button></div>';
     } else {
       h += '<div class="hint">Sin vincular — los turnos solo están guardados en la app.</div>' +
         '<div class="btn-row"><button class="btn primary" data-action="folder-link">Vincular carpeta</button></div>';
@@ -5311,7 +5337,7 @@
     if (act === 'export-backup') { exportBackup(); return; }
     if (act === 'import-backup') { $('file-backup').click(); return; }
     if (act === 'folder-link') { linkFolder(); return; }
-    if (act === 'folder-relink') { relinkFolderPermission(); return; }
+    if (act === 'folder-resume' || act === 'folder-relink') { resumeFolderAccess(); return; }
     if (act === 'folder-reindex') { reindexFromFolder(); return; }
     if (act === 'folder-unlink') {
       appModal.confirm({
