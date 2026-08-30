@@ -41,8 +41,7 @@ con una personal — funciona igual.
 
 6. Menú izquierdo: **Permisos de API** (*API permissions*).
    - **"+ Agregar un permiso"** → **Microsoft Graph** → **Permisos delegados**.
-   - Busca y marca estos cuatro:
-     - `Files.ReadWrite.AppFolder`
+   - Busca y marca estos tres:
      - `Files.ReadWrite`
      - `offline_access`
      - `User.Read`
