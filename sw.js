@@ -1,7 +1,8 @@
-const CACHE = 'enruta-rv-v30';
+const CACHE = 'enruta-rv-v31';
 const PRECACHE = [
   './', './index.html', './manifest.webmanifest',
   './data.js', './registro.js', './registro.css', './app-modal.js', './telefonemas-listado.js',
+  './nube.js', './msal-browser.min.js',
   './icon-192.png', './icon-512.png', './informe-logo.png', './informe-decorativo.jpg',
   './carlito-regular.ttf', './carlito-bold.ttf'
 ];

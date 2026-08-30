@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v38';
+  var APP_VERSION = 'enruta-v39';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -966,7 +966,12 @@
     // debounced de autosave() y las directas) — enganchar aquí basta para
     // que el espejo en archivos cubra cualquier cambio, sin tocar cada
     // llamada a save()/autosave() por separado.
-    if (k === K_TURNOS) scheduleTurnoFolderSync();
+    if (k === K_TURNOS) {
+      scheduleTurnoFolderSync();
+      // Misma idea para la copia en la nube (OneDrive). Capa opcional: si no
+      // hay sesión o el módulo no cargó, no hace nada.
+      if (window.NUBE) window.NUBE.onTurnosSaved(out);
+    }
   }
   var saveTimer = null;
   function autosave() {
@@ -1011,6 +1016,9 @@
     // Carpeta de turnos en el dispositivo (ver bloque más abajo).
     if (settings.folderSetupSeen == null) settings.folderSetupSeen = false;
     if (settings.folderLinked == null) settings.folderLinked = false;
+    // Copia en la nube (OneDrive) — aviso de primer arranque (una vez).
+    if (settings.nubeAvisoVisto == null) settings.nubeAvisoVisto = false;
+    if (settings.nubePrivacidadVista == null) settings.nubePrivacidadVista = false;
   }
   function saveSettings() { save(K_SETTINGS, settings); }
 
@@ -1246,6 +1254,99 @@
         { label: 'Permitir', value: true, kind: 'primary' }
       ]
     }).then(function (ok) { if (ok) linkFolder(); });
+  }
+
+  // ===== Copia en la nube (OneDrive) — puente con nube.js =====
+  // nube.js (IIFE aparte) hace login + Microsoft Graph. Aquí viven las
+  // funciones que necesita tocar el modelo de turnos. Contrato en
+  // window.REGISTRO.nube (al final del archivo).
+  function nubeDiaTurnosReales(fecha) {
+    return turnosOfDay(fecha).filter(function (t) {
+      return !isEmptyTurno(t) && !t._deCache;
+    });
+  }
+  // JSON canónico y determinista de un día (turnos ordenados por id) — lo que
+  // nube.js compara para saber si un día está "sucio". null = día sin turnos.
+  function nubeDiaJSON(fecha) {
+    var dia = nubeDiaTurnosReales(fecha).slice().sort(function (a, b) {
+      return String(a.id).localeCompare(String(b.id));
+    });
+    if (!dia.length) return null;
+    return JSON.stringify({ fecha: fecha, turnos: dia });
+  }
+  function nubeFechasConTurnos() {
+    var f = {};
+    turnos.forEach(function (t) {
+      if (t._deCache || isEmptyTurno(t)) return;
+      (t.servicios || []).forEach(function (s) { if (s.fecha) f[s.fecha] = true; });
+    });
+    return Object.keys(f);
+  }
+  // Fusión decidida por nube.js: mete/actualiza `upsert`, quita `removeIds`.
+  function nubeAplicarDia(upsert, removeIds) {
+    (upsert || []).forEach(function (rt) {
+      if (!rt || !rt.id) return;
+      var lt = getTurno(rt.id);
+      var nt = normTurno(rt);
+      if (lt) turnos[turnos.indexOf(lt)] = nt;
+      else turnos.push(nt);
+    });
+    (removeIds || []).forEach(function (id) {
+      var lt = getTurno(id);
+      if (lt) turnos.splice(turnos.indexOf(lt), 1);
+    });
+    save(K_TURNOS, turnos); // NUBE.onTurnosSaved se autoignora (NUBE.aplicando())
+  }
+  function nubeReRender() {
+    if (lastSetView === 'calendario') renderCalendar();
+    else if (lastSetView === 'ajustes') renderSettings();
+    else if (lastSetView === 'estadisticas') renderStats();
+    else if (lastSetView === 'registro' && editId != null) {
+      var pane = $('registro-pane'), el = document.activeElement;
+      var editing = pane && el && pane.contains(el) &&
+        /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+      if (!editing && !currentRec) renderEditor();
+    }
+  }
+  function nubeTrasVincular() {
+    if (settings.nubePrivacidadVista) return;
+    settings.nubePrivacidadVista = true;
+    saveSettings();
+    appModal.alert({
+      title: 'Tu copia en OneDrive',
+      message:
+        '· Tus turnos se guardan en TU OneDrive, en la carpeta «EnRuta».\n' +
+        '· Solo tú los ves. EnRuta no tiene servidor ni base de datos común.\n' +
+        '· Puedes borrarlos cuando quieras, desde Ajustes o desde OneDrive.\n' +
+        '· Los turnos siguen guardándose también en esta tablet.'
+    });
+  }
+  // Banner de un toque en Calendario cuando la sesión de Microsoft caducó
+  // (mismo patrón que folderBanner).
+  function nubeBanner() {
+    if (!window.NUBE || !window.NUBE.disponible()) return '';
+    if (!window.NUBE.estaVinculada() || !window.NUBE.necesitaReconectar()) return '';
+    return '<div class="folder-banner" data-action="nube-reconectar">' +
+      '☁️ Toca para reconectar la copia en la nube</div>';
+  }
+  // Primer aviso (a tablets nuevas y ya instaladas). Solo si la función está
+  // configurada (CLIENT_ID puesto en nube.js).
+  function maybeFirstRunNubePrompt() {
+    if (!window.NUBE || !window.NUBE.disponible()) return;
+    if (settings.nubeAvisoVisto) return;
+    if (window.NUBE.estaVinculada()) { settings.nubeAvisoVisto = true; saveSettings(); return; }
+    settings.nubeAvisoVisto = true;
+    saveSettings();
+    appModal.confirm({
+      title: 'Guarda tus turnos en la nube',
+      message: 'EnRuta puede guardar una copia de tus turnos en tu OneDrive: ' +
+        'copia de seguridad y los mismos datos en el móvil y la tablet. ' +
+        'Solo la primera vez hay que dar permiso.',
+      buttons: [
+        { label: 'Ahora no', value: false, kind: 'neutral' },
+        { label: 'Vincular con Microsoft', value: true, kind: 'primary' }
+      ]
+    }).then(function (ok) { if (ok && window.NUBE) window.NUBE.vincular(); });
   }
 
   function loadHorarios() {
@@ -1547,7 +1648,7 @@
       pairInfo[f2] = { role: 'second', other: f1, sameRow: sameRow };
     });
 
-    var h = folderBanner() + '<div class="cal-head">' +
+    var h = folderBanner() + nubeBanner() + '<div class="cal-head">' +
       '<button class="cal-nav" data-action="cal-prev">‹</button>' +
       '<div class="cal-title">' + MESES[calMonth] + ' ' + calYear + '</div>' +
       '<button class="cal-nav" data-action="cal-next">›</button>' +
@@ -1637,7 +1738,7 @@
 
   function renderList() {
     var pane = $('calendario-pane');
-    var h = folderBanner() + '<div class="cal-head">' +
+    var h = folderBanner() + nubeBanner() + '<div class="cal-head">' +
       '<div class="cal-title" style="text-align:left;flex:1">Todos los turnos</div>' +
       '<button class="cal-toggle" data-action="cal-toggle" title="Vista cuadrícula">▦</button>' +
       '</div>';
@@ -4035,6 +4136,38 @@
       gcalModalResolve = null;
     });
   }
+  function nubeHaceX(ts) {
+    if (!ts) return 'nunca';
+    var s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return 'hace un momento';
+    if (s < 3600) return 'hace ' + Math.floor(s / 60) + ' min';
+    if (s < 86400) return 'hace ' + Math.floor(s / 3600) + ' h';
+    return 'hace ' + Math.floor(s / 86400) + ' días';
+  }
+  function renderNubeCard() {
+    if (!window.NUBE || !window.NUBE.disponible()) return '';
+    var h = '<div class="card"><div class="card-title">Copia en la nube (OneDrive)</div>';
+    if (!window.NUBE.estaVinculada()) {
+      h += '<div class="hint">Guarda una copia de tus turnos en tu OneDrive y ten los mismos datos en el móvil y la tablet. Solo la primera vez hay que dar permiso.</div>' +
+        '<div class="btn-row"><button class="btn primary" data-action="nube-vincular">Vincular con Microsoft</button></div>';
+      h += '</div>';
+      return h;
+    }
+    h += '<div class="hint">Vinculada como <b>' + esc(window.NUBE.correo()) + '</b>.<br>' +
+      'Última copia: ' + esc(nubeHaceX(window.NUBE.ultimaCopia())) + '.</div>';
+    if (window.NUBE.necesitaReconectar()) {
+      h += '<div class="hint" style="color:var(--warn)">La sesión de Microsoft ha caducado. Un toque y sigue.</div>' +
+        '<div class="btn-row"><button class="btn primary" data-action="nube-reconectar">Reconectar</button></div>';
+    } else {
+      h += '<div class="btn-row"><button class="btn primary" data-action="nube-sync">' +
+        (window.NUBE.sincronizando() ? 'Sincronizando…' : 'Sincronizar ahora') + '</button></div>';
+    }
+    h += '<div class="btn-row"><button class="btn ghost" data-action="nube-desvincular">Desvincular</button>' +
+      '<button class="btn danger" data-action="nube-borrar">Borrar mis datos de la nube</button></div>';
+    h += '</div>';
+    return h;
+  }
+
   function renderGcalCard() {
     var h = '<div class="card"><div class="card-title">Sincronizar Google Calendar</div>';
     h += '<div class="hint" style="margin-bottom:8px">Experimental — si el día ya tiene turno creado, propone completar huecos aquí (nunca sobrescribe). Si no lo tiene, solo se guarda para cuando lo crees en Calendario (botón 🔄).</div>';
@@ -4144,6 +4277,9 @@
         '<div class="btn-row"><button class="btn primary" data-action="folder-link">Vincular carpeta</button></div>';
     }
     h += '</div>';
+
+    // 7b-bis. Copia en la nube (OneDrive) — para todos los usuarios
+    h += renderNubeCard();
 
     // 7c. Sincronizar Google Calendar (solo modo desarrollador)
     if (settings.telDevMode) h += renderGcalCard();
@@ -5339,6 +5475,46 @@
     if (act === 'folder-link') { linkFolder(); return; }
     if (act === 'folder-resume' || act === 'folder-relink') { resumeFolderAccess(); return; }
     if (act === 'folder-reindex') { reindexFromFolder(); return; }
+    if (act === 'nube-vincular') { window.NUBE && window.NUBE.vincular(); return; }
+    if (act === 'nube-reconectar') { window.NUBE && window.NUBE.reconectar(); return; }
+    if (act === 'nube-sync') {
+      if (window.NUBE) window.NUBE.sincronizarAhora().then(function () {
+        if (lastSetView === 'ajustes') renderSettings();
+        flashSaved();
+      });
+      renderSettings();
+      return;
+    }
+    if (act === 'nube-desvincular') {
+      appModal.confirm({
+        title: 'Desvincular la nube',
+        message: 'Dejará de sincronizarse. NO se borra nada de tu OneDrive ni de la app.',
+        buttons: [
+          { label: 'Cancelar', value: false, kind: 'neutral' },
+          { label: 'Desvincular', value: true, kind: 'danger' }
+        ]
+      }).then(function (ok) {
+        if (ok && window.NUBE) { window.NUBE.desvincular(); renderSettings(); }
+      });
+      return;
+    }
+    if (act === 'nube-borrar') {
+      appModal.confirm({
+        title: 'Borrar mis datos de la nube',
+        message: 'Se borrarán todos los archivos de turnos de la carpeta «EnRuta» de tu OneDrive y se desvinculará. Tus turnos en esta tablet NO se tocan.',
+        buttons: [
+          { label: 'Cancelar', value: false, kind: 'neutral' },
+          { label: 'Borrar de la nube', value: true, kind: 'danger' }
+        ]
+      }).then(function (ok) {
+        if (!ok || !window.NUBE) return;
+        window.NUBE.borrarDatosNube().then(function () {
+          renderSettings();
+          appModal.alert({ title: 'Hecho', message: 'Datos de la nube borrados.' });
+        });
+      });
+      return;
+    }
     if (act === 'folder-unlink') {
       appModal.confirm({
         title: 'Desvincular carpeta',
@@ -5432,6 +5608,14 @@
     setView('calendario');
 
     initFolderHandle().then(maybeFirstRunFolderPrompt);
+
+    // Copia en la nube (OneDrive): arranca MSAL, procesa la vuelta del login
+    // por redirect y, si ya hay sesión, sincroniza. Si no está configurada
+    // (sin CLIENT_ID) o msal-browser.min.js no cargó, no hace nada.
+    if (window.NUBE) {
+      window.NUBE.init();
+      setTimeout(maybeFirstRunNubePrompt, 1200);
+    }
 
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().catch(function () {});
@@ -5536,7 +5720,19 @@
       if (editing || currentRec) return;
       renderEditor();
     },
-    discardEmptyEdit: discardEmptyEdit
+    discardEmptyEdit: discardEmptyEdit,
+    // Contrato para nube.js (copia en OneDrive). Ver bloque "Copia en la nube".
+    nube: {
+      diaJSON: nubeDiaJSON,
+      diaTurnos: nubeDiaTurnosReales,
+      fechas: nubeFechasConTurnos,
+      aplicarDia: nubeAplicarDia,
+      reRender: nubeReRender,
+      trasVincular: nubeTrasVincular,
+      pintarBanner: function () { if (lastSetView === 'calendario') renderCalendar(); },
+      pintarAjustes: function () { if (lastSetView === 'ajustes') renderSettings(); },
+      aviso: function (msg) { appModal.alert({ title: 'Copia en la nube', message: msg }); }
+    }
   };
   // Fuente de verdad del catálogo, leída (no duplicada) por
   // telefonemas-listado.js para la pestaña de solo consulta.
