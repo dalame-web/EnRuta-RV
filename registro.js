@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v39';
+  var APP_VERSION = 'enruta-v40';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -964,14 +964,9 @@
     try { localStorage.setItem(k, JSON.stringify(out)); } catch (e) {}
     // Único punto por el que pasan TODAS las escrituras de turnos (las
     // debounced de autosave() y las directas) — enganchar aquí basta para
-    // que el espejo en archivos cubra cualquier cambio, sin tocar cada
-    // llamada a save()/autosave() por separado.
-    if (k === K_TURNOS) {
-      scheduleTurnoFolderSync();
-      // Misma idea para la copia en la nube (OneDrive). Capa opcional: si no
-      // hay sesión o el módulo no cargó, no hace nada.
-      if (window.NUBE) window.NUBE.onTurnosSaved(out);
-    }
+    // que la copia en la nube (OneDrive) cubra cualquier cambio. Capa
+    // opcional: si no hay sesión o nube.js no cargó, no hace nada.
+    if (k === K_TURNOS && window.NUBE) window.NUBE.onTurnosSaved(out);
   }
   var saveTimer = null;
   function autosave() {
@@ -1014,247 +1009,11 @@
     if (settings.gcalClientId == null) settings.gcalClientId = '';
     if (settings.gcalCalendarId == null) settings.gcalCalendarId = 'primary';
     // Carpeta de turnos en el dispositivo (ver bloque más abajo).
-    if (settings.folderSetupSeen == null) settings.folderSetupSeen = false;
-    if (settings.folderLinked == null) settings.folderLinked = false;
     // Copia en la nube (OneDrive) — aviso de primer arranque (una vez).
-    if (settings.nubeAvisoVisto == null) settings.nubeAvisoVisto = false;
+    if (settings.nubeAvisoContador == null) settings.nubeAvisoContador = 0;
     if (settings.nubePrivacidadVista == null) settings.nubePrivacidadVista = false;
   }
   function saveSettings() { save(K_SETTINGS, settings); }
-
-  // ===== Carpeta de turnos (espejo en archivos, uno por día) =====
-  // Solo funciona si el navegador soporta File System Access
-  // (showDirectoryPicker) — en cualquier otro navegador esta sección
-  // simplemente no hace nada y la app funciona igual que siempre con
-  // localStorage. El handle de la carpeta no es serializable a JSON, así
-  // que se guarda en IndexedDB, no en settings/localStorage.
-  var folderHandle = null; // vivo solo si hay permiso concedido esta sesión
-  // Handle ya guardado en IndexedDB cuyo permiso hay que reconfirmar con UN
-  // toque. Android Chrome (y también la PWA instalada) NO persiste el
-  // permiso de File System Access entre sesiones: al abrir la app
-  // queryPermission() devuelve 'prompt' aunque el handle siga siendo
-  // válido. En vez de perderlo y obligar a re-elegir carpeta + reindexar,
-  // lo guardamos aquí y un banner de un toque llama a requestPermission().
-  var folderPendingHandle = null;
-  var FOLDER_DB = 'rviryo_folder_v1';
-
-  function folderSupported() {
-    return !!(window.showDirectoryPicker && window.indexedDB);
-  }
-  function idbOpen() {
-    return new Promise(function (resolve, reject) {
-      var req = indexedDB.open(FOLDER_DB, 1);
-      req.onupgradeneeded = function () { req.result.createObjectStore('kv'); };
-      req.onsuccess = function () { resolve(req.result); };
-      req.onerror = function () { reject(req.error); };
-    });
-  }
-  function idbGetHandle() {
-    return idbOpen().then(function (db) {
-      return new Promise(function (resolve) {
-        var g = db.transaction('kv', 'readonly').objectStore('kv').get('folderHandle');
-        g.onsuccess = function () { resolve(g.result || null); };
-        g.onerror = function () { resolve(null); };
-      });
-    }).catch(function () { return null; });
-  }
-  function idbSetHandle(handle) {
-    return idbOpen().then(function (db) {
-      return new Promise(function (resolve) {
-        var tx = db.transaction('kv', 'readwrite');
-        if (handle) tx.objectStore('kv').put(handle, 'folderHandle');
-        else tx.objectStore('kv').delete('folderHandle');
-        tx.oncomplete = function () { resolve(); };
-        tx.onerror = function () { resolve(); };
-      });
-    }).catch(function () {});
-  }
-
-  function dayFileName(fecha) { return 'turno-' + fecha + '.json'; }
-
-  // Recalcula turnosOfDay(fecha) y vuelca/borra su archivo — siempre un
-  // espejo fiel de "lo que se ve ese día en la app", nunca datos a medias.
-  function writeDayFile(fecha) {
-    if (!folderHandle || !fecha) return;
-    var dia = turnosOfDay(fecha).filter(function (t) { return !isEmptyTurno(t); });
-    if (!dia.length) {
-      folderHandle.removeEntry(dayFileName(fecha)).catch(function () {});
-      return;
-    }
-    folderHandle.getFileHandle(dayFileName(fecha), { create: true })
-      .then(function (fh) { return fh.createWritable(); })
-      .then(function (w) {
-        return w.write(JSON.stringify({ fecha: fecha, turnos: dia }, null, 2))
-          .then(function () { return w.close(); });
-      })
-      .catch(function () {});
-  }
-  // Reescribe solo las fechas que toca un turno concreto (caso normal:
-  // edición de un campo con el editor abierto). Cubre también la dormida
-  // (2 fechas) sin lógica aparte, porque solo mira servicios[].fecha.
-  function syncTurnoDates(turno) {
-    if (!folderHandle || !turno) return;
-    var fechas = {};
-    (turno.servicios || []).forEach(function (s) { if (s.fecha) fechas[s.fecha] = true; });
-    Object.keys(fechas).forEach(writeDayFile);
-  }
-  // Resync completo: recalcula todas las fechas con turnos y borra los
-  // archivos de días que ya no tienen ninguno. Más caro, se usa solo
-  // cuando no hay un turno concreto que mirar (borrar turno, importar
-  // copia, vincular la carpeta por primera vez).
-  async function syncFolderFull() {
-    if (!folderHandle) return;
-    var liveFechas = {};
-    turnos.forEach(function (t) {
-      if (t._deCache || isEmptyTurno(t)) return;
-      (t.servicios || []).forEach(function (s) { if (s.fecha) liveFechas[s.fecha] = true; });
-    });
-    Object.keys(liveFechas).forEach(writeDayFile);
-    try {
-      for await (var entry of folderHandle.values()) {
-        var m = entry.name.match(/^turno-(\d{4}-\d{2}-\d{2})\.json$/);
-        if (m && !liveFechas[m[1]]) {
-          try { await folderHandle.removeEntry(entry.name); } catch (e) {}
-        }
-      }
-    } catch (e) {}
-  }
-  // Punto de enganche único, llamado desde save() en cada escritura de
-  // turnos. Si hay un turno abierto en el editor, basta con sus fechas
-  // (caso normal, barato). Si no (borrar turno, importar copia...), toca
-  // recalcular todo porque no sabemos qué cambió sin comparar el array
-  // entero.
-  function scheduleTurnoFolderSync() {
-    if (!folderHandle) return;
-    var t = editId != null ? getTurno(editId) : null;
-    // _deCache: turno autorrellenado aún sin confirmar por el usuario (ver
-    // save()) — no debe escribirse como archivo tampoco, aunque este save()
-    // en concreto lo dispare otro turno sin relación mientras este sigue
-    // abierto sin tocar.
-    if (t && t._deCache) t = null;
-    if (t) syncTurnoDates(t);
-    else syncFolderFull();
-  }
-
-  // El selector nativo abre ya en Documentos con esa carpeta preseleccionada
-  // — el usuario solo tiene que confirmar (un toque), no crear ni buscar
-  // nada. La subcarpeta "EnRuta" donde van los turno-*.json la crea el
-  // propio código dentro de la carpeta elegida, no el usuario.
-  async function linkFolder() {
-    if (!folderSupported()) {
-      appModal.alert({ title: 'No disponible', message: 'Este navegador no soporta guardar los turnos como archivos en el dispositivo.' });
-      return;
-    }
-    var parent;
-    try {
-      parent = await window.showDirectoryPicker({ startIn: 'documents' });
-    } catch (e) { return; } // el usuario cerró el selector sin elegir
-    var perm;
-    try { perm = await parent.requestPermission({ mode: 'readwrite' }); }
-    catch (e) { perm = 'denied'; }
-    if (perm !== 'granted') return;
-    var handle;
-    try { handle = await parent.getDirectoryHandle('EnRuta', { create: true }); }
-    catch (e) { return; }
-    folderHandle = handle;
-    await idbSetHandle(handle);
-    settings.folderLinked = true;
-    saveSettings();
-    syncFolderFull();
-    renderSettings();
-    flashSaved();
-  }
-  // Reactiva el guardado en archivos con UN solo toque: pide permiso sobre
-  // el handle que ya está guardado (NO reabre el selector de carpetas, NO
-  // reindexa nada). Los turnos no se pierden nunca — están también en la
-  // app. Hay que hacerlo una vez por apertura porque Android no recuerda
-  // el permiso, pero es solo pulsar "Permitir".
-  async function resumeFolderAccess() {
-    var handle = folderPendingHandle || await idbGetHandle();
-    if (!handle) { renderSettings(); return; }
-    var perm;
-    try { perm = await handle.requestPermission({ mode: 'readwrite' }); }
-    catch (e) { perm = 'denied'; }
-    if (perm !== 'granted') return;
-    folderHandle = handle;
-    folderPendingHandle = null;
-    idbSetHandle(handle); // re-persistir por si el navegador lo había soltado
-    syncFolderFull();
-    if (lastSetView === 'calendario') renderCalendar();
-    renderSettings();
-    flashSaved();
-  }
-  function unlinkFolder() {
-    folderHandle = null;
-    settings.folderLinked = false;
-    saveSettings();
-    idbSetHandle(null);
-    renderSettings();
-  }
-  // Recuperación manual: relee todos los turno-*.json de la carpeta y
-  // sustituye los turnos actuales por lo que haya ahí. No se hace sola —
-  // solo si el usuario la pide, para no pisar datos por sorpresa.
-  async function reindexFromFolder() {
-    if (!folderHandle) return;
-    var collected = {};
-    try {
-      for await (var entry of folderHandle.values()) {
-        if (entry.kind !== 'file' || !/^turno-\d{4}-\d{2}-\d{2}\.json$/.test(entry.name)) continue;
-        try {
-          var file = await entry.getFile();
-          var data = JSON.parse(await file.text());
-          (data.turnos || []).forEach(function (t) { if (t && t.id) collected[t.id] = t; });
-        } catch (e) {}
-      }
-    } catch (e) {}
-    var restored = Object.keys(collected).map(function (id) { return collected[id]; }).map(normTurno);
-    appModal.confirm({
-      title: 'Reindexar desde archivos',
-      message: 'Se han encontrado ' + restored.length + ' turnos en la carpeta. Esto sustituirá los turnos actuales de la app por estos. ¿Continuar?',
-      buttons: [
-        { label: 'Cancelar', value: false, kind: 'neutral' },
-        { label: 'Reindexar', value: true, kind: 'danger' }
-      ]
-    }).then(function (ok) {
-      if (!ok) return;
-      turnos = restored;
-      save(K_TURNOS, turnos);
-      renderCalendar();
-      renderSettings();
-      appModal.alert({ title: 'Reindexado', message: restored.length + ' turnos restaurados desde los archivos.' });
-    });
-  }
-  // Al arrancar: si ya había carpeta vinculada, recupera el handle y
-  // comprueba el permiso sin insistir sola si se perdió.
-  function initFolderHandle() {
-    if (!folderSupported()) return Promise.resolve();
-    return idbGetHandle().then(function (handle) {
-      if (!handle) return;
-      return handle.queryPermission({ mode: 'readwrite' }).then(function (perm) {
-        if (perm === 'granted') { folderHandle = handle; folderPendingHandle = null; }
-        else { folderHandle = null; folderPendingHandle = handle; } // un toque lo reactiva
-      }).catch(function () { folderHandle = null; folderPendingHandle = handle; });
-    });
-  }
-  // Primer aviso, una sola vez (a quien instala de nuevo y a quien ya
-  // tenía la app con turnos guardados). Un único toque en el aviso
-  // encadena directo con el selector nativo de carpetas.
-  function maybeFirstRunFolderPrompt() {
-    if (settings.folderSetupSeen) return;
-    settings.folderSetupSeen = true;
-    saveSettings();
-    if (!folderSupported()) return;
-    setView('ajustes');
-    renderSettings();
-    appModal.confirm({
-      title: 'Para guardar los turnos en el dispositivo',
-      message: 'Para guardar los datos de los servicios se tiene que dar permiso a EnRuta.',
-      buttons: [
-        { label: 'Ahora no', value: false, kind: 'neutral' },
-        { label: 'Permitir', value: true, kind: 'primary' }
-      ]
-    }).then(function (ok) { if (ok) linkFolder(); });
-  }
 
   // ===== Copia en la nube (OneDrive) — puente con nube.js =====
   // nube.js (IIFE aparte) hace login + Microsoft Graph. Aquí viven las
@@ -1364,20 +1123,21 @@
     if (!window.NUBE || !window.NUBE.disponible()) return '';
     return '<button class="cal-toggle" data-action="nube-privacidad" title="Aviso de privacidad" aria-label="Aviso de privacidad">ⓘ</button>';
   }
-  // Primer aviso (a tablets nuevas y ya instaladas). Solo si la función está
-  // configurada (CLIENT_ID puesto en nube.js).
+  // Aviso para activar la copia en la nube (la ÚNICA copia de seguridad ahora
+  // que se ha quitado el guardado local en archivos). Se muestra la 1ª vez y,
+  // si el usuario no vincula, se repite cada 8 aperturas hasta que lo haga.
   function maybeFirstRunNubePrompt() {
     if (!window.NUBE || !window.NUBE.disponible()) return;
-    if (settings.nubeAvisoVisto) return;
-    if (window.NUBE.estaVinculada()) { settings.nubeAvisoVisto = true; saveSettings(); return; }
-    settings.nubeAvisoVisto = true;
+    if (window.NUBE.estaVinculada()) return;
+    var n = (settings.nubeAvisoContador || 0) + 1;
+    settings.nubeAvisoContador = n;
     saveSettings();
+    if (n !== 1 && n % 8 !== 0) return;
     appModal.confirm({
       title: 'Guarda tus turnos en la nube',
-      message: 'EnRuta puede guardar los turnos en tu OneDrive de empresa. Se ' +
-        'guardan los datos en tu propio dispositivo y en OneDrive; solo tendrás ' +
-        'acceso tú. Además, con esta configuración podrás tener los turnos en el ' +
-        'móvil y en la tablet. Solo hay que dar permisos una vez.',
+      message: 'Tus turnos solo están guardados en esta tablet. Activa la copia ' +
+        'en tu OneDrive de empresa para no perderlos nunca y tenerlos también ' +
+        'en el móvil. Los datos son solo tuyos y solo hay que dar permiso una vez.',
       buttons: [
         { label: 'Ahora no', value: false, kind: 'neutral' },
         { label: 'Vincular con Microsoft', value: true, kind: 'primary' }
@@ -1654,15 +1414,6 @@
     return out;
   }
 
-  // Banner de un toque en Calendario cuando la carpeta está vinculada pero
-  // el permiso se perdió al abrir la app (caso normal en Android). Pulsarlo
-  // reactiva el guardado sin reabrir el selector ni reindexar.
-  function folderBanner() {
-    if (!folderSupported() || !settings.folderLinked || folderHandle) return '';
-    return '<div class="folder-banner" data-action="folder-resume">' +
-      '💾 Toca para reactivar el guardado de turnos en archivos</div>';
-  }
-
   function renderCalendar() {
     if (settings.calView === 'list') { renderList(); return; }
     var pane = $('calendario-pane');
@@ -1691,7 +1442,7 @@
       pairInfo[f2] = { role: 'second', other: f1, sameRow: sameRow };
     });
 
-    var h = folderBanner() + '<div class="cal-head">' +
+    var h = '<div class="cal-head">' +
       '<button class="cal-nav" data-action="cal-prev">‹</button>' +
       '<div class="cal-title">' + MESES[calMonth] + ' ' + calYear + '</div>' +
       '<button class="cal-nav" data-action="cal-next">›</button>' +
@@ -1782,7 +1533,7 @@
 
   function renderList() {
     var pane = $('calendario-pane');
-    var h = folderBanner() + '<div class="cal-head">' +
+    var h = '<div class="cal-head">' +
       '<div class="cal-title" style="text-align:left;flex:1">Todos los turnos</div>' +
       nubeIconoBtn() + nubeInfoBtn() +
       '<button class="cal-toggle" data-action="cal-toggle" title="Vista cuadrícula">▦</button>' +
@@ -4306,25 +4057,7 @@
       '<input type="file" id="file-backup" accept=".json,application/json" style="display:none">' +
       '</div>';
 
-    // 7b. Carpeta de turnos (espejo automático en archivos, uno por día)
-    h += '<div class="card"><div class="card-title">Carpeta de turnos (archivos)</div>';
-    if (!folderSupported()) {
-      h += '<div class="hint">Este navegador no soporta guardar los turnos como archivos en el dispositivo.</div>';
-    } else if (settings.folderLinked && folderHandle) {
-      h += '<div class="hint">Vinculada — cada turno se guarda solo, como archivo, en cuanto cambia algo.</div>' +
-        '<div class="btn-row"><button class="btn" data-action="folder-reindex">Reindexar desde archivos</button>' +
-        '<button class="btn ghost" data-action="folder-unlink">Desvincular</button></div>';
-    } else if (settings.folderLinked) {
-      h += '<div class="hint">Guardado en pausa. Android pide confirmar el permiso cada vez que se abre la app — un solo toque y sigue funcionando (no hay que volver a elegir carpeta ni reindexar). Tus turnos no se pierden: están también dentro de la app.</div>' +
-        '<div class="btn-row"><button class="btn primary" data-action="folder-resume">Reactivar guardado</button>' +
-        '<button class="btn ghost" data-action="folder-unlink">Desvincular</button></div>';
-    } else {
-      h += '<div class="hint">Sin vincular — los turnos solo están guardados en la app.</div>' +
-        '<div class="btn-row"><button class="btn primary" data-action="folder-link">Vincular carpeta</button></div>';
-    }
-    h += '</div>';
-
-    // 7b-bis. Copia en la nube (OneDrive) — para todos los usuarios
+    // 7b. Copia en la nube (OneDrive) — para todos los usuarios
     h += renderNubeCard();
 
     // 7c. Sincronizar Google Calendar (solo modo desarrollador)
@@ -5512,9 +5245,6 @@
     if (act === 'gcal-aplicar') { gcalAplicarPropuestas(); return; }
     if (act === 'export-backup') { exportBackup(); return; }
     if (act === 'import-backup') { $('file-backup').click(); return; }
-    if (act === 'folder-link') { linkFolder(); return; }
-    if (act === 'folder-resume' || act === 'folder-relink') { resumeFolderAccess(); return; }
-    if (act === 'folder-reindex') { reindexFromFolder(); return; }
     if (act === 'nube-vincular') { window.NUBE && window.NUBE.vincular(); return; }
     if (act === 'nube-privacidad') { maybeNubePrivacidad(true); return; }
     if (act === 'nube-reconectar') { window.NUBE && window.NUBE.reconectar(); return; }
@@ -5571,17 +5301,6 @@
           appModal.alert({ title: 'Hecho', message: 'Datos de la nube borrados.' });
         });
       });
-      return;
-    }
-    if (act === 'folder-unlink') {
-      appModal.confirm({
-        title: 'Desvincular carpeta',
-        message: 'La carpeta dejará de actualizarse sola. Los archivos ya creados no se borran.',
-        buttons: [
-          { label: 'Cancelar', value: false, kind: 'neutral' },
-          { label: 'Desvincular', value: true, kind: 'danger' }
-        ]
-      }).then(function (ok) { if (ok) unlinkFolder(); });
       return;
     }
     if (act === 'wipe') {
@@ -5665,7 +5384,9 @@
     renderCalendar();
     setView('calendario');
 
-    initFolderHandle().then(maybeFirstRunFolderPrompt);
+    // Limpieza: se quitó el guardado local en archivos (File System Access).
+    // Borrar su IndexedDB huérfana de quien ya tenía la app.
+    try { if (window.indexedDB) indexedDB.deleteDatabase('rviryo_folder_v1'); } catch (e) {}
 
     // Copia en la nube (OneDrive): arranca MSAL, procesa la vuelta del login
     // por redirect y, si ya hay sesión, sincroniza. Si no está configurada

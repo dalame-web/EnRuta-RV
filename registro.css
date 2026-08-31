@@ -371,24 +371,21 @@ button.btn:disabled{opacity:.45; cursor:default}
 .cal-head{
   display:flex; align-items:center; gap:10px; margin-bottom:12px;
 }
-/* Banner de un toque para reactivar el guardado en archivos (Android no
- * persiste el permiso de File System Access entre aperturas de la app). */
-.folder-banner{
-  cursor:pointer; margin-bottom:12px; padding:12px 14px; border-radius:8px;
-  border:1px solid var(--accent); background:rgba(232,32,28,.12);
-  color:var(--fg); font-size:13.5px; font-weight:600; line-height:1.4; text-align:center;
-}
-.folder-banner:active{background:rgba(232,32,28,.22)}
-
 /* Icono de estado de la copia en la nube (barra del calendario y del editor). */
 .nube-ico{ position:relative; }
-.nube-ico.nb-sin{ opacity:.4; filter:grayscale(1); }
-.nube-ico.nb-ok{ }
+/* Sin vincular: la copia en la nube es la ÚNICA copia de seguridad, así que el
+ * icono llama la atención (borde rojo + parpadeo suave) en vez de pasar
+ * desapercibido en gris. */
+.nube-ico.nb-sin{
+  border-color:var(--iryo); color:var(--iryo);
+  animation:nube-latido 2.4s ease-in-out infinite;
+}
+@keyframes nube-latido{ 0%,100%{ box-shadow:0 0 0 0 rgba(232,32,28,0); } 50%{ box-shadow:0 0 0 3px rgba(232,32,28,.25); } }
 .nube-ico.nb-ok::after{
   content:''; position:absolute; right:5px; bottom:5px; width:7px; height:7px;
   border-radius:50%; background:var(--ok); border:1.5px solid var(--panel-2);
 }
-.nube-ico.nb-error{ color:var(--bad); }
+.nube-ico.nb-error{ color:var(--bad); border-color:var(--bad); }
 .nube-ico.nb-sync{ animation:nube-spin 1s linear infinite; }
 @keyframes nube-spin{ to{ transform:rotate(360deg); } }
 .cal-head .cal-title{

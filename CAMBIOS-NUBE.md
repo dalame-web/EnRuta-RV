@@ -38,6 +38,34 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 11: fuera el guardado local en archivos; potenciar la nube (enruta-v40)
+
+David: el guardado local (File System Access) no se puede arreglar (Android no
+persiste el permiso). Se quita todo y se potencia OneDrive.
+
+**Eliminado de `registro.js`** (todo el bloque «Carpeta de turnos»):
+`folderHandle`, `folderPendingHandle`, `FOLDER_DB`, `folderSupported`,
+`idbOpen/idbGetHandle/idbSetHandle`, `dayFileName`, `writeDayFile`,
+`syncTurnoDates`, `syncFolderFull`, `scheduleTurnoFolderSync`, `linkFolder`,
+`resumeFolderAccess`, `unlinkFolder`, `reindexFromFolder`, `initFolderHandle`,
+`maybeFirstRunFolderPrompt`, `folderBanner`. Acciones `folder-*`. Tarjeta
+«Carpeta de turnos (archivos)» de Ajustes. Claves `settings.folderSetupSeen`
+y `settings.folderLinked`. La llamada en `save()` (queda solo el hook de NUBE).
+`.folder-banner` de `registro.css`. `init()` borra la IndexedDB huérfana
+`rviryo_folder_v1`.
+
+**Potenciar la nube:**
+- El aviso para vincular ahora **se repite cada 8 aperturas** si no se ha
+  vinculado (antes: una sola vez). Texto reescrito ("Tus turnos solo están
+  guardados en esta tablet…"). `settings.nubeAvisoVisto` →
+  `settings.nubeAvisoContador`.
+- Icono ☁️ **sin vincular**: borde rojo + latido suave (antes: gris apagado,
+  se perdía de vista). Ahora es la única copia de seguridad, tiene que verse.
+
+Versiones: `enruta-v40` · `?v=202609011` · `CACHE enruta-rv-v32`.
+Verificado en navegador: sin refs a folder, sin errores, tarjeta de Ajustes
+solo con la nube, aviso se muestra (contador=1), IndexedDB limpia.
+
 ### 2026-08-31 — Paso 10: arreglo de recargas en bucle (enruta-v39)
 
 David reporta: al abrir la app se recarga varias veces y se pierden las
