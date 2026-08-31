@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v51';
+  var APP_VERSION = 'enruta-v52';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -4839,25 +4839,50 @@
           return;
         }
         appModal.confirm({
-          title: 'Restaurar copia',
-          message: 'Esto sustituirá los ' + turnos.length + ' turnos actuales por los ' + d.turnos.length + ' de la copia. ¿Continuar?',
+          title: 'Importar copia',
+          message: 'La copia tiene ' + d.turnos.length + ' turnos. Ahora mismo tienes ' + turnos.length + '.\n\n' +
+            '· COMBINAR: añade los turnos de la copia que te falten y recupera los que estén vacíos. No borra ni pisa lo que ya tienes bien. (Recomendado)\n' +
+            '· SUSTITUIR: borra TODO lo actual y deja solo lo de la copia.',
           buttons: [
-            { label: 'Cancelar', value: false, kind: 'neutral' },
-            { label: 'Restaurar', value: true, kind: 'danger' }
-          ]
-        }).then(function (ok) {
-          if (!ok) return;
-          turnos = d.turnos.map(normTurno);
-          if (d.settings) {
-            settings = d.settings;
-            if (!settings.ramas || !settings.ramas.length) settings.ramas = DEFAULT_RAMAS.slice();
-            if (!settings.theme) settings.theme = 'dark';
+            { label: 'Combinar', value: 'merge', kind: 'primary' },
+            { label: 'Sustituir', value: 'replace', kind: 'danger' },
+            { label: 'Cancelar', value: 'cancel', kind: 'neutral' }
+          ],
+          dismissValue: 'cancel'
+        }).then(function (modo) {
+          if (modo === 'cancel') return;
+          if (modo === 'replace') {
+            turnos = d.turnos.map(normTurno);
+            if (d.settings) {
+              settings = d.settings;
+              if (!settings.ramas || !settings.ramas.length) settings.ramas = DEFAULT_RAMAS.slice();
+              if (!settings.theme) settings.theme = 'dark';
+            }
+            save(K_TURNOS, turnos);
+            saveSettings();
+            applyTheme();
+            appModal.alert({ title: 'Copia restaurada', message: turnos.length + ' turnos.' });
+            renderSettings();
+            return;
           }
+          // COMBINAR: añade lo que falta, recupera lo vacío, nunca pisa datos.
+          var nuevos = 0, recuperados = 0;
+          d.turnos.forEach(function (bt) {
+            if (!bt || !bt.id) return;
+            var lt = getTurno(bt.id);
+            var nt = normTurno(JSON.parse(JSON.stringify(bt)));
+            if (!lt) { turnos.push(nt); nuevos++; }
+            else if (isEmptyTurno(lt) && !isEmptyTurno(nt)) { turnos[turnos.indexOf(lt)] = nt; recuperados++; }
+            else if (nServiciosConDatos(nt) > nServiciosConDatos(lt)) { turnos[turnos.indexOf(lt)] = nt; recuperados++; }
+          });
           save(K_TURNOS, turnos);
-          saveSettings();
-          applyTheme();
-          appModal.alert({ title: 'Copia restaurada', message: 'Copia importada: ' + turnos.length + ' turnos.' });
           renderSettings();
+          renderCalendar();
+          appModal.alert({
+            title: 'Copia combinada',
+            message: nuevos + ' turnos añadidos · ' + recuperados + ' recuperados. ' +
+              'Nada de lo que ya tenías bien se ha tocado.'
+          });
         });
       } catch (e) {
         appModal.alert({ title: 'Error al leer', message: 'No se pudo leer el archivo.' });

@@ -38,6 +38,30 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 23: importar copia en modo «Combinar» (recuperar días perdidos) (enruta-v52)
+
+David perdió los turnos del 27, 28 y 29 de agosto (borrados en la nube al
+principio del OneDrive). Su copia exportada `rviryo-copia-2026-08-31.json`
+SÍ tiene los 3 días intactos (2 turnos con todos los datos: N1, paradas,
+PMR, observaciones, comprobaciones, toma/deje/descanso).
+
+- **`importBackup` reescrito.** Antes solo «Restaurar» (borraba todo y ponía
+  la copia). Ahora 3 botones:
+  - **Combinar** (recomendado): añade los turnos de la copia que falten,
+    recupera los que estén vacíos localmente (`isEmptyTurno` /
+    `nServiciosConDatos`). NUNCA pisa ni borra un turno local con datos.
+  - **Sustituir**: comportamiento antiguo (borra todo, deja solo la copia).
+  - **Cancelar**.
+- Verificado en preview: sembrado turno vacío `mtc4cp8ozffy0` + turno bueno
+  `existing1`; importada la copia en Combinar → `mtc4cp8ozffy0` recuperado,
+  `existing1` intacto, turno nuevo añadido. Sin errores.
+- Pasos para David: Ajustes → Importar copia → elegir
+  `rviryo-copia-2026-08-31.json` → **Combinar**.
+- Versiones: `enruta-v52` · `registro.js?v=202609031` · `nube.js?v=202609031`
+  · `CACHE enruta-rv-v44`.
+
+---
+
 ### 2026-09-01 — Paso 22: revisión a fondo de TODA la lógica de guardado (enruta-v51)
 
 David: "revisa bien la lógica del guardado, no se pueden perder datos".
