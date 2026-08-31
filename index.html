@@ -69,7 +69,7 @@ body:not(.light) .theme-btn .theme-icon-sun{display:inline}
   font-family:Inter,system-ui,sans-serif}
 body.tab-calendario #app-version-badge{display:block}
 </style>
-<link rel="stylesheet" href="registro.css?v=202608311">
+<link rel="stylesheet" href="registro.css?v=202608312">
 </head>
 <body class="tab-calendario">
 
@@ -141,15 +141,28 @@ body.tab-calendario #app-version-badge{display:block}
     document.body.classList.add('tab-' + name);
   });
   if('serviceWorker' in navigator){
-    // Recargar sola solo si YA había un SW controlando la página (actualización
-    // real). En la primera instalación no hay controller previo — recargar ahí
-    // interrumpe cualquier flujo async que esté en marcha justo tras el arranque
-    // (p.ej. el aviso de vincular carpeta de turnos) sin necesidad real, porque
-    // la página ya se sirvió fresca desde la red.
+    // Recarga automática al actualizar la app — PERO educada:
+    //  - Solo si YA había un SW controlando (actualización real, no 1ª instalación).
+    //  - Solo UNA vez por carga de página (flag swReloaded), aunque
+    //    'controllerchange' se dispare varias veces.
+    //  - NUNCA mientras hay un diálogo abierto o el usuario está escribiendo:
+    //    espera y reintenta cada 3 s hasta que la pantalla esté libre. Antes
+    //    recargaba en seco y se perdía la ventana que estuviera abierta
+    //    (p.ej. el aviso de vincular OneDrive).
     var hadController = !!navigator.serviceWorker.controller;
+    var swReloaded = false;
     navigator.serviceWorker.register('sw.js').catch(function(){});
     navigator.serviceWorker.addEventListener('controllerchange', function(){
-      if(hadController) window.location.reload();
+      if(!hadController || swReloaded) return;
+      (function tryReload(){
+        if(swReloaded) return;
+        var modal = document.querySelector('.modal-overlay.open');
+        var el = document.activeElement;
+        var typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT');
+        if(modal || typing){ setTimeout(tryReload, 3000); return; }
+        swReloaded = true;
+        window.location.reload();
+      })();
     });
   }
 })();
@@ -159,8 +172,8 @@ body.tab-calendario #app-version-badge{display:block}
 <script src="app-modal.js"></script>
 <script src="data.js?v=202608200"></script>
 <script src="msal-browser.min.js"></script>
-<script src="nube.js?v=202608311"></script>
-<script src="registro.js?v=202608311"></script>
+<script src="nube.js?v=202608312"></script>
+<script src="registro.js?v=202608312"></script>
 <script src="telefonemas-listado.js?v=202608200"></script>
 <script>
 (function(){

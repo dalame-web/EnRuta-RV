@@ -1,4 +1,4 @@
-const CACHE = 'enruta-rv-v30';
+const CACHE = 'enruta-rv-v31';
 const PRECACHE = [
   './', './index.html', './manifest.webmanifest',
   './data.js', './registro.js', './registro.css', './app-modal.js', './telefonemas-listado.js',
@@ -8,10 +8,18 @@ const PRECACHE = [
 ];
 
 self.addEventListener('install', e => {
-  // Aplica el SW nuevo en cuanto termina de instalar (sin esperar a un
-  // banner "Actualizar" — no existe tal UI). El controllerchange en
-  // index.html recarga la página sola cuando esto ocurre.
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  // Precache TOLERANTE a fallos: cada recurso por separado con su propio
+  // catch. Si uno falla (p.ej. msal-browser.min.js ~275 KB con mala
+  // cobertura en la tablet), NO se aborta la instalación entera — ese
+  // recurso se cachea luego con el handler de fetch (network-first). Antes,
+  // c.addAll fallaba con cualquier recurso caído y la instalación se
+  // reintentaba una y otra vez, y cada reintento con éxito disparaba una
+  // recarga de la página (perdiendo ventanas abiertas).
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => Promise.all(PRECACHE.map(u => c.add(u).catch(() => {}))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {

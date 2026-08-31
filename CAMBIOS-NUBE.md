@@ -38,6 +38,24 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 10: arreglo de recargas en bucle (enruta-v39)
+
+David reporta: al abrir la app se recarga varias veces y se pierden las
+ventanas abiertas (p.ej. el aviso de vincular OneDrive).
+
+Causa: el precache `c.addAll(PRECACHE)` fallaba entero si un recurso caía
+(muy posible con `msal-browser.min.js` ~275 KB y mala cobertura). La
+instalación se reintentaba y cada éxito disparaba una recarga en seco.
+
+Arreglo:
+- `sw.js`: precache **tolerante a fallos** — `c.add(u).catch(()=>{})` por
+  recurso; un fallo no aborta la instalación (ese recurso se cachea luego con
+  el handler de fetch). `CACHE` → `enruta-rv-v31`.
+- `index.html`: recarga automática **educada** — solo una vez por carga
+  (`swReloaded`), y **nunca mientras hay un diálogo abierto o el usuario
+  escribe** (reintenta cada 3 s hasta que la pantalla esté libre).
+- `APP_VERSION` → `enruta-v39` · `?v=202608312`.
+
 ### 2026-08-31 — Paso 9: PUBLICACIÓN v38
 
 - Valores finales: `APP_VERSION = 'enruta-v38'` · `?v=202608311` (registro.js,
