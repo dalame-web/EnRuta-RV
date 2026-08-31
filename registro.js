@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v43';
+  var APP_VERSION = 'enruta-v44';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -5418,6 +5418,36 @@
     document.addEventListener('blur', function (e) {
       if (e.target.classList && e.target.classList.contains('ret-input')) {
         commitRet(e.target);
+      }
+    }, true);
+
+    // Observaciones a mano: cada línea empieza con "• ", igual que los atajos.
+    // - Al pulsar Enter se mete "\n• " para que se vea al momento.
+    // - Al salir del campo (blur) se normalizan todas las líneas.
+    function esObsTextarea(el) {
+      return el && el.tagName === 'TEXTAREA' &&
+        /^srv\.\d+\.observaciones$/.test(el.getAttribute('data-bind') || '');
+    }
+    function bulletearObs(txt) {
+      return String(txt || '').split('\n').map(function (ln) {
+        var t = ln.replace(/^\s*[•·*\-]\s*/, '').trim();
+        return t ? '• ' + t : '';
+      }).join('\n');
+    }
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || e.shiftKey || !esObsTextarea(e.target)) return;
+      e.preventDefault();
+      var ta = e.target, a = ta.selectionStart, b = ta.selectionEnd;
+      ta.value = ta.value.slice(0, a) + '\n• ' + ta.value.slice(b);
+      ta.selectionStart = ta.selectionEnd = a + 3;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    document.addEventListener('blur', function (e) {
+      if (!esObsTextarea(e.target)) return;
+      var ta = e.target, nv = bulletearObs(ta.value);
+      if (nv !== ta.value) {
+        ta.value = nv;
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
       }
     }, true);
     document.addEventListener('change', function (e) {

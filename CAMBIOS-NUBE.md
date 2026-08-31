@@ -38,6 +38,18 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 15: Observaciones a mano con viñeta «• » (enruta-v44)
+
+- El texto escrito a mano en Observaciones ahora lleva «• » delante de cada
+  línea, igual que los atajos.
+  - **Enter** en el textarea inserta «\n• » (se ve al momento).
+  - **Blur** (salir del campo) normaliza todas las líneas: quita cualquier
+    viñeta previa (`• · * -`) y pone «• ». Líneas vacías se quedan vacías.
+  - No duplica viñeta en las líneas que ya vienen de un atajo.
+- Listeners nuevos en `init()` (`keydown` + `blur` capture), acotados a
+  `textarea[data-bind="srv.N.observaciones"]`.
+- Versiones: `enruta-v44` · `registro.js?v=202609015` · `CACHE enruta-rv-v36`.
+
 ### 2026-08-31 — Paso 14: dos traslados nuevos (enruta-v43)
 
 - `RV_MANIOBRAS` (data.js): + «Chamartín - Fuencarral» y «Fuencarral -
