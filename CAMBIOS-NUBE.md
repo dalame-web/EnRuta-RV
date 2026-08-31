@@ -38,6 +38,35 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 22: revisión a fondo de TODA la lógica de guardado (enruta-v51)
+
+David: "revisa bien la lógica del guardado, no se pueden perder datos".
+Auditados todos los caminos que escriben/borran turnos. Cambios:
+
+- **`isEmptyTurno` completo.** Antes NO contaba: `hSalida`, `hDestino`,
+  `rSalida`, `rLlegDestino`, `maniobraNombre`, `servicioComercial2`,
+  `horaLTV` de servicio, `s.pmr`, y de las paradas `hLleg`/`viajeros`/
+  `asistencias`/`pmr`. Un turno con solo, p.ej., la hora de llegada o unos
+  PMR se tomaba como "vacío" y `discardEmptyEdit` lo borraba al salir del
+  editor. Ahora cualquier dato del usuario lo mantiene vivo. Extraído
+  `isEmptyServicio` + `nServiciosConDatos`.
+- **`save()` — salvaguarda `_deCache`.** Un turno marcado `_deCache` (relleno
+  por Google Calendar, no persiste) que YA tiene datos que solo pone el
+  usuario (`n1`, vía, rama, observaciones, comprobaciones, PMR, viajeros,
+  incidencias — `tieneDatosDeUsuario()`) se "confirma" (`_deCache=false`)
+  antes de filtrar, para que no se pierda si el flag se quedó sin limpiar.
+- **`save()` — el fallo de `localStorage` ya NO se traga en silencio.** Si el
+  almacenamiento está lleno/bloqueado, aviso al usuario (una vez).
+- **`flushAutosave()` en `visibilitychange`/`pagehide`/`beforeunload`.** El
+  autosave tiene 350 ms de retardo; si el navegador mataba la página (app a
+  segundo plano, recarga del SW) antes, se perdía la última edición. Ahora se
+  fuerza el guardado al cerrar/segundo plano. Verificado.
+- **`nubeAplicarDia` — guarda reforzada.** No sustituye un turno local con
+  datos por una versión de la nube que venga vacía O con menos servicios con
+  datos.
+- Versiones: `enruta-v51` · `registro.js?v=202609023` · `nube.js?v=202609023`
+  · `CACHE enruta-rv-v43`.
+
 ### 2026-09-01 — Paso 21: PÉRDIDA DE DATOS en la sincro — arreglado (enruta-v50)
 
 David: en 3 días se borraron datos de turnos. GRAVE.

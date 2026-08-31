@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v50';
+  var APP_VERSION = 'enruta-v51';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -971,9 +971,30 @@
     // autofillServicio/autosave). Así ninguna escritura de OTRO turno
     // arrastra de rebote uno que la app creó pero el usuario ni miró.
     if (k === K_TURNOS && Array.isArray(v)) {
+      // Salvaguarda: un turno marcado _deCache que ya tiene datos que SOLO
+      // pone el usuario (n1, vía, rama, observaciones, comprobaciones, PMR,
+      // viajeros, incidencias) NO es "solo caché" — se confirma para que no
+      // se pierda si el flag se quedó sin limpiar por algún camino.
+      v.forEach(function (t) {
+        if (t._deCache && tieneDatosDeUsuario(t)) t._deCache = false;
+      });
       out = v.filter(function (t) { return !t._deCache; });
     }
-    try { localStorage.setItem(k, JSON.stringify(out)); } catch (e) {}
+    try { localStorage.setItem(k, JSON.stringify(out)); }
+    catch (e) {
+      // localStorage lleno o bloqueado: NO tragárselo en silencio, es
+      // pérdida de datos. Avisar una vez.
+      if (!save._avisadoLleno) {
+        save._avisadoLleno = true;
+        try {
+          appModal.alert({
+            title: 'No se pudo guardar',
+            message: 'El almacenamiento del dispositivo está lleno o bloqueado. ' +
+              'Exporta una copia (Ajustes → Exportar copia) y libera espacio.'
+          });
+        } catch (e2) {}
+      }
+    }
     // Único punto por el que pasan TODAS las escrituras de turnos (las
     // debounced de autosave() y las directas) — enganchar aquí basta para
     // que la copia en la nube (OneDrive) cubra cualquier cambio. Capa
@@ -988,8 +1009,14 @@
     if (tEdit) tEdit._deCache = false;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
+      saveTimer = null;
       save(K_TURNOS, turnos);
     }, 350);
+  }
+  // Fuerza el guardado pendiente YA (al cerrar/segundo plano la app, para no
+  // perder la última edición si el navegador mata la página antes de los 350ms).
+  function flushAutosave() {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; save(K_TURNOS, turnos); }
   }
   function flashSaved() {
     var f = $('save-flash');
@@ -1078,7 +1105,11 @@
       var lt = getTurno(rt.id);
       var nt = normTurno(rt);
       if (lt) {
-        if (!isEmptyTurno(lt) && isEmptyTurno(nt)) return; // no pisar datos con vacío
+        // No pisar datos locales con una versión de la nube más pobre:
+        //  - la nube viene vacía y lo local tiene datos, o
+        //  - la nube tiene menos servicios con datos que lo local.
+        if (!isEmptyTurno(lt) &&
+            (isEmptyTurno(nt) || nServiciosConDatos(nt) < nServiciosConDatos(lt))) return;
         turnos[turnos.indexOf(lt)] = nt;
       } else {
         turnos.push(nt);
@@ -1337,21 +1368,45 @@
       return t.servicios.some(function (s) { return s.fecha === d; });
     });
   }
-  // ¿Turno sin ningún dato introducido? (solo la fecha automática del servicio)
-  function isEmptyTurno(t) {
-    if (t.horaLTV) return false;
-    if (t.toma || t.deje || t.descanso) return false;
-    return t.servicios.every(function (s) {
-      if (s.servicioComercial || s.via || s.rama || s.n1 ||
-          s.viajeros || s.asistencias || s.plazasH || s.observaciones ||
-          s.esTraslado || s.servicioManual || s.origen || s.destino) return false;
-      if (s.paradas.some(function (p) {
-        return p.nombre || p.hora || p.rLleg || p.rSal;
-      })) return false;
-      if (s.comprobaciones.some(function (c) { return c; })) return false;
-      if (s.incidencias && s.incidencias.length) return false;
-      return true;
+  // Datos que SOLO introduce el usuario a mano (nunca el autorrelleno de
+  // Google Calendar, que solo pone servicio/origen/destino/horas del Libro).
+  function tieneDatosDeUsuario(t) {
+    return (t.servicios || []).some(function (s) {
+      return s.n1 || s.via || s.rama || s.observaciones ||
+        (s.pmr || []).length ||
+        (s.comprobaciones || []).some(function (c) { return c; }) ||
+        (s.incidencias || []).length ||
+        (s.paradas || []).some(function (p) {
+          return p.viajeros || p.asistencias || (p.pmr || []).length;
+        });
     });
+  }
+  // ¿Un servicio no tiene NINGÚN dato del usuario? (solo la fecha automática)
+  function isEmptyServicio(s) {
+    if (!s) return true;
+    if (s.servicioComercial || s.servicioComercial2 || s.via || s.rama || s.n1 ||
+        s.viajeros || s.asistencias || s.plazasH || s.observaciones ||
+        s.esTraslado || s.servicioManual || s.maniobraNombre ||
+        s.origen || s.destino || s.hSalida || s.hDestino ||
+        s.rSalida || s.rLlegDestino || s.horaLTV) return false;
+    if ((s.pmr || []).length) return false;
+    if ((s.paradas || []).some(function (p) {
+      return p.nombre || p.hora || p.hLleg || p.rLleg || p.rSal ||
+             p.viajeros || p.asistencias || (p.pmr || []).length;
+    })) return false;
+    if ((s.comprobaciones || []).some(function (c) { return c; })) return false;
+    if (s.incidencias && s.incidencias.length) return false;
+    return true;
+  }
+  // ¿Turno sin NINGÚN dato del usuario? (solo la fecha automática del servicio)
+  function isEmptyTurno(t) {
+    if (t.horaLTV || t.toma || t.deje || t.descanso) return false;
+    return (t.servicios || []).every(isEmptyServicio);
+  }
+  // Servicios de un turno que SÍ tienen datos — para no aceptar de la nube una
+  // versión con menos contenido que la local.
+  function nServiciosConDatos(t) {
+    return (t.servicios || []).filter(function (s) { return !isEmptyServicio(s); }).length;
   }
   // Al salir del editor, descarta el turno si quedó completamente vacío.
   // Si el turno tiene datos, se PRESERVA editId (y el servicio expandido) para
@@ -5466,6 +5521,14 @@
     document.addEventListener('input', onInput);
     document.addEventListener('change', onChange);
     document.addEventListener('click', onClick);
+
+    // Guardar la última edición ANTES de que el navegador pueda matar la
+    // página (cambio a segundo plano, cierre, recarga del Service Worker).
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') flushAutosave();
+    });
+    window.addEventListener('pagehide', flushAutosave);
+    window.addEventListener('beforeunload', flushAutosave);
 
     // Editor inline de retraso: Enter o blur guardan; Escape cancela.
     function commitRet(inp) {
