@@ -85,17 +85,32 @@
     if (tokenEnCurso) return tokenEnCurso;
     tokenEnCurso = Promise.resolve().then(function () {
       if (!cuenta) return null;
-      return msalApp.acquireTokenSilent({ scopes: SCOPES, account: cuenta })
+      // Timeout: si acquireTokenSilent se cuelga (iframe bloqueado, red
+      // caída) la promesa nunca resolvía y tokenEnCurso quedaba pendiente
+      // PARA SIEMPRE, bloqueando toda sincro futura (y el icono girando).
+      return conTimeout(
+        msalApp.acquireTokenSilent({ scopes: SCOPES, account: cuenta }),
+        12000, 'token'
+      )
         .then(function (r) { needsReconnect = false; return r.accessToken; })
         .catch(function (e) {
-          // InteractionRequiredAuthError, o iframe bloqueado por cookies de
-          // terceros → hace falta un toque real del usuario.
           needsReconnect = true;
           pintarBanner();
           return null;
         });
-    }).then(function (t) { tokenEnCurso = null; return t; });
+    }).then(function (t) { tokenEnCurso = null; return t; })
+      .catch(function () { tokenEnCurso = null; return null; });
     return tokenEnCurso;
+  }
+
+  // Promise.race con un rechazo por tiempo — para que nada se quede colgado.
+  function conTimeout(p, ms, etiqueta) {
+    return Promise.race([
+      p,
+      new Promise(function (_, rej) {
+        setTimeout(function () { rej(new Error('timeout ' + (etiqueta || ''))); }, ms);
+      })
+    ]);
   }
 
   // ── HTTP a Microsoft Graph ──────────────────────────────────────────────
@@ -109,11 +124,17 @@
         h['Content-Type'] = 'application/json';
         opts.body = JSON.stringify(opts.json);
       }
+      // AbortController: si la conexión se cae a medias (típico en un tren),
+      // fetch no rechaza nunca por su cuenta. Se aborta a los 25 s.
+      var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var tm = ac ? setTimeout(function () { ac.abort(); }, 25000) : null;
       return fetch(GRAPH + path, {
         method: opts.method || 'GET',
         headers: h,
-        body: opts.body
-      });
+        body: opts.body,
+        signal: ac ? ac.signal : undefined
+      }).then(function (res) { if (tm) clearTimeout(tm); return res; })
+        .catch(function (e) { if (tm) clearTimeout(tm); throw e; });
     });
   }
   function graphJson(path, opts) {
@@ -368,13 +389,26 @@
 
   // Ciclo completo (bajar + subir), con guard anti-solapamiento.
   var errorSubida = false;
+  var syncWatchdog = null;
+  function terminarSync() {
+    if (syncWatchdog) { clearTimeout(syncWatchdog); syncWatchdog = null; }
+    syncEnCurso = false;
+    pintarTarjeta();
+  }
   function sincronizar(silencioso) {
     if (!cuenta || syncEnCurso) return Promise.resolve();
     syncEnCurso = true;
     errorSubida = false;
     pintarBanner();
-    return sincronizarBajar().then(function (res) {
-      return sincronizarSubir().then(function () {
+    // Red de seguridad: pase lo que pase, el icono deja de girar en 60 s.
+    if (syncWatchdog) clearTimeout(syncWatchdog);
+    syncWatchdog = setTimeout(function () {
+      errorSubida = true;
+      terminarSync();
+      console.warn('[nube] sync watchdog: forzado fin a los 60 s');
+    }, 60000);
+    return conTimeout(sincronizarBajar(), 45000, 'bajar').then(function (res) {
+      return conTimeout(sincronizarSubir(), 45000, 'subir').then(function () {
         var reg = R();
         if (reg) reg.reRender();
         if (res && res.altas && !silencioso) {
@@ -384,11 +418,8 @@
       });
     }).catch(function (e) {
       // Errores de red se tragan (se reintenta); otros a consola.
-      if (e && !e.noToken) console.warn('[nube] sync', e);
-    }).then(function () {
-      syncEnCurso = false;
-      pintarTarjeta();
-    });
+      if (e && !e.noToken) console.warn('[nube] sync', e && e.message || e);
+    }).then(terminarSync);
   }
 
   // ── Cambios locales → marcar y programar subida ─────────────────────────

@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v47';
+  var APP_VERSION = 'enruta-v48';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -2024,23 +2024,22 @@
     var h = '<div class="station-card ' + tipo + '">';
     h += '<div class="st-head">' +
       '<span class="st-badge ' + tipo + '">' + badgeTxt + '</span>';
+    var pm = cfg.pmr, pmTags = '';
+    if (pm && pm.bajan) {
+      pmTags += ' <span class="pmr-tag baja" title="' + pm.bajan + ' PMR baja' +
+        (pm.bajan > 1 ? 'n' : '') + ' aquí">♿↓' + (pm.bajan > 1 ? pm.bajan : '') + '</span>';
+    }
+    if (pm && pm.suben) {
+      pmTags += ' <span class="pmr-tag sube" title="' + pm.suben + ' PMR sube' +
+        (pm.suben > 1 ? 'n' : '') + ' aquí">♿↑' + (pm.suben > 1 ? pm.suben : '') + '</span>';
+    }
     if ((cfg.parIdx != null && cfg.editable) || cfg.editNombre) {
       var bindNom = cfg.bindNombre || ('srv.' + si + '.par.' + cfg.parIdx + '.nombre');
       h += '<input type="text" class="st-name-input" placeholder="Estación" ' +
         'data-bind="' + bindNom + '" ' +
-        'value="' + esc(cfg.nombre || '') + '">';
+        'value="' + esc(cfg.nombre || '') + '">' + pmTags;
     } else {
-      h += '<span class="st-name">' + esc(cfg.nombre || '—');
-      var pm = cfg.pmr;
-      if (pm && pm.bajan) {
-        h += ' <span class="pmr-tag baja" title="' + pm.bajan + ' PMR baja' +
-          (pm.bajan > 1 ? 'n' : '') + ' aquí">♿↓' + (pm.bajan > 1 ? pm.bajan : '') + '</span>';
-      }
-      if (pm && pm.suben) {
-        h += ' <span class="pmr-tag sube" title="' + pm.suben + ' PMR sube' +
-          (pm.suben > 1 ? 'n' : '') + ' aquí">♿↑' + (pm.suben > 1 ? pm.suben : '') + '</span>';
-      }
-      h += '</span>';
+      h += '<span class="st-name">' + esc(cfg.nombre || '—') + pmTags + '</span>';
     }
     // Mini "+" inserta una parada NUEVA antes de la actual.
     if (cfg.parIdx != null) {
@@ -2291,10 +2290,11 @@
       '<select data-bind="srv.' + si + '.rama">' + ramaOptions(s.rama) + '</select></div>' +
       '</div>';
 
-    // N1 — siempre escribible (también en traslados y servicios manuales).
+    // N1 — escribible en servicios comerciales (normales y manuales), NO en
+    // traslados (una maniobra no lleva N1).
     h += '<div class="field"><label class="red">N1</label>' +
       '<input type="text" data-bind="srv.' + si + '.n1" value="' +
-      esc(s.n1) + '" placeholder="Nombre"></div>';
+      esc(s.n1) + '" placeholder="Nombre"' + (s.esTraslado ? ' disabled' : '') + '></div>';
 
     // Estaciones (card por estación)
     h += stationsBlock(s, si);
@@ -5470,7 +5470,9 @@
     function bulletearObs(txt) {
       return String(txt || '').split('\n').map(function (ln) {
         var t = ln.replace(/^\s*[•·*\-]\s*/, '').trim();
-        return t ? '• ' + t : '';
+        if (!t) return '';
+        // Primera letra en mayúscula (ortografía).
+        return '• ' + t.charAt(0).toUpperCase() + t.slice(1);
       }).join('\n');
     }
     document.addEventListener('keydown', function (e) {

@@ -38,6 +38,27 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 19: PMR en servicio manual + obs con mayúscula + N1 traslados + timeouts nube (enruta-v48)
+
+1. **PMR en las tarjetas de estación del servicio manual:** el icono ♿↓/♿↑
+   ahora se pinta también cuando el nombre de la estación es un `<input>`
+   editable (antes solo salía junto al `<span>`). `stationCard` calcula
+   `pmTags` una vez y lo añade en las dos ramas.
+2. **Observaciones a mano:** la primera letra de cada línea `• ` va en
+   MAYÚSCULA (`bulletearObs`).
+3. **N1 vuelve a estar deshabilitado en traslados** (una maniobra no lleva N1).
+   Sigue escribible en servicios comerciales normales y manuales.
+4. **Icono de la nube «girando para siempre» — arreglado:**
+   - `graph()`: `fetch` con `AbortController` + timeout de 25 s (una conexión
+     caída a medias en un tren no rechaza sola).
+   - `getToken()`: `acquireTokenSilent` con timeout de 12 s + `tokenEnCurso` se
+     limpia siempre (antes, si se colgaba, bloqueaba TODA sincro futura).
+   - `sincronizar()`: watchdog de 60 s que fuerza el fin pase lo que pase;
+     `sincronizarBajar/Subir` con timeout de 45 s cada uno.
+
+- Versiones: `enruta-v48` · `registro.js?v=202609020` · `nube.js?v=202609020`
+  · `CACHE enruta-rv-v40`.
+
 ### 2026-08-31 — Paso 18: ajustes del servicio manual + «COMERCIAL» en calendario (enruta-v47)
 
 1. Al crear servicio manual, la casilla Nº ya no aparece con «__MANUAL__»
