@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v44';
+  var APP_VERSION = 'enruta-v38';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1339,25 +1339,30 @@
       if (v === 'ok') { settings.nubePrivacidadVista = true; saveSettings(); }
     });
   }
-  // Pie discreto en Calendario: estado de la copia en la nube + acceso al
-  // aviso de privacidad, siempre visible.
-  function nubePie() {
+  // Botón-icono de estado de la copia en la nube. Va en la barra del
+  // calendario (rejilla y lista) y en la cabecera del editor de Registro.
+  //   sin vincular  → ☁️ gris   · toca = vincular
+  //   reconectar    → ⚠️        · toca = reconectar
+  //   sincronizando → ⏳ (gira) · toca = nada útil (ya está)
+  //   error subida  → ⚠️ rojo   · toca = reintentar
+  //   al día        → ☁️ verde  · toca = forzar subida ahora
+  function nubeIconoBtn() {
     if (!window.NUBE || !window.NUBE.disponible()) return '';
-    var vinc = window.NUBE.estaVinculada();
-    var h = '<div class="nube-pie">';
-    h += vinc ? '☁️ Copia en la nube activa' : '☁️ Copia en la nube desactivada';
-    h += ' · <span class="nube-pie-link" data-action="nube-privacidad">ⓘ Privacidad</span>';
-    if (!vinc) h += ' · <span class="nube-pie-link" data-action="nube-vincular">Activar</span>';
-    h += '</div>';
-    return h;
+    var e = window.NUBE.estado();
+    var M = {
+      sin:        { ic: '☁️', cls: 'nb-sin',   t: 'Copia en la nube desactivada — toca para activar' },
+      reconectar: { ic: '⚠️', cls: 'nb-error', t: 'Sesión de Microsoft caducada — toca para reconectar' },
+      sync:       { ic: '⏳', cls: 'nb-sync',  t: 'Guardando en la nube…' },
+      error:      { ic: '⚠️', cls: 'nb-error', t: 'Error al subir a la nube — toca para reintentar' },
+      ok:         { ic: '☁️', cls: 'nb-ok',    t: 'Copia en la nube al día — toca para subir ahora' }
+    };
+    var m = M[e] || M.sin;
+    return '<button class="cal-toggle nube-ico ' + m.cls + '" data-action="nube-icono" title="' +
+      m.t + '" aria-label="' + m.t + '">' + m.ic + '</button>';
   }
-  // Banner de un toque en Calendario cuando la sesión de Microsoft caducó
-  // (mismo patrón que folderBanner).
-  function nubeBanner() {
+  function nubeInfoBtn() {
     if (!window.NUBE || !window.NUBE.disponible()) return '';
-    if (!window.NUBE.estaVinculada() || !window.NUBE.necesitaReconectar()) return '';
-    return '<div class="folder-banner" data-action="nube-reconectar">' +
-      '☁️ Toca para reconectar la copia en la nube</div>';
+    return '<button class="cal-toggle" data-action="nube-privacidad" title="Aviso de privacidad" aria-label="Aviso de privacidad">ⓘ</button>';
   }
   // Primer aviso (a tablets nuevas y ya instaladas). Solo si la función está
   // configurada (CLIENT_ID puesto en nube.js).
@@ -1574,6 +1579,7 @@
 
   // ===== Navegación / vistas =====
   var lastSetView = '';
+  var viewScroll = {};
   function setView(v) {
     // Si salimos del editor de Registro hacia otra vista RV, descartar
     // turno blank si quedó vacío. Esto cubre TODOS los flujos de salida
@@ -1582,12 +1588,17 @@
     if (lastSetView === 'registro' && v !== 'registro') {
       discardEmptyEdit();
     }
+    // Recordar la altura de scroll de la vista que dejamos, para volver al
+    // mismo sitio (p.ej. registro → telefonemas → registro). openEditor()
+    // vuelve a forzar 0 cuando se abre un turno nuevo, así que abrir un turno
+    // sí lleva arriba; solo cambiar de pestaña conserva la posición.
+    if (lastSetView && lastSetView !== v) viewScroll[lastSetView] = window.scrollY;
     lastSetView = v;
     ['calendario', 'registro', 'telefonemas', 'informe', 'estadisticas', 'ajustes'].forEach(function (p) {
       var el = $(p + '-pane');
       if (el) el.classList.toggle('active', p === v);
     });
-    window.scrollTo(0, 0);
+    window.scrollTo(0, viewScroll[v] || 0);
     try { window.dispatchEvent(new CustomEvent('iryo:setView', { detail: { view: v } })); } catch (e) {}
   }
 
@@ -1679,12 +1690,13 @@
       pairInfo[f2] = { role: 'second', other: f1, sameRow: sameRow };
     });
 
-    var h = folderBanner() + nubeBanner() + '<div class="cal-head">' +
+    var h = folderBanner() + '<div class="cal-head">' +
       '<button class="cal-nav" data-action="cal-prev">‹</button>' +
       '<div class="cal-title">' + MESES[calMonth] + ' ' + calYear + '</div>' +
       '<button class="cal-nav" data-action="cal-next">›</button>' +
       (settings.telDevMode ? '<button class="cal-toggle" data-action="gcal-sync-cal" title="Sincronizar Google Calendar (2 días atrás + 7 adelante)">' +
         (gcalChecking ? '⏳' : '🔄') + '</button>' : '') +
+      nubeIconoBtn() + nubeInfoBtn() +
       '<button class="cal-toggle" data-action="cal-toggle" title="Vista lista">≡</button>' +
       '</div>';
     h += '<div class="cal-grid">';
@@ -1764,14 +1776,14 @@
     h += '<div class="cal-legend">' +
       '<span><i style="background:var(--warn)"></i> En curso</span>' +
       '<span><i style="background:var(--ok)"></i> Cerrado</span></div>';
-    h += nubePie();
     pane.innerHTML = h;
   }
 
   function renderList() {
     var pane = $('calendario-pane');
-    var h = folderBanner() + nubeBanner() + '<div class="cal-head">' +
+    var h = folderBanner() + '<div class="cal-head">' +
       '<div class="cal-title" style="text-align:left;flex:1">Todos los turnos</div>' +
+      nubeIconoBtn() + nubeInfoBtn() +
       '<button class="cal-toggle" data-action="cal-toggle" title="Vista cuadrícula">▦</button>' +
       '</div>';
 
@@ -1784,7 +1796,6 @@
     if (!sorted.length) {
       h += '<div class="list-empty">Aún no hay turnos registrados.<br>' +
         'Cambia a vista cuadrícula y toca un día para crear el primero.</div>';
-      h += nubePie();
       pane.innerHTML = h;
       return;
     }
@@ -1822,7 +1833,6 @@
       h += '</div>';
     });
     h += '</div>';
-    h += nubePie();
     pane.innerHTML = h;
   }
 
@@ -2577,6 +2587,7 @@
       (cerrado ? 'Cerrado' : 'En curso') + '</span>';
     h += '<span class="tel-cabecera">' +
       (settings.telefono ? '📞 ' + esc(settings.telefono) : '') + '</span>';
+    h += nubeIconoBtn();
     if (t.servicios.length < 2) {
       h += '<button class="btn" data-action="add-servicio">' +
         '+ Añadir 2º servicio</button>';
@@ -5512,6 +5523,21 @@
     if (act === 'nube-vincular') { window.NUBE && window.NUBE.vincular(); return; }
     if (act === 'nube-privacidad') { maybeNubePrivacidad(true); return; }
     if (act === 'nube-reconectar') { window.NUBE && window.NUBE.reconectar(); return; }
+    if (act === 'nube-icono') {
+      if (!window.NUBE) return;
+      var est = window.NUBE.estado();
+      if (est === 'sin') { window.NUBE.vincular(); return; }
+      if (est === 'reconectar') { window.NUBE.reconectar(); return; }
+      if (est === 'sync') return; // ya está subiendo
+      // ok / error → forzar subida ahora
+      window.NUBE.sincronizarAhora().then(function () {
+        nubeReRender();
+        if (lastSetView === 'ajustes') renderSettings();
+        flashSaved();
+      });
+      nubeReRender(); // pinta el ⏳ al instante
+      return;
+    }
     if (act === 'nube-sync') {
       if (window.NUBE) window.NUBE.sincronizarAhora().then(function () {
         if (lastSetView === 'ajustes') renderSettings();
@@ -5769,8 +5795,8 @@
       aplicarDia: nubeAplicarDia,
       reRender: nubeReRender,
       trasVincular: nubeTrasVincular,
-      pintarBanner: function () { if (lastSetView === 'calendario') renderCalendar(); },
-      pintarAjustes: function () { if (lastSetView === 'ajustes') renderSettings(); },
+      pintarBanner: function () { nubeReRender(); },
+      pintarAjustes: function () { if (lastSetView === 'ajustes') renderSettings(); else nubeReRender(); },
       aviso: function (msg) { appModal.alert({ title: 'Copia en la nube', message: msg }); }
     }
   };

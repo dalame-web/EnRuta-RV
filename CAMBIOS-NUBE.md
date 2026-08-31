@@ -38,6 +38,28 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 7: iconos en la barra + numeración de versión
+
+- **Numeración:** se deja de subir versión en cada commit de la rama. Toda la
+  funcionalidad de la nube (+ el arreglo de la carpeta local de v38) publica
+  como **`enruta-v38`** (v37 es la publicada en tablets). `?v=` y `CACHE`
+  quedan con valor único; durante el desarrollo se usa un valor DEV que se
+  fija al valor definitivo justo antes del merge.
+- **Icono de estado de la nube** (`nubeIconoBtn`) en: barra del calendario
+  (rejilla y lista) y cabecera del editor de Registro (a la izquierda de
+  «Añadir 2º servicio»). Estados: sin (☁️ gris) · reconectar (⚠️) · sync
+  (⏳ girando) · error (⚠️ rojo) · al día (☁️ + punto verde).
+  `NUBE.estado()` nuevo; `errorSubida` marcado solo en errores HTTP reales
+  (no en «sin red»).
+- **Toque en el icono:** sin vincular → login; caducado → reconectar;
+  al día/error → **fuerza subida ahora**.
+- **Botón «ⓘ» de privacidad** solo en la barra del calendario (rejilla y
+  lista), junto al icono de la nube. Quitado el pie `nube-pie` y el banner
+  `nube-banner` (el estado ya lo da el icono).
+- **Scroll por pestaña** (`viewScroll` en `setView`): cambiar de pestaña y
+  volver conserva la posición; abrir un turno sigue llevando arriba.
+- Estilos `.nube-ico` en `registro.css`.
+
 ### 2026-08-31 — Paso 6: «Borrar datos de la nube» ya NO desvincula
 
 - David: borrar datos y desvincular son dos cosas distintas; el botón hacía

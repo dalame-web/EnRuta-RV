@@ -343,7 +343,13 @@
             return subirDia(fecha, reg.diaJSON(fecha), true);
           });
       }
-      if (!r.ok) return; // sin red u otro error → se reintenta en la próxima
+      if (!r.ok) {
+        // 5xx / 4xx (que no sea 412) = error real → se marca para el icono.
+        // Sin red (fetch rechaza, va al .catch) NO se marca: es normal en un
+        // tren y se reintenta solo.
+        errorSubida = true;
+        return;
+      }
       return r.json().then(function (item) {
         st.fileEtags[name] = item.eTag;
         st.syncedDay[fecha] = jsonActual;
@@ -351,7 +357,7 @@
         st.ultima = Date.now();
         persist();
       });
-    }).catch(function () { /* sin red: se reintenta luego */ });
+    }).catch(function () { /* sin red: se reintenta luego, sin marcar error */ });
   }
 
   function quitarMeta(t) {
@@ -361,9 +367,11 @@
   }
 
   // Ciclo completo (bajar + subir), con guard anti-solapamiento.
+  var errorSubida = false;
   function sincronizar(silencioso) {
     if (!cuenta || syncEnCurso) return Promise.resolve();
     syncEnCurso = true;
+    errorSubida = false;
     pintarBanner();
     return sincronizarBajar().then(function (res) {
       return sincronizarSubir().then(function () {
@@ -423,6 +431,14 @@
     ultimaCopia: function () { return st.ultima || 0; },
     aplicando: function () { return _applying; },
     onTurnosSaved: onTurnosSaved,
+    // Estado para el icono: 'sin' | 'reconectar' | 'sync' | 'error' | 'ok'
+    estado: function () {
+      if (!cuenta) return 'sin';
+      if (needsReconnect) return 'reconectar';
+      if (syncEnCurso) return 'sync';
+      if (errorSubida) return 'error';
+      return 'ok';
+    },
 
     // Vincular (toque real del usuario)
     vincular: function () {
