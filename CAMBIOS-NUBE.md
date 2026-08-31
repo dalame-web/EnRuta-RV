@@ -38,6 +38,14 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 14: dos traslados nuevos (enruta-v43)
+
+- `RV_MANIOBRAS` (data.js): + «Chamartín - Fuencarral» y «Fuencarral -
+  Chamartín» (`MADRID-CHAMARTIN-CLARA CAMP.` ↔ `FUENCARRAL`, sin paradas).
+  Un solo número (la doble numeración sigue solo en Chamartín↔Atocha).
+- Versiones: `enruta-v43` · `data.js?v=202609013` · `registro.js?v=202609014`
+  · `CACHE enruta-rv-v35`.
+
 ### 2026-08-31 — Paso 13: PMR con dirección y cantidad en las estaciones (enruta-v42)
 
 Cambio de editor, independiente de la nube.

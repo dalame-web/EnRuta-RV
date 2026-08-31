@@ -1011,6 +1011,8 @@
     { nombre: 'Cerro Negro - Atocha', origen: 'CERRO NEGRO', destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', paradas: [] },
     { nombre: 'Chamartín - Atocha', origen: 'MADRID-CHAMARTIN-CLARA CAMP.', destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', paradas: [{ nombre: 'VALDEMORO' }] },
     { nombre: 'Atocha - Chamartín', origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', destino: 'MADRID-CHAMARTIN-CLARA CAMP.', paradas: [{ nombre: 'VALDEMORO' }] },
+    { nombre: 'Chamartín - Fuencarral', origen: 'MADRID-CHAMARTIN-CLARA CAMP.', destino: 'FUENCARRAL', paradas: [] },
+    { nombre: 'Fuencarral - Chamartín', origen: 'FUENCARRAL', destino: 'MADRID-CHAMARTIN-CLARA CAMP.', paradas: [] },
     { nombre: 'Barcelona Sants - Sagrera', origen: 'BARCELONA-SANTS', destino: 'SAGRERA', paradas: [] },
     { nombre: 'Sagrera - Barcelona Sants', origen: 'SAGRERA', destino: 'BARCELONA-SANTS', paradas: [] }
   ];
