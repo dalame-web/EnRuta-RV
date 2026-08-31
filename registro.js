@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v41';
+  var APP_VERSION = 'enruta-v42';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1313,22 +1313,30 @@
   // apertura si por lo que sea no llegó a verse (el SW recarga la app sola
   // tras volver del login la primera vez tras una versión nueva). El flag
   // NO se marca hasta que el usuario cierra el aviso.
-  function nubeTrasVincular() { maybeNubePrivacidad(); }
-  function maybeNubePrivacidad() {
-    if (nubePrivMostrando || settings.nubePrivacidadVista) return;
-    if (!window.NUBE || !window.NUBE.estaVinculada()) return;
+  function nubeTrasVincular() { maybeNubePrivacidad(false); }
+  // forzar=true → botón «Aviso de privacidad» de Ajustes: se muestra siempre.
+  // Si NO se pulsa «Entendido» (ESC, o se cierra de otra forma), el flag no se
+  // marca y el aviso vuelve a salir en la siguiente apertura.
+  function maybeNubePrivacidad(forzar) {
+    if (nubePrivMostrando) return;
+    if (!forzar) {
+      if (settings.nubePrivacidadVista) return;
+      if (!window.NUBE || !window.NUBE.estaVinculada()) return;
+    }
     nubePrivMostrando = true;
-    appModal.alert({
+    appModal.confirm({
       title: 'Tu copia en OneDrive',
       message:
-        '· Tus turnos se guardan en TU OneDrive, en la carpeta «EnRuta».\n' +
-        '· Solo tú los ves. EnRuta no tiene servidor ni base de datos común.\n' +
-        '· Puedes borrarlos cuando quieras, desde Ajustes o desde OneDrive.\n' +
-        '· Los turnos siguen guardándose también en esta tablet.'
-    }).then(function () {
+        'EnRuta guarda los turnos en tu OneDrive de empresa.\n\n' +
+        '· Los datos se guardan en tu propio dispositivo y en tu OneDrive.\n' +
+        '· Solo tú tienes acceso. EnRuta no tiene servidor ni base de datos común.\n' +
+        '· Con esto, tienes los turnos en el móvil y en la tablet.\n' +
+        '· Puedes borrarlos cuando quieras, desde Ajustes o desde OneDrive.',
+      buttons: [{ label: 'Entendido', value: 'ok', kind: 'primary' }],
+      dismissValue: null
+    }).then(function (v) {
       nubePrivMostrando = false;
-      settings.nubePrivacidadVista = true;
-      saveSettings();
+      if (v === 'ok') { settings.nubePrivacidadVista = true; saveSettings(); }
     });
   }
   // Banner de un toque en Calendario cuando la sesión de Microsoft caducó
@@ -4158,9 +4166,10 @@
   function renderNubeCard() {
     if (!window.NUBE || !window.NUBE.disponible()) return '';
     var h = '<div class="card"><div class="card-title">Copia en la nube (OneDrive)</div>';
+    var infoBtn = '<button class="btn ghost" data-action="nube-privacidad" title="Aviso de privacidad" style="flex:0 0 auto;min-width:0;padding:8px 12px">ⓘ Privacidad</button>';
     if (!window.NUBE.estaVinculada()) {
       h += '<div class="hint">Guarda una copia de tus turnos en tu OneDrive y ten los mismos datos en el móvil y la tablet. Solo la primera vez hay que dar permiso.</div>' +
-        '<div class="btn-row"><button class="btn primary" data-action="nube-vincular">Vincular con Microsoft</button></div>';
+        '<div class="btn-row"><button class="btn primary" data-action="nube-vincular">Vincular con Microsoft</button>' + infoBtn + '</div>';
       h += '</div>';
       return h;
     }
@@ -4171,7 +4180,7 @@
         '<div class="btn-row"><button class="btn primary" data-action="nube-reconectar">Reconectar</button></div>';
     } else {
       h += '<div class="btn-row"><button class="btn primary" data-action="nube-sync">' +
-        (window.NUBE.sincronizando() ? 'Sincronizando…' : 'Sincronizar ahora') + '</button></div>';
+        (window.NUBE.sincronizando() ? 'Sincronizando…' : 'Sincronizar ahora') + '</button>' + infoBtn + '</div>';
     }
     h += '<div class="btn-row"><button class="btn ghost" data-action="nube-desvincular">Desvincular</button>' +
       '<button class="btn danger" data-action="nube-borrar">Borrar mis datos de la nube</button></div>';
@@ -5487,6 +5496,7 @@
     if (act === 'folder-resume' || act === 'folder-relink') { resumeFolderAccess(); return; }
     if (act === 'folder-reindex') { reindexFromFolder(); return; }
     if (act === 'nube-vincular') { window.NUBE && window.NUBE.vincular(); return; }
+    if (act === 'nube-privacidad') { maybeNubePrivacidad(true); return; }
     if (act === 'nube-reconectar') { window.NUBE && window.NUBE.reconectar(); return; }
     if (act === 'nube-sync') {
       if (window.NUBE) window.NUBE.sincronizarAhora().then(function () {

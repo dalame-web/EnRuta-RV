@@ -38,6 +38,23 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 4: aviso de privacidad con OK obligatorio + botón «ⓘ Privacidad»
+
+- El aviso de privacidad ahora es `appModal.confirm` con **un solo botón
+  "Entendido"** y `dismissValue: null`: si se cierra con ESC (o de cualquier
+  forma que no sea el botón), **el flag `nubePrivacidadVista` NO se marca** y el
+  aviso vuelve a salir en la siguiente apertura. Solo "Entendido" lo da por
+  visto. Verificado en navegador (ESC → flag sigue false; botón → true).
+- Nuevo botón **«ⓘ Privacidad»** en la tarjeta de Ajustes (vinculada y sin
+  vincular) → `maybeNubePrivacidad(true)` muestra el aviso siempre, a demanda.
+- Texto del aviso alineado con el del primer arranque ("OneDrive de empresa…").
+- Versiones: `enruta-v42` · `?v=202608314` · `CACHE enruta-rv-v34`.
+
+**Prueba real en local (Firefox, cuenta de EMPRESA) — CONFIRMADO por David:**
+carpeta `EnRuta` creada en OneDrive, archivos `turno-*.json` con los turnos
+locales, turno nuevo aparece en OneDrive en segundos. Pendiente: prueba
+multi-dispositivo (móvil + tablet de empresa).
+
 ### 2026-08-31 — Paso 3: prueba real OK + ajustes de texto y privacidad
 
 - **Prueba en local (Firefox, cuenta de EMPRESA):** vincular OK sin error,
