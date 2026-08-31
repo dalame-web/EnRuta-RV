@@ -38,6 +38,19 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 9: PUBLICACIÓN v38
+
+- Valores finales: `APP_VERSION = 'enruta-v38'` · `?v=202608311` (registro.js,
+  nube.js, registro.css) · `sw.js CACHE = 'enruta-rv-v30'`. (v37 / v29 era lo
+  publicado.)
+- Syntax check OK de registro.js, nube.js, sw.js, msal-browser.min.js.
+- Verificado en navegador con caché limpia: carga sin errores, `NUBE.estado`
+  OK, iconos de la barra, celdas 118/206px por fila, 5 servicios, card
+  Toma/Deje/Descanso sin check, scroll por pestaña con turno con datos.
+- Merge `feature/nube-onedrive` → `main` y push → despliegue GitHub Pages.
+- **Pendiente tras publicar:** prueba real móvil + tablet de empresa
+  (sincronización cruzada de turnos entre dispositivos).
+
 ### 2026-08-31 — Paso 8: mejoras de editor y calendario (misma rama, separables)
 
 Estos cambios NO son de la nube; van en la misma rama pero son independientes.
