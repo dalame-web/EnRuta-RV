@@ -38,6 +38,19 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 2: CLIENT_ID puesto, función ACTIVA
+
+- `nube.js`: `CLIENT_ID = '1815cec1-b40a-41d6-94fa-136337db1dda'` (app SPA
+  registrada por David en Entra ID; multi-tenant + cuentas personales;
+  redirect `https://dalame-web.github.io/EnRuta-RV/` + `http://localhost:8781/`;
+  permisos delegados `Files.ReadWrite`, `offline_access`, `User.Read`).
+- `index.html`: `nube.js?v=` y `registro.js?v=` → `202608312`.
+- `registro.js`: `APP_VERSION` → `'enruta-v40'`. `sw.js`: `CACHE` → `'enruta-rv-v32'`.
+- Verificado en navegador: `window.NUBE.disponible() === true`, la tarjeta
+  "Copia en la nube (OneDrive)" aparece en Ajustes, sin errores nuevos en
+  consola. **Falta probar el ciclo OAuth completo en Firefox** (el preview de
+  Claude Code bloquea el redirect).
+
 ### 2026-08-30 — Paso 1: implementación completa (falta el CLIENT_ID)
 
 Toda la funcionalidad escrita. **Inactiva hasta poner el CLIENT_ID en

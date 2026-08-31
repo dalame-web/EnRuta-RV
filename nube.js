@@ -23,7 +23,7 @@
   // ── Configuración ────────────────────────────────────────────────────────
   // Client ID de la app registrada en Azure (Entra ID). Público a propósito.
   // Vacío = función desactivada (no sale ni la tarjeta ni el aviso).
-  var CLIENT_ID = '';
+  var CLIENT_ID = '1815cec1-b40a-41d6-94fa-136337db1dda';
 
   var SCOPES = ['Files.ReadWrite', 'User.Read'];
   var FOLDER = 'EnRuta';
