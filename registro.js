@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v49';
+  var APP_VERSION = 'enruta-v50';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1053,14 +1053,36 @@
     });
     return Object.keys(f);
   }
-  // Fusión decidida por nube.js: mete/actualiza `upsert`, quita `removeIds`.
+  // Fusión decidida por nube.js: mete turnos nuevos y actualiza los que
+  // vienen más recientes de la nube. `removeIds` normalmente vacío.
+  // GUARDA DE SEGURIDAD: nunca sustituye un turno local CON DATOS por una
+  // versión de la nube que viene vacía (archivo corrupto/truncado, o subido
+  // por una versión antigua de la app). Ante la duda, se queda lo local.
+  // Copia de seguridad local ANTES de aplicar una fusión de la nube. Solo se
+  // refresca si el estado actual NO tiene menos turnos que la copia guardada,
+  // así una fusión que pierda datos nunca machaca una copia buena.
+  function nubeSnapshot() {
+    try {
+      var cur = load(K_TURNOS, []);
+      var prev = JSON.parse(localStorage.getItem('rviryo_turnos_snap') || 'null');
+      if (!prev || cur.length >= ((prev.turnos || []).length)) {
+        localStorage.setItem('rviryo_turnos_snap',
+          JSON.stringify({ at: Date.now(), turnos: cur }));
+      }
+    } catch (e) {}
+  }
   function nubeAplicarDia(upsert, removeIds) {
+    nubeSnapshot();
     (upsert || []).forEach(function (rt) {
       if (!rt || !rt.id) return;
       var lt = getTurno(rt.id);
       var nt = normTurno(rt);
-      if (lt) turnos[turnos.indexOf(lt)] = nt;
-      else turnos.push(nt);
+      if (lt) {
+        if (!isEmptyTurno(lt) && isEmptyTurno(nt)) return; // no pisar datos con vacío
+        turnos[turnos.indexOf(lt)] = nt;
+      } else {
+        turnos.push(nt);
+      }
     });
     (removeIds || []).forEach(function (id) {
       var lt = getTurno(id);

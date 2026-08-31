@@ -38,6 +38,46 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 21: PÉRDIDA DE DATOS en la sincro — arreglado (enruta-v50)
+
+David: en 3 días se borraron datos de turnos. GRAVE.
+
+**Causa:** `sincronizarBajar` en `nube.js` borraba turnos locales por AUSENCIA:
+- Si el listado `/children` de OneDrive venía incompleto por un fallo
+  transitorio, los archivos que faltaban se tomaban como "borrados" y se
+  llamaba `fusionarDia(fecha, [], true)` → vaciaba esos días en local.
+- Dentro de un día, un turno local que no venía en el archivo remoto y no
+  estaba "sucio" se borraba (`removeIds`).
+
+**Arreglo — la sincro es ahora SOLO ADITIVA. Nada puede borrar datos, ni en
+local ni en la nube:**
+- `fusionarDia` es **SOLO merge**: añade turnos nuevos y actualiza los que en
+  la nube son más recientes. **NUNCA borra un turno local.** Fuera
+  `borrarAusentes` y todo el `removeIds`.
+- Archivo remoto que ya no está en el listado → NO se borra nada en local;
+  solo se limpia el registro de sincro y, si el día sigue con turnos, el
+  próximo sync-up **recrea el archivo**.
+- **`subirDia` ya NUNCA borra ni vacía un archivo de OneDrive.** Si un día se
+  queda sin turnos en local (falso vacío por `_deCache`, `discardEmptyEdit`,
+  un merge previo...), el archivo remoto conserva su último contenido bueno.
+  El ÚNICO sitio que borra archivos de OneDrive es el botón "Borrar mis datos
+  de la nube".
+- `nubeAplicarDia`: nunca sustituye un turno local CON DATOS por una versión
+  de la nube que viene vacía.
+- **`nubeSnapshot`**: copia local en `localStorage['rviryo_turnos_snap']` antes
+  de cada fusión; solo se refresca si el estado actual no tiene menos turnos
+  que la copia.
+- **Contrapartida temporal:** borrar un turno YA NO se propaga entre
+  dispositivos (reaparece en el otro hasta borrarlo también ahí). Se hará bien
+  con "lápidas" explícitas, aparte. Prioridad ahora: cero pérdida de datos.
+
+Recuperación de los datos ya perdidos: los archivos `turno-*.json` en la
+carpeta EnRuta de OneDrive tienen **historial de versiones** (OneDrive web →
+clic derecho en el archivo → Historial de versiones → Restaurar).
+
+- Versiones: `enruta-v50` · `registro.js?v=202609022` · `nube.js?v=202609022`
+  · `CACHE enruta-rv-v42`.
+
 ### 2026-09-01 — Paso 20: calendario en móvil (enruta-v49)
 
 David: la pestaña Calendario en el móvil se descuadra y tiene scroll horizontal.

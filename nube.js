@@ -177,7 +177,10 @@
   function R() { return window.REGISTRO && window.REGISTRO.nube; }
 
   // BAJAR: lista los turno-*.json de la carpeta, trae los que cambiaron y los
-  // fusiona en local. Detecta borrados (archivo que ya no está).
+  // fusiona en local. SOLO AÑADE / ACTUALIZA — NUNCA borra turnos locales.
+  // (Un listado incompleto de OneDrive por un fallo transitorio hacía que la
+  //  app creyera que se habían borrado archivos y vaciara esos días en local
+  //  → pérdida de datos. Ya no.)
   function sincronizarBajar() {
     return ensureFolder().then(function (fid) {
       var archivos = [];
@@ -216,7 +219,7 @@
             try { data = JSON.parse(txt); } catch (e) { return; }
             var fecha = data.fecha || fechaDeNombre(it.name);
             var remotos = data.turnos || [];
-            var res = fusionarDia(fecha, remotos, true);
+            var res = fusionarDia(fecha, remotos);
             totalAltas += res.altas;
             st.fileEtags[it.name] = it.eTag;
             st.syncedDay[fecha] = reg.diaJSON(fecha) || '';
@@ -226,44 +229,39 @@
         });
       });
 
-      // Archivos borrados en remoto → borrar esos días en local (si no están
-      // sucios localmente).
+      // Archivo que ya no está en la carpeta remota: NO se borra NADA en
+      // local. Solo se limpia el registro de sincro; si aquí seguimos
+      // teniendo turnos de ese día, el próximo sync-up vuelve a crear el
+      // archivo (recupera de un borrado accidental o un listado incompleto).
       Object.keys(st.fileEtags).forEach(function (name) {
         if (nombresRemotos[name]) return;
         var fecha = fechaDeNombre(name);
         if (!fecha) return;
-        cadena = cadena.then(function () {
-          var sucio = reg.diaJSON(fecha) !== (st.syncedDay[fecha] || null);
-          if (!sucio) {
-            fusionarDia(fecha, [], true);
-          }
-          delete st.fileEtags[name];
-          delete st.syncedDay[fecha];
-          delete st.syncedDayAt[fecha];
-          persist();
-        });
+        delete st.fileEtags[name];
+        delete st.syncedDay[fecha];
+        delete st.syncedDayAt[fecha];
       });
+      persist();
 
       return cadena.then(function () { return { altas: totalAltas }; });
     });
   }
 
   // Fusiona la lista de turnos remotos de un día con lo local, por id de
-  // turno. Devuelve {altas}. borrarAusentes=true → un turno local de ese día
-  // que no viene en la lista remota y no se ha tocado desde la última sincro
-  // se borra (lo borró otro dispositivo).
-  function fusionarDia(fecha, remotos, borrarAusentes) {
+  // turno. SOLO añade turnos nuevos y actualiza los que en la nube son más
+  // recientes (_cloudAt > local). NUNCA borra un turno local.
+  // (La propagación de borrados entre dispositivos se hará aparte, con
+  //  "lápidas" explícitas — nunca por ausencia.)
+  function fusionarDia(fecha, remotos) {
     var reg = R();
     if (!reg) return { altas: 0 };
-    var locales = reg.diaTurnos(fecha); // copia de los turnos locales de ese día
+    var locales = reg.diaTurnos(fecha);
     var localById = {};
     locales.forEach(function (t) { localById[t.id] = t; });
-    var remoteById = {};
-    var upsert = [], removeIds = [], altas = 0;
+    var upsert = [], altas = 0;
 
-    remotos.forEach(function (rt) {
+    (remotos || []).forEach(function (rt) {
       if (!rt || !rt.id) return;
-      remoteById[rt.id] = true;
       var rAt = rt._cloudAt || 0;
       var lAt = st.turnoAt[rt.id] || 0;
       var clean = quitarMeta(rt);
@@ -271,18 +269,9 @@
       else if (rAt > lAt) { upsert.push(clean); st.turnoAt[rt.id] = rAt; st.dayIndex[rt.id] = fecha; }
     });
 
-    if (borrarAusentes) {
-      var corte = st.syncedDayAt[fecha] || 0;
-      locales.forEach(function (lt) {
-        if (remoteById[lt.id]) return;
-        var lAt = st.turnoAt[lt.id] || 0;
-        if (lAt <= corte) { removeIds.push(lt.id); delete st.turnoAt[lt.id]; delete st.dayIndex[lt.id]; }
-      });
-    }
-
-    if (!upsert.length && !removeIds.length) return { altas: 0 };
+    if (!upsert.length) return { altas: 0 };
     _applying = true;
-    try { reg.aplicarDia(upsert, removeIds); }
+    try { reg.aplicarDia(upsert, []); }
     finally { _applying = false; }
     return { altas: altas };
   }
@@ -313,19 +302,17 @@
     var name = fileName(fecha);
     var etag = st.fileEtags[name];
 
-    // Día vacío → borrar el archivo remoto
+    // El día ya no tiene turnos en local. NO se borra ni se vacía el archivo
+    // remoto: podría ser un falso vacío (un turno filtrado por _deCache, un
+    // discardEmptyEdit, un merge previo...) y perderíamos también los datos
+    // en la nube. El archivo remoto conserva su último contenido bueno. Si el
+    // turno reaparece, el siguiente sync-up lo vuelve a subir. Para quitar
+    // archivos de verdad: botón "Borrar mis datos de la nube".
     if (jsonActual == null) {
-      var hdrDel = etag ? { 'If-Match': etag } : {};
-      return graph('/me/drive/items/' + st.folderId + ':/' + name + ':', {
-        method: 'DELETE', headers: hdrDel
-      }).then(function (r) {
-        if (r.ok || r.status === 404) {
-          delete st.fileEtags[name];
-          delete st.syncedDay[fecha];
-          delete st.syncedDayAt[fecha];
-          persist();
-        }
-      }).catch(function () {});
+      delete st.syncedDay[fecha];
+      delete st.syncedDayAt[fecha];
+      persist();
+      return Promise.resolve();
     }
 
     // Inyectar _cloudAt de cada turno (desde nuestro registro local)
@@ -353,7 +340,7 @@
             if (txt) {
               try {
                 var rem = JSON.parse(txt);
-                fusionarDia(fecha, rem.turnos || [], false);
+                fusionarDia(fecha, rem.turnos || []);
               } catch (e) {}
             }
             // refrescar etag
