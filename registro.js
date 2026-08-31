@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v40';
+  var APP_VERSION = 'enruta-v41';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1308,10 +1308,16 @@
       if (!editing && !currentRec) renderEditor();
     }
   }
-  function nubeTrasVincular() {
-    if (settings.nubePrivacidadVista) return;
-    settings.nubePrivacidadVista = true;
-    saveSettings();
+  var nubePrivMostrando = false;
+  // Aviso de privacidad: se muestra tras vincular Y también en la siguiente
+  // apertura si por lo que sea no llegó a verse (el SW recarga la app sola
+  // tras volver del login la primera vez tras una versión nueva). El flag
+  // NO se marca hasta que el usuario cierra el aviso.
+  function nubeTrasVincular() { maybeNubePrivacidad(); }
+  function maybeNubePrivacidad() {
+    if (nubePrivMostrando || settings.nubePrivacidadVista) return;
+    if (!window.NUBE || !window.NUBE.estaVinculada()) return;
+    nubePrivMostrando = true;
     appModal.alert({
       title: 'Tu copia en OneDrive',
       message:
@@ -1319,6 +1325,10 @@
         '· Solo tú los ves. EnRuta no tiene servidor ni base de datos común.\n' +
         '· Puedes borrarlos cuando quieras, desde Ajustes o desde OneDrive.\n' +
         '· Los turnos siguen guardándose también en esta tablet.'
+    }).then(function () {
+      nubePrivMostrando = false;
+      settings.nubePrivacidadVista = true;
+      saveSettings();
     });
   }
   // Banner de un toque en Calendario cuando la sesión de Microsoft caducó
@@ -1339,9 +1349,10 @@
     saveSettings();
     appModal.confirm({
       title: 'Guarda tus turnos en la nube',
-      message: 'EnRuta puede guardar una copia de tus turnos en tu OneDrive: ' +
-        'copia de seguridad y los mismos datos en el móvil y la tablet. ' +
-        'Solo la primera vez hay que dar permiso.',
+      message: 'EnRuta puede guardar los turnos en tu OneDrive de empresa. Se ' +
+        'guardan los datos en tu propio dispositivo y en OneDrive; solo tendrás ' +
+        'acceso tú. Además, con esta configuración podrás tener los turnos en el ' +
+        'móvil y en la tablet. Solo hay que dar permisos una vez.',
       buttons: [
         { label: 'Ahora no', value: false, kind: 'neutral' },
         { label: 'Vincular con Microsoft', value: true, kind: 'primary' }
@@ -5615,6 +5626,9 @@
     if (window.NUBE) {
       window.NUBE.init();
       setTimeout(maybeFirstRunNubePrompt, 1200);
+      // Si ya está vinculada pero el aviso de privacidad no llegó a verse
+      // (p.ej. el SW recargó la app justo al volver del login), mostrarlo ahora.
+      setTimeout(maybeNubePrivacidad, 1800);
     }
 
     if (navigator.storage && navigator.storage.persist) {

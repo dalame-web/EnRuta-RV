@@ -38,6 +38,23 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 3: prueba real OK + ajustes de texto y privacidad
+
+- **Prueba en local (Firefox, cuenta de EMPRESA):** vincular OK sin error,
+  Ajustes muestra "Vinculada" y "última copia hace 1 min" → sincronización
+  funcionando. La cuenta de empresa de Iryo **sí deja entrar**.
+- **Bug menor:** el aviso de privacidad no llegó a leerse porque el Service
+  Worker recarga la app sola al volver del login (guard `hadController` en
+  index.html: solo recarga si ya había SW previo → le pasa a usuarios que ya
+  tenían la app). **Arreglado:** `maybeNubePrivacidad()` — el aviso se muestra
+  tras vincular Y también en la siguiente apertura si no llegó a verse; el flag
+  `nubePrivacidadVista` no se marca hasta que el usuario cierra el aviso.
+- **Texto del aviso de primer arranque** reescrito (versión de David):
+  "…en tu OneDrive de empresa. Se guardan los datos en tu propio dispositivo y
+  en OneDrive; solo tendrás acceso tú…".
+- Versiones: `APP_VERSION` → `enruta-v41`, `?v=` → `202608313`,
+  `CACHE` → `enruta-rv-v33`.
+
 ### 2026-08-31 — Paso 2: CLIENT_ID puesto, función ACTIVA
 
 - `nube.js`: `CLIENT_ID = '1815cec1-b40a-41d6-94fa-136337db1dda'` (app SPA
