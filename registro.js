@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v40';
+  var APP_VERSION = 'enruta-v41';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -70,14 +70,15 @@
       { t: 'text', v: ' observa ' },
       { t: 'campo', id: 'observa', label: 'Qué se observa' }
     ] },
-    { id: 'parada', label: 'Punto de parada', partes: [
+    { id: 'parada', label: 'Detenido ante…', partes: [
       { t: 'text', v: 'Detenido ante la ' },
-      { t: 'campo', id: 'tipo', label: 'Tipo', options: ['Pantalla', 'Señal', 'PK'] },
+      { t: 'campo', id: 'tipo', label: 'Pantalla / Señal / PK', options: ['Pantalla', 'Señal', 'PK'] },
       { t: 'text', v: ' ' },
       { t: 'campo', id: 'numero', label: 'Número' },
       { t: 'text', v: ', se reanuda la marcha con ' },
       { t: 'campo', id: 'minutos', label: 'Minutos' },
-      { t: 'text', v: ' min' }
+      { t: 'text', v: ' min.' },
+      { t: 'campoCondicional', id: 'motivo', label: 'Motivo (opcional)', prefijo: ' Motivo: ' }
     ] },
     { id: 'crc', label: 'Comunica al CRC', partes: [
       { t: 'text', v: 'Se comunica al CRC que se observa ' },
@@ -1157,7 +1158,7 @@
   function blankServicio(fecha) {
     return {
       fecha: fecha || today(),
-      servicioComercial: '', origen: '', destino: '', via: '', rama: '',
+      servicioComercial: '', servicioComercial2: '', origen: '', destino: '', via: '', rama: '',
       hSalida: '', hDestino: '', rSalida: '', rLlegDestino: '',
       esTraslado: false, maniobraNombre: '',
       horaLTV: '', paradas: [],
@@ -1212,6 +1213,7 @@
     t.servicios.forEach(function (s, si) {
       if (s.origen == null) s.origen = '';
       if (s.destino == null) s.destino = '';
+      if (s.servicioComercial2 == null) s.servicioComercial2 = '';
       if (s.rSalida == null) s.rSalida = '';
       if (s.rLlegDestino == null) s.rLlegDestino = '';
       if (s.horaLTV == null) s.horaLTV = '';
@@ -1393,9 +1395,17 @@
       '<line x1="1" y1="11" x2="4" y2="11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
       flecha + '</svg>';
   }
+  // Nº(s) de un servicio para mostrar: "1234" o "1234 / 5678" (traslados
+  // Chamartín↔Atocha con dos números). '' si no hay ninguno.
+  function svcNumCombo(s) {
+    var a = (s.servicioComercial || '').trim();
+    var b = (s.servicioComercial2 || '').trim();
+    if (a && b) return a + ' / ' + b;
+    return a || b || '';
+  }
   function renderSvcBlock(s) {
     var esTraslado = !!s.esTraslado;
-    var numTxt = s.servicioComercial || (esTraslado ? (s.maniobraNombre || 'Traslado') : '');
+    var numTxt = svcNumCombo(s) || (esTraslado ? (s.maniobraNombre || 'Traslado') : '');
     var num = numTxt ? '<b>' + esc(numTxt) + '</b>' : '';
     var rd = parseInt(String(s.rLlegDestino || '').replace(/^\+/, ''), 10);
     var ret = (!isNaN(rd) && rd > 0) ? ' <span class="ret">+' + rd + 'm</span>' : '';
@@ -1569,7 +1579,7 @@
       h += '<div class="lr-svc-list">';
       t.servicios.forEach(function (s) {
         var esTraslado = !!s.esTraslado;
-        var num = s.servicioComercial || (esTraslado ? (s.maniobraNombre || '—') : '—');
+        var num = svcNumCombo(s) || (esTraslado ? (s.maniobraNombre || '—') : '—');
         var hrs = (s.hSalida && s.hDestino) ? (s.hSalida + ' → ' + s.hDestino) : '—';
         var ruta = (s.origen && s.destino) ? ' · ' + s.origen + ' → ' + s.destino : '';
         var rd = parseInt(String(s.rLlegDestino || '').replace(/^\+/, ''), 10);
@@ -1836,7 +1846,7 @@
       h += '<div class="svc-pick-list">';
       t.servicios.forEach(function (s, si) {
         var esTraslado = !!s.esTraslado;
-        var num = s.servicioComercial || (esTraslado ? (s.maniobraNombre || '—') : '—');
+        var num = svcNumCombo(s) || (esTraslado ? (s.maniobraNombre || '—') : '—');
         var hrs = (s.hSalida && s.hDestino) ? (s.hSalida + ' → ' + s.hDestino) : '—';
         h += '<button type="button" class="svc-pick-btn" data-action="informe-pick-svc" ' +
           'data-tid="' + t.id + '" data-si="' + si + '">' +
@@ -2153,7 +2163,7 @@
     var s = t.servicios[si];
     var dos = t.servicios.length > 1;
     var h = '';
-    var titulo = s.servicioComercial ? esc(s.servicioComercial) : String(si + 1);
+    var titulo = svcNumCombo(s) ? esc(svcNumCombo(s)) : String(si + 1);
     var prefijo = s.esTraslado ? 'Traslado ' : 'Servicio ';
 
     // Cabecera card-title con LTV inline a la derecha
@@ -2194,9 +2204,23 @@
     }
     h += '</div>';
     if (s.esTraslado) {
-      h += '<div class="field"><label>Nº</label>' +
-        '<input type="text" inputmode="numeric" class="svc-man-num" data-bind="srv.' + si + '.servicioComercial" value="' +
-        esc(s.servicioComercial) + '" placeholder="Número"></div>';
+      // Chamartín↔Atocha: dos números (composición doble). Dos casillas
+      // apiladas en la misma columna, cada una a media altura.
+      var dosNum = s.maniobraNombre === 'Chamartín - Atocha' ||
+        s.maniobraNombre === 'Atocha - Chamartín';
+      if (dosNum) {
+        h += '<div class="field"><label>Nº</label>' +
+          '<div class="svc-man-num-2">' +
+          '<input type="text" inputmode="numeric" class="svc-man-num" data-bind="srv.' + si + '.servicioComercial" value="' +
+          esc(s.servicioComercial) + '" placeholder="Nº 1">' +
+          '<input type="text" inputmode="numeric" class="svc-man-num" data-bind="srv.' + si + '.servicioComercial2" value="' +
+          esc(s.servicioComercial2) + '" placeholder="Nº 2">' +
+          '</div></div>';
+      } else {
+        h += '<div class="field"><label>Nº</label>' +
+          '<input type="text" inputmode="numeric" class="svc-man-num" data-bind="srv.' + si + '.servicioComercial" value="' +
+          esc(s.servicioComercial) + '" placeholder="Número"></div>';
+      }
     }
     h += '</div>';
     if (s.origen || s.destino) {
@@ -2354,7 +2378,7 @@
         h += '<div class="card servicio-card" id="svc-card-' + si + '">' +
           servicioInner(t, si) + '</div>';
       } else {
-        var num = s.servicioComercial ? esc(s.servicioComercial) : String(si + 1);
+        var num = svcNumCombo(s) ? esc(svcNumCombo(s)) : String(si + 1);
         var ruta = (s.origen || s.destino)
           ? esc(s.origen) + ' → ' + esc(s.destino)
           : '<span style="color:var(--fg-dim);font-weight:400">sin datos</span>';
@@ -4116,7 +4140,7 @@
       line('SERVICIO ' + (si + 1) + '  ·  ' + ymdNice(s.fecha) +
         (s.horaLTV ? '  ·  LTV ' + s.horaLTV : ''),
         { bold: true, size: 12, color: [232, 32, 28] });
-      line('Servicio Comercial: ' + (s.servicioComercial || '—') +
+      line('Servicio Comercial: ' + (svcNumCombo(s) || (s.esTraslado ? (s.maniobraNombre || '—') : '—')) +
         (s.origen ? '  (' + s.origen + ' → ' + s.destino + ')' : ''), { size: 10 });
       line('Vía: ' + (s.via || '—') + '     Rama: ' + (s.rama || '—'), { size: 10 });
       line('N1: ' + (s.n1 || '—'), { size: 10 });

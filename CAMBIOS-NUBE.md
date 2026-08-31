@@ -38,6 +38,24 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 12: dos números en traslados Chamartín↔Atocha + atajo «Detenido ante…» (enruta-v41)
+
+Cambios de editor, independientes de la nube.
+
+- **(1) Dos números de traslado** en los traslados **Chamartín - Atocha** y
+  **Atocha - Chamartín** (composición doble). Nuevo campo
+  `s.servicioComercial2` (default '' en `blankServicio` y `normTurno`). En el
+  editor, la columna «Nº» del traslado muestra **dos casillas apiladas a media
+  altura** (`.svc-man-num-2`) solo para esas dos maniobras; el resto de
+  traslados siguen con una. Helper `svcNumCombo(s)` → «1234 / 5678»; usado en
+  celda del calendario, lista, título/colapsado del editor y PDF.
+- **(2) Atajo de Observaciones** «Punto de parada» → renombrado **«Detenido
+  ante…»** y añadido campo **Motivo (opcional)** al final:
+  «Detenido ante la [Pantalla/Señal/PK] [nº], se reanuda la marcha con [min]
+  min.[ Motivo: …]». Opción del select con label «Pantalla / Señal / PK».
+
+Versiones: `enruta-v41` · `?v=202609012` · `CACHE enruta-rv-v33`.
+
 ### 2026-08-31 — Paso 11: fuera el guardado local en archivos; potenciar la nube (enruta-v40)
 
 David: el guardado local (File System Access) no se puede arreglar (Android no
