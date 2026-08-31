@@ -38,6 +38,18 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 6: «Borrar datos de la nube» ya NO desvincula
+
+- David: borrar datos y desvincular son dos cosas distintas; el botón hacía
+  las dos.
+- Ahora **«Borrar mis datos de la nube»** solo borra los `turno-*.json` de la
+  carpeta EnRuta y resetea el registro de sincro (`fileEtags`, `syncedDay`,
+  `turnoAt`, `dayIndex`, `ultima`). **Sigue vinculado.** La carpeta queda vacía
+  hasta que el usuario edite un turno o pulse «Sincronizar ahora» (que re-sube
+  todo limpio). Para dejar de sincronizar → «Desvincular» (separado).
+- Diálogo de confirmación reescrito para explicarlo.
+- Versiones: `enruta-v44` · `?v=202608316` · `CACHE enruta-rv-v36`.
+
 ### 2026-08-31 — Paso 5: acceso a privacidad desde el Calendario
 
 - Quitado el botón «ⓘ Privacidad» de la tarjeta de Ajustes.

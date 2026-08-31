@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v43';
+  var APP_VERSION = 'enruta-v44';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -5536,7 +5536,9 @@
     if (act === 'nube-borrar') {
       appModal.confirm({
         title: 'Borrar mis datos de la nube',
-        message: 'Se borrarán todos los archivos de turnos de la carpeta «EnRuta» de tu OneDrive y se desvinculará. Tus turnos en esta tablet NO se tocan.',
+        message: 'Se borrarán todos los archivos de turnos de la carpeta «EnRuta» de tu OneDrive.\n\n' +
+          'Sigues vinculado y tus turnos de esta tablet NO se tocan: la carpeta se quedará vacía hasta que edites un turno o pulses «Sincronizar ahora».\n\n' +
+          'Para dejar de sincronizar del todo, usa «Desvincular».',
         buttons: [
           { label: 'Cancelar', value: false, kind: 'neutral' },
           { label: 'Borrar de la nube', value: true, kind: 'danger' }

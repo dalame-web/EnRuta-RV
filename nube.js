@@ -457,7 +457,10 @@
     },
 
     // Borrar mis datos de la nube: borra todos los turno-*.json de la carpeta
-    // y luego desvincula. NO borra nada en local.
+    // EnRuta del OneDrive. NO desvincula y NO toca nada en local. Deja el
+    // registro de sincronización a cero, así que la carpeta se queda vacía
+    // hasta que el usuario edite un turno o pulse "Sincronizar ahora" (que
+    // vuelve a subir todo limpio). Para dejar de sincronizar: "Desvincular".
     borrarDatosNube: function () {
       if (!cuenta) return Promise.resolve();
       return ensureFolder().then(function (fid) {
@@ -472,7 +475,16 @@
         });
         return borra;
       }).then(function () {
-        window.NUBE.desvincular();
+        // Reset del registro de sincro: la carpeta está vacía, todo lo local
+        // cuenta como "por subir". Se conservan folderId y cuenta.
+        st.fileEtags = {};
+        st.syncedDay = {};
+        st.syncedDayAt = {};
+        st.turnoAt = {};
+        st.dayIndex = {};
+        st.ultima = 0;
+        persist();
+        pintarTarjeta();
       });
     },
 
