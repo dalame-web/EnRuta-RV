@@ -558,6 +558,10 @@
       console.warn('[nube] sync watchdog: forzado fin a los 60 s');
     }, 60000);
     return conTimeout(sincronizarBajar(), 45000, 'bajar').then(function (res) {
+      // Juntar turnos duplicados del mismo día que hayan podido aparecer al
+      // fusionar (mismo día creado en dos aparatos con id distinto).
+      var reg0 = R();
+      if (reg0 && reg0.dedupe) reg0.dedupe();
       return conTimeout(sincronizarSubir(), 45000, 'subir').then(function () {
         var reg = R();
         if (reg) reg.reRender();

@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v54';
+  var APP_VERSION = 'enruta-v55';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1129,6 +1129,9 @@
       var lt = getTurno(id);
       if (lt) turnos.splice(turnos.indexOf(lt), 1);
     });
+    // Un turno de la nube con id distinto para un día que aquí YA tenía turno
+    // (creado a la vez en otro aparato) → juntarlos, no dejar dos.
+    dedupeTurnos();
     save(K_TURNOS, turnos); // NUBE.onTurnosSaved se autoignora (NUBE.aplicando())
   }
   // Aplica en local un borrado que viene de la nube (otro dispositivo lo borró).
@@ -1426,6 +1429,93 @@
   // versión con menos contenido que la local.
   function nServiciosConDatos(t) {
     return (t.servicios || []).filter(function (s) { return !isEmptyServicio(s); }).length;
+  }
+
+  // ===== Deduplicado de turnos por día =====
+  // La app es "un turno por día (o por dormida)". Pero cada turno lleva un id
+  // aleatorio: si se crea el turno del mismo día en la tablet Y en el móvil
+  // (antes de que sincronicen), la nube fusiona por id y acaban DOS turnos
+  // para el mismo día → "servicios duplicados". Esto los vuelve a juntar.
+  function claveFechas(t) {
+    var fs = {};
+    (t.servicios || []).forEach(function (s) { if (s.fecha) fs[s.fecha] = 1; });
+    return Object.keys(fs).sort().join('|');
+  }
+  // ¿Dos servicios son "el mismo"? Por nº de tren + fecha (clave estable). Sin
+  // número (traslado/manual) → por ruta + hora de salida.
+  function mismoServicioLogico(a, b) {
+    if ((a.fecha || '') !== (b.fecha || '')) return false;
+    var an = (a.servicioComercial || '').trim(), bn = (b.servicioComercial || '').trim();
+    if (an && bn) return an === bn;
+    return (a.origen || '') === (b.origen || '') &&
+           (a.destino || '') === (b.destino || '') &&
+           (a.hSalida || '') === (b.hSalida || '');
+  }
+  function rellenaHuecosServicio(ds, ss) {
+    ['servicioComercial', 'servicioComercial2', 'via', 'rama', 'n1', 'viajeros',
+     'asistencias', 'plazasH', 'hSalida', 'hDestino', 'rSalida', 'rLlegDestino',
+     'horaLTV', 'origen', 'destino', 'maniobraNombre'].forEach(function (k) {
+      if (!ds[k] && ss[k]) ds[k] = ss[k];
+    });
+    if ((ss.observaciones || '').length > (ds.observaciones || '').length) ds.observaciones = ss.observaciones;
+    if ((ss.pmr || []).length > (ds.pmr || []).length) ds.pmr = ss.pmr;
+    (ss.comprobaciones || []).forEach(function (c, i) {
+      if (c) { ds.comprobaciones = ds.comprobaciones || []; ds.comprobaciones[i] = true; }
+    });
+    if ((ss.incidencias || []).length > (ds.incidencias || []).length) ds.incidencias = ss.incidencias;
+    (ss.paradas || []).forEach(function (sp) {
+      var dp = (ds.paradas || []).find(function (p) { return p.nombre === sp.nombre; });
+      if (dp) ['hLleg', 'hora', 'rLleg', 'rSal', 'viajeros', 'asistencias'].forEach(function (k) {
+        if (!dp[k] && sp[k]) dp[k] = sp[k];
+      });
+    });
+  }
+  // Vuelca src dentro de dst (mismo día). dst se queda; src se descarta.
+  function fusionarTurnoEn(dst, src) {
+    if (!dst.toma && src.toma) dst.toma = src.toma;
+    if (!dst.deje && src.deje) dst.deje = src.deje;
+    if (!dst.descanso && src.descanso) dst.descanso = src.descanso;
+    if (dst.toma || dst.deje || dst.descanso) dst.turnoHorarioActivo = true;
+    if (!dst.horaLTV && src.horaLTV) dst.horaLTV = src.horaLTV;
+    (src.servicios || []).forEach(function (ss) {
+      if (isEmptyServicio(ss)) return;
+      var ds = (dst.servicios || []).find(function (d) { return mismoServicioLogico(d, ss); });
+      if (ds) rellenaHuecosServicio(ds, ss);
+      else dst.servicios.push(ss);
+    });
+  }
+  // Junta turnos con el mismo día(s). Se queda el de id MENOR (determinista:
+  // tablet y móvil eligen el mismo). Devuelve los ids eliminados (para lápida).
+  function dedupeTurnos() {
+    var porClave = {}, fuera = [];
+    turnos.slice().forEach(function (t) {
+      var k = claveFechas(t);
+      if (!k) return;
+      var prev = porClave[k];
+      if (!prev) { porClave[k] = t; return; }
+      var keep, drop;
+      if (String(t.id) < String(prev.id)) { keep = t; drop = prev; }
+      else { keep = prev; drop = t; }
+      fusionarTurnoEn(keep, drop);
+      porClave[k] = keep;
+      fuera.push(drop.id);
+    });
+    if (fuera.length) {
+      var q = {};
+      fuera.forEach(function (id) { q[id] = 1; });
+      turnos = turnos.filter(function (t) { return !q[t.id]; });
+    }
+    return fuera;
+  }
+  // Deduplica y propaga los borrados a la nube (lápidas).
+  function dedupeYPropaga() {
+    var fuera = dedupeTurnos();
+    if (!fuera.length) return 0;
+    save(K_TURNOS, turnos);
+    if (window.NUBE && window.NUBE.onTurnoBorrado) {
+      fuera.forEach(function (id) { window.NUBE.onTurnoBorrado(id); });
+    }
+    return fuera.length;
   }
   // Al salir del editor, descarta el turno si quedó completamente vacío.
   // Si el turno tiene datos, se PRESERVA editId (y el servicio expandido) para
@@ -3807,7 +3897,10 @@
   }
   function servicioYaExiste(turno, sv) {
     var c = svCampos(sv);
+    var num = (sv.guess && sv.guess.servicio) || '';
     return turno.servicios.some(function (s) {
+      if (num && s.fecha === sv.fecha &&
+          (s.servicioComercial || '').trim() === String(num).trim()) return true;
       return servicioCoincide(s, sv.fecha, c.origen, c.destino, c.hSalida);
     });
   }
@@ -4028,6 +4121,11 @@
         var destinoCmp = hr ? hr.destino : sv.destino;
         var hSalidaCmp = hr ? hr.hSalida : sv.hSalida;
         var yaHay = t.servicios.some(function (s) {
+          // Clave estable primero: mismo nº de tren + fecha = mismo servicio,
+          // aunque el origen/destino guardado (p.ej. venido de otro aparato por
+          // la nube) no sea idéntico carácter a carácter al del Libro de ahora.
+          if (numTren && s.fecha === sv.fecha &&
+              (s.servicioComercial || '').trim() === String(numTren).trim()) return true;
           return servicioCoincide(s, sv.fecha, origenCmp, destinoCmp, hSalidaCmp);
         });
         if (!yaHay) {
@@ -5560,6 +5658,10 @@
     loadAll();
     loadHorarios();
     turnos.forEach(normTurno);
+    // Juntar turnos duplicados del mismo día (creados a la vez en dos
+    // aparatos antes de sincronizar) — deja el de id menor y propaga la
+    // lápida del otro a la nube. Corre antes de NUBE.init().
+    dedupeYPropaga();
 
     var now = new Date();
     calYear = now.getFullYear();
@@ -5782,6 +5884,7 @@
       fechas: nubeFechasConTurnos,
       aplicarDia: nubeAplicarDia,
       borrarIds: nubeBorrarIds,
+      dedupe: dedupeYPropaga,
       reRender: nubeReRender,
       trasVincular: nubeTrasVincular,
       pintarBanner: function () { nubeReRender(); },

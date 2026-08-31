@@ -38,6 +38,41 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 26: turnos duplicados del mismo día — juntar (enruta-v55)
+
+David: «en varios días se han duplicado los servicios al sincronizar con
+Calendar; salen duplicados habiendo ya los originales… ha duplicado
+muchísimos».
+
+**Causa raíz:** la app es «un turno por día», pero cada turno lleva un id
+aleatorio. Si se crea el turno del mismo día en la tablet Y en el móvil
+antes de que sincronicen, la nube fusiona **por id** y quedan DOS turnos
+para ese día → todos sus servicios aparecen duplicados. No lo provocó la
+sincro de Calendar (esa reusa el turno existente); lo provocó tener dos
+turnos-mismo-día con id distinto, que la nube nunca supo que eran el mismo.
+
+- **`dedupeTurnos()`** — junta turnos con el mismo día (o días, en dormidas:
+  clave = fechas ordenadas). Se queda el de **id menor** (determinista:
+  tablet y móvil eligen el mismo) y vuelca el otro dentro: rellena huecos de
+  toma/deje/descanso y **une los servicios** por nº de tren + fecha (o
+  ruta+hora si no hay número). El turno sobrante deja **lápida** → se borra
+  también en la nube y en el otro aparato.
+- Se ejecuta: al arrancar la app (limpia el lío actual), después de cada
+  fusión de la nube (`nubeAplicarDia`) y al final de cada sincronización.
+- **`servicioYaExiste` / `gcalAplicarPropuestas`** ahora reconocen un
+  servicio ya presente **por nº de tren + fecha** primero (clave estable),
+  no solo por origen/destino/hora carácter a carácter — que fallaba cuando
+  el turno venía de otro aparato por la nube y el texto no era idéntico.
+- Idempotente: pasar dedupe otra vez sobre datos ya limpios no toca nada.
+- Verificado en preview: 2 turnos mismo día (uno con más datos) → queda 1
+  con los datos combinados + lápida del otro; dormida 20→21 con un servicio
+  distinto en cada copia → queda 1 turno con los dos servicios reales.
+
+- Versiones: `enruta-v55` · `registro.js?v=202609034` · `nube.js?v=202609034`
+  · `CACHE enruta-rv-v47`.
+
+---
+
 ### 2026-09-01 — Paso 25: borrados que se propagan (lápidas / tombstones) (enruta-v54)
 
 David: «si borro un turno en un sitio, se tiene que borrar en todos. No
