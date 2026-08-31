@@ -38,6 +38,15 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 5: acceso a privacidad desde el Calendario
+
+- Quitado el botón «ⓘ Privacidad» de la tarjeta de Ajustes.
+- Nuevo **pie discreto bajo el calendario** (rejilla y lista):
+  «☁️ Copia en la nube activa/desactivada · ⓘ Privacidad [· Activar]».
+  `nubePie()` en `registro.js`; estilos `.nube-pie` / `.nube-pie-link` en
+  `registro.css`.
+- Versiones: `enruta-v43` · `?v=202608315` · `CACHE enruta-rv-v35`.
+
 ### 2026-08-31 — Paso 4: aviso de privacidad con OK obligatorio + botón «ⓘ Privacidad»
 
 - El aviso de privacidad ahora es `appModal.confirm` con **un solo botón

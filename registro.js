@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v42';
+  var APP_VERSION = 'enruta-v43';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1339,6 +1339,18 @@
       if (v === 'ok') { settings.nubePrivacidadVista = true; saveSettings(); }
     });
   }
+  // Pie discreto en Calendario: estado de la copia en la nube + acceso al
+  // aviso de privacidad, siempre visible.
+  function nubePie() {
+    if (!window.NUBE || !window.NUBE.disponible()) return '';
+    var vinc = window.NUBE.estaVinculada();
+    var h = '<div class="nube-pie">';
+    h += vinc ? '☁️ Copia en la nube activa' : '☁️ Copia en la nube desactivada';
+    h += ' · <span class="nube-pie-link" data-action="nube-privacidad">ⓘ Privacidad</span>';
+    if (!vinc) h += ' · <span class="nube-pie-link" data-action="nube-vincular">Activar</span>';
+    h += '</div>';
+    return h;
+  }
   // Banner de un toque en Calendario cuando la sesión de Microsoft caducó
   // (mismo patrón que folderBanner).
   function nubeBanner() {
@@ -1752,6 +1764,7 @@
     h += '<div class="cal-legend">' +
       '<span><i style="background:var(--warn)"></i> En curso</span>' +
       '<span><i style="background:var(--ok)"></i> Cerrado</span></div>';
+    h += nubePie();
     pane.innerHTML = h;
   }
 
@@ -1771,6 +1784,7 @@
     if (!sorted.length) {
       h += '<div class="list-empty">Aún no hay turnos registrados.<br>' +
         'Cambia a vista cuadrícula y toca un día para crear el primero.</div>';
+      h += nubePie();
       pane.innerHTML = h;
       return;
     }
@@ -1808,6 +1822,7 @@
       h += '</div>';
     });
     h += '</div>';
+    h += nubePie();
     pane.innerHTML = h;
   }
 
@@ -4166,10 +4181,9 @@
   function renderNubeCard() {
     if (!window.NUBE || !window.NUBE.disponible()) return '';
     var h = '<div class="card"><div class="card-title">Copia en la nube (OneDrive)</div>';
-    var infoBtn = '<button class="btn ghost" data-action="nube-privacidad" title="Aviso de privacidad" style="flex:0 0 auto;min-width:0;padding:8px 12px">ⓘ Privacidad</button>';
     if (!window.NUBE.estaVinculada()) {
       h += '<div class="hint">Guarda una copia de tus turnos en tu OneDrive y ten los mismos datos en el móvil y la tablet. Solo la primera vez hay que dar permiso.</div>' +
-        '<div class="btn-row"><button class="btn primary" data-action="nube-vincular">Vincular con Microsoft</button>' + infoBtn + '</div>';
+        '<div class="btn-row"><button class="btn primary" data-action="nube-vincular">Vincular con Microsoft</button></div>';
       h += '</div>';
       return h;
     }
@@ -4180,7 +4194,7 @@
         '<div class="btn-row"><button class="btn primary" data-action="nube-reconectar">Reconectar</button></div>';
     } else {
       h += '<div class="btn-row"><button class="btn primary" data-action="nube-sync">' +
-        (window.NUBE.sincronizando() ? 'Sincronizando…' : 'Sincronizar ahora') + '</button>' + infoBtn + '</div>';
+        (window.NUBE.sincronizando() ? 'Sincronizando…' : 'Sincronizar ahora') + '</button></div>';
     }
     h += '<div class="btn-row"><button class="btn ghost" data-action="nube-desvincular">Desvincular</button>' +
       '<button class="btn danger" data-action="nube-borrar">Borrar mis datos de la nube</button></div>';
