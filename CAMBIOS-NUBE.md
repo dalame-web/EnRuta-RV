@@ -38,6 +38,22 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 13: PMR con dirección y cantidad en las estaciones (enruta-v42)
+
+Cambio de editor, independiente de la nube.
+
+- El icono ♿ de una estación ahora indica **dirección y cantidad**:
+  - `♿↑` (verde) = PMR que **suben** ahí · `♿↓` (azul) = PMR que **bajan** ahí.
+  - El **número** solo aparece si son **2 o más** (`♿↓2`). Uno solo → sin número.
+  - Una estación puede mostrar los dos (unos suben, otros bajan).
+- Helper `pmrEnEstacion(s, nombre, ownerIdx)` → `{suben, bajan}`. Cuenta
+  `bajan` recorriendo `s.pmr` + todas las `parada.pmr` cuyo `baja` coincide
+  (antes solo miraba `s.pmr`, así que un PMR que subía en una parada no se
+  contaba en su bajada). `suben`: PMR dados de alta en esa estación.
+- Sustituye `cfg.pmrBaja` / `.pmr-warn`. Estilos `.pmr-tag.baja` / `.sube`.
+
+Versiones: `enruta-v42` · `?v=202609013` · `CACHE enruta-rv-v34`.
+
 ### 2026-08-31 — Paso 12: dos números en traslados Chamartín↔Atocha + atajo «Detenido ante…» (enruta-v41)
 
 Cambios de editor, independientes de la nube.

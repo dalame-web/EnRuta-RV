@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v41';
+  var APP_VERSION = 'enruta-v42';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1929,6 +1929,28 @@
 
   // ownerIdx: -1 = origen; 0..n-1 = paradas[i]. Devuelve solo paradas
   // posteriores (no se puede ir hacia atrás en la marcha).
+  // Cuántos PMR suben y bajan en una estación del servicio.
+  //   ownerIdx: -1 = origen · i>=0 = parada i · null/undefined = destino.
+  function pmrEnEstacion(s, nombre, ownerIdx) {
+    var suben = 0;
+    if (ownerIdx === -1) suben = (s.pmr || []).length;
+    else if (typeof ownerIdx === 'number' && ownerIdx >= 0) {
+      var pp = s.paradas && s.paradas[ownerIdx];
+      suben = (pp && pp.pmr || []).length;
+    }
+    var bajan = 0, nn = normName(nombre || '');
+    if (nn) {
+      (s.pmr || []).forEach(function (pr) {
+        if (pr.baja && normName(pr.baja) === nn) bajan++;
+      });
+      (s.paradas || []).forEach(function (pp) {
+        (pp.pmr || []).forEach(function (pr) {
+          if (pr.baja && normName(pr.baja) === nn) bajan++;
+        });
+      });
+    }
+    return { suben: suben, bajan: bajan };
+  }
   function pmrOptionsFor(s, ownerIdx, selected) {
     var opts = ['<option value="">— elegir parada —</option>'];
     var add = function (n) {
@@ -1993,7 +2015,15 @@
         'value="' + esc(cfg.nombre || '') + '">';
     } else {
       h += '<span class="st-name">' + esc(cfg.nombre || '—');
-      if (cfg.pmrBaja) h += ' <span class="pmr-warn" title="PMR baja aquí">♿</span>';
+      var pm = cfg.pmr;
+      if (pm && pm.bajan) {
+        h += ' <span class="pmr-tag baja" title="' + pm.bajan + ' PMR baja' +
+          (pm.bajan > 1 ? 'n' : '') + ' aquí">♿↓' + (pm.bajan > 1 ? pm.bajan : '') + '</span>';
+      }
+      if (pm && pm.suben) {
+        h += ' <span class="pmr-tag sube" title="' + pm.suben + ' PMR sube' +
+          (pm.suben > 1 ? 'n' : '') + ' aquí">♿↑' + (pm.suben > 1 ? pm.suben : '') + '</span>';
+      }
       h += '</span>';
     }
     // Mini "+" inserta una parada NUEVA antes de la actual.
@@ -2104,6 +2134,7 @@
     // Origen
     h += stationCard('origin', si, {
       nombre: s.origen || '(origen)',
+      pmr: esTraslado ? null : pmrEnEstacion(s, s.origen, -1),
       horaSalida: s.hSalida,
       horaLlegada: '',
       editSalida: esTraslado,
@@ -2116,15 +2147,12 @@
     // Paradas intermedias
     s.paradas.forEach(function (p, pi) {
       var nuevaSinDatos = !p.nombre && !p.hora;
-      var hasPmrInt = (s.pmr || []).some(function (pr) {
-        return pr.baja && p.nombre && normName(pr.baja) === normName(p.nombre);
-      });
       var hLlegParada = p.hLleg || (p.tParada > 0 ? subMinutos(p.hora, p.tParada) : '');
       h += stationCard('intermediate', si, {
         nombre: p.nombre,
         parIdx: pi,
         editable: nuevaSinDatos,
-        pmrBaja: hasPmrInt,
+        pmr: esTraslado ? null : pmrEnEstacion(s, p.nombre, pi),
         horaLlegada: hLlegParada,
         horaSalida: p.hora,
         editLlegada: esTraslado,
@@ -2140,12 +2168,9 @@
       });
     });
     // Destino (con mini "+" para añadir parada al final)
-    var hasPmrDest = (s.pmr || []).some(function (pr) {
-      return pr.baja && s.destino && normName(pr.baja) === normName(s.destino);
-    });
     h += stationCard('destination', si, {
       nombre: s.destino || '(destino)',
-      pmrBaja: hasPmrDest,
+      pmr: esTraslado ? null : pmrEnEstacion(s, s.destino, null),
       horaLlegada: s.hDestino,
       horaSalida: '',
       editLlegada: esTraslado,

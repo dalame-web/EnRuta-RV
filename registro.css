@@ -946,7 +946,15 @@ input[type=number]::-webkit-inner-spin-button{
 #calendario-pane.active,#registro-pane.active,#telefonemas-pane.active,#informe-pane.active,#estadisticas-pane.active,#ajustes-pane.active{display:block}
 
 /* PMR icon en parada (silla de ruedas) */
-.pmr-warn{color:var(--accent);font-size:26px;font-weight:700;line-height:1;vertical-align:middle;margin-left:6px}
+/* Indicador PMR en una estación: ♿↓ = bajan (azul), ♿↑ = suben (verde).
+ * El número solo se muestra si son 2 o más. */
+.pmr-tag{
+  display:inline-flex; align-items:center; gap:1px;
+  font-size:17px; font-weight:800; line-height:1; white-space:nowrap;
+  vertical-align:middle; margin-left:6px;
+}
+.pmr-tag.baja{color:var(--accent)}
+.pmr-tag.sube{color:var(--ok)}
 
 /* Layout RV: card centrada con ancho máximo, como en RV original */
 #registro-pane.pane.active,
