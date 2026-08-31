@@ -46,12 +46,23 @@
   }
   function ensureShape() {
     if (!st.fileEtags) st.fileEtags = {};
-    if (!st.syncedDay) st.syncedDay = {};
-    if (!st.turnoAt) st.turnoAt = {};
+    if (!st.syncedDay) st.syncedDay = {};   // {fecha: firma del JSON en la nube}
+    if (!st.turnoAt) st.turnoAt = {};       // {id: ts de la última edición}
+    if (!st.turnoHash) st.turnoHash = {};   // {id: firma del contenido}
     if (!st.dayIndex) st.dayIndex = {};
     if (!st.syncedDayAt) st.syncedDayAt = {};
   }
   ensureShape();
+
+  // Firma corta y determinista de un texto (djb2). Se guarda en vez del JSON
+  // entero para que rviryo_nube_v1 no crezca sin límite (una copia de cada
+  // turno + cada día llenaba localStorage → save() fallaba → PÉRDIDA DE DATOS).
+  function firma(s) {
+    s = (s == null) ? '' : String(s);
+    var h = 5381, i = s.length;
+    while (i) h = (h * 33) ^ s.charCodeAt(--i);
+    return h >>> 0;
+  }
 
   // ── MSAL ─────────────────────────────────────────────────────────────────
   var msalApp = null;
@@ -153,12 +164,21 @@
     if (st.folderId) return Promise.resolve(st.folderId);
     return graphJson('/me/drive/root:/' + FOLDER).then(function (item) {
       if (item && item.id) { st.folderId = item.id; persist(); return item.id; }
-      // No existe → crearla
-      return graphJson('/me/drive/root/children', {
+      // No existe → crearla. conflictBehavior 'fail' (NUNCA 'replace': si la
+      // lectura de arriba falló por un fallo transitorio y la carpeta SÍ
+      // existe, 'replace' la borraría con todos los turnos dentro).
+      return graph('/me/drive/root/children', {
         method: 'POST',
-        json: { name: FOLDER, folder: {}, '@microsoft.graph.conflictBehavior': 'replace' }
-      }).then(function (nw) {
-        st.folderId = nw.id; persist(); return nw.id;
+        json: { name: FOLDER, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' }
+      }).then(function (r) {
+        if (r.ok) return r.json().then(function (nw) {
+          st.folderId = nw.id; persist(); return nw.id;
+        });
+        // 409 u otro: probablemente ya existía → releer.
+        return graphJson('/me/drive/root:/' + FOLDER).then(function (it2) {
+          if (it2 && it2.id) { st.folderId = it2.id; persist(); return it2.id; }
+          throw new Error('no se pudo crear/abrir la carpeta ' + FOLDER);
+        });
       });
     });
   }
@@ -222,7 +242,15 @@
             var res = fusionarDia(fecha, remotos);
             totalAltas += res.altas;
             st.fileEtags[it.name] = it.eTag;
-            st.syncedDay[fecha] = reg.diaJSON(fecha) || '';
+            // Firma de lo que HAY en la nube ahora (no de lo que quede en local
+            // tras fusionar). Si local tiene turnos que este archivo no trae,
+            // el día queda "sucio" y sync-up los sube — un turno creado en un
+            // dispositivo llega a la nube aunque otro escribiera el archivo
+            // primero. Misma normalización que diaJSON → sin ping-pong.
+            var canonRem = reg.canon
+              ? reg.canon(fecha, remotos.map(quitarMeta))
+              : reg.diaJSON(fecha);
+            st.syncedDay[fecha] = firma(canonRem);
             st.syncedDayAt[fecha] = Date.now();
             persist();
           });
@@ -290,7 +318,8 @@
       Object.keys(fechas).forEach(function (fecha) {
         var actual = reg.diaJSON(fecha); // null si el día ya no tiene turnos
         var sincronizado = st.syncedDay[fecha];
-        if (actual === (sincronizado || null)) return; // no sucio
+        if (sincronizado != null && firma(actual) === sincronizado) return; // no sucio
+        if (actual == null && sincronizado == null) return; // día vacío nunca subido
         cadena = cadena.then(function () { return subirDia(fecha, actual); });
       });
       return cadena;
@@ -315,57 +344,85 @@
       return Promise.resolve();
     }
 
-    // Inyectar _cloudAt de cada turno (desde nuestro registro local)
-    var data = JSON.parse(jsonActual);
-    data.turnos.forEach(function (t) {
-      if (!st.turnoAt[t.id]) st.turnoAt[t.id] = Date.now();
-      st.dayIndex[t.id] = fecha;
-      t._cloudAt = st.turnoAt[t.id];
-    });
-    var body = JSON.stringify(data, null, 2);
+    var locales = JSON.parse(jsonActual).turnos || [];
 
-    var hdr = {};
-    if (etag) hdr['If-Match'] = etag;
-    else hdr['If-None-Match'] = '*'; // crear solo si no existe
-
-    return graph('/me/drive/items/' + st.folderId + ':/' + name + ':/content', {
-      method: 'PUT', headers: hdr, body: body
-    }).then(function (r) {
-      if (r.status === 412 && !esReintento) {
-        // Otro dispositivo escribió este día entre medias → bajar, re-fusionar
-        // y reintentar UNA vez.
-        return graph('/me/drive/items/' + st.folderId + ':/' + name + ':/content')
+    // Si el archivo ya existe, traer su contenido y UNIR antes de escribir.
+    // Así NUNCA se sube un subconjunto que borre del archivo un turno que
+    // otro dispositivo puso ahí (o uno que aquí se quedó vacío por error).
+    // La unión solo AÑADE / actualiza al más reciente — nunca quita.
+    var prep = etag
+      ? graph('/me/drive/items/' + st.folderId + ':/' + name + ':/content')
           .then(function (rr) { return rr.ok ? rr.text() : null; })
           .then(function (txt) {
-            if (txt) {
-              try {
-                var rem = JSON.parse(txt);
-                fusionarDia(fecha, rem.turnos || []);
-              } catch (e) {}
-            }
-            // refrescar etag
-            return graphJson('/me/drive/items/' + st.folderId + ':/' + name);
+            if (!txt) return locales;
+            try { return unir(JSON.parse(txt).turnos || [], locales); }
+            catch (e) { return locales; }
           })
-          .then(function (meta) {
-            if (meta && meta.eTag) st.fileEtags[name] = meta.eTag;
-            return subirDia(fecha, reg.diaJSON(fecha), true);
-          });
-      }
-      if (!r.ok) {
-        // 5xx / 4xx (que no sea 412) = error real → se marca para el icono.
-        // Sin red (fetch rechaza, va al .catch) NO se marca: es normal en un
-        // tren y se reintenta solo.
-        errorSubida = true;
-        return;
-      }
-      return r.json().then(function (item) {
-        st.fileEtags[name] = item.eTag;
-        st.syncedDay[fecha] = jsonActual;
-        st.syncedDayAt[fecha] = Date.now();
-        st.ultima = Date.now();
-        persist();
+      : Promise.resolve(locales);
+
+    return prep.then(function (turnosFinal) {
+      var data = { fecha: fecha, turnos: turnosFinal };
+      data.turnos.forEach(function (t) {
+        if (!st.turnoAt[t.id]) st.turnoAt[t.id] = Date.now();
+        st.dayIndex[t.id] = fecha;
+        t._cloudAt = st.turnoAt[t.id];
       });
-    }).catch(function () { /* sin red: se reintenta luego, sin marcar error */ });
+      var body = JSON.stringify(data, null, 2);
+
+      var hdr = {};
+      if (etag) hdr['If-Match'] = etag;
+      else hdr['If-None-Match'] = '*'; // crear solo si no existe
+
+      return graph('/me/drive/items/' + st.folderId + ':/' + name + ':/content', {
+        method: 'PUT', headers: hdr, body: body
+      }).then(function (r) {
+        if (r.status === 412 && !esReintento) {
+          // Otro dispositivo escribió este día entre medias. La unión de arriba
+          // ya trae lo remoto; solo hace falta el eTag nuevo y reintentar.
+          return graphJson('/me/drive/items/' + st.folderId + ':/' + name)
+            .then(function (meta) {
+              if (meta && meta.eTag) st.fileEtags[name] = meta.eTag;
+              else delete st.fileEtags[name]; // el archivo ya no existe → recrear
+              return subirDia(fecha, reg.diaJSON(fecha), true);
+            });
+        }
+        if (!r.ok) {
+          // 5xx / 4xx (que no sea 412) = error real → se marca para el icono.
+          // Sin red (fetch rechaza, va al .catch) NO se marca: es normal en un
+          // tren y se reintenta solo.
+          errorSubida = true;
+          return;
+        }
+        return r.json().then(function (item) {
+          st.fileEtags[name] = item.eTag;
+          // Fusionar en local lo que la unión trajera de la nube y guardar la
+          // firma de lo que ha quedado escrito → local y nube convergen.
+          fusionarDia(fecha, turnosFinal);
+          var canonFinal = reg.canon
+            ? reg.canon(fecha, turnosFinal.map(quitarMeta))
+            : jsonActual;
+          st.syncedDay[fecha] = firma(canonFinal);
+          st.syncedDayAt[fecha] = Date.now();
+          st.ultima = Date.now();
+          persist();
+        });
+      }).catch(function () { /* sin red: se reintenta luego, sin marcar error */ });
+    });
+  }
+
+  // Unión de dos listas de turnos por id: añade los que falten y se queda con
+  // el más reciente (_cloudAt remoto vs turnoAt local). NUNCA quita un id.
+  function unir(remotos, locales) {
+    var by = {};
+    (remotos || []).forEach(function (t) { if (t && t.id) by[t.id] = t; });
+    (locales || []).forEach(function (t) {
+      if (!t || !t.id) return;
+      var r = by[t.id];
+      var rAt = (r && r._cloudAt) || 0;
+      var lAt = st.turnoAt[t.id] || 0;
+      if (!r || lAt >= rAt) by[t.id] = t;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; });
   }
 
   function quitarMeta(t) {
@@ -413,17 +470,26 @@
   function onTurnosSaved(turnos) {
     if (!cuenta || _applying) return;
     // Detectar qué turnos cambiaron para sellar su hora (_cloudAt local).
+    var vivos = {};
     turnos.forEach(function (t) {
-      var prev = st.turnoAt['_json_' + t.id];
-      var now = JSON.stringify(quitarMeta(t));
-      if (prev !== now) {
+      vivos[t.id] = true;
+      var now = firma(JSON.stringify(quitarMeta(t)));
+      if (st.turnoHash[t.id] !== now) {
         st.turnoAt[t.id] = Date.now();
-        st.turnoAt['_json_' + t.id] = now;
+        st.turnoHash[t.id] = now;
         (t.servicios || []).forEach(function (s) {
           if (s.fecha) st.dayIndex[t.id] = s.fecha;
         });
       }
     });
+    // Purga de turnos borrados: sin esto turnoAt/turnoHash/dayIndex crecen
+    // para siempre. (Legado: quitar las viejas claves _json_.)
+    Object.keys(st.turnoHash).forEach(function (id) { if (!vivos[id]) delete st.turnoHash[id]; });
+    Object.keys(st.turnoAt).forEach(function (id) {
+      if (id.indexOf('_json_') === 0) { delete st.turnoAt[id]; return; }
+      if (!vivos[id]) delete st.turnoAt[id];
+    });
+    Object.keys(st.dayIndex).forEach(function (id) { if (!vivos[id]) delete st.dayIndex[id]; });
     persist();
     clearTimeout(subidaTimer);
     subidaTimer = setTimeout(function () { sincronizar(true); }, SUBIDA_DEBOUNCE);
@@ -515,6 +581,7 @@
         st.syncedDay = {};
         st.syncedDayAt = {};
         st.turnoAt = {};
+        st.turnoHash = {};
         st.dayIndex = {};
         st.ultima = 0;
         persist();

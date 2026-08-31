@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v52';
+  var APP_VERSION = 'enruta-v53';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1066,7 +1066,17 @@
   // JSON canónico y determinista de un día (turnos ordenados por id) — lo que
   // nube.js compara para saber si un día está "sucio". null = día sin turnos.
   function nubeDiaJSON(fecha) {
-    var dia = nubeDiaTurnosReales(fecha).slice().sort(function (a, b) {
+    return nubeCanon(fecha, turnosOfDay(fecha));
+  }
+  // Forma canónica y determinista de un conjunto de turnos de un día. La usan
+  // nube.js para local Y para lo que baja de la nube — misma normalización en
+  // los dos lados = comparación fiable (sin subidas/bajadas en bucle).
+  function nubeCanon(fecha, arr) {
+    var dia = (arr || []).filter(function (t) {
+      return t && !t._deCache && !isEmptyTurno(t);
+    }).map(function (t) {
+      return normTurno(JSON.parse(JSON.stringify(t)));
+    }).sort(function (a, b) {
       return String(a.id).localeCompare(String(b.id));
     });
     if (!dia.length) return null;
@@ -5755,6 +5765,7 @@
     // Contrato para nube.js (copia en OneDrive). Ver bloque "Copia en la nube".
     nube: {
       diaJSON: nubeDiaJSON,
+      canon: nubeCanon,
       diaTurnos: nubeDiaTurnosReales,
       fechas: nubeFechasConTurnos,
       aplicarDia: nubeAplicarDia,

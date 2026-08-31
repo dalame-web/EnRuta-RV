@@ -38,6 +38,50 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 24: auditoría de la sincro vs. cómo lo hacen otras apps (enruta-v53)
+
+David: «revisa bien la lógica, que no dé fallos, mira cómo lo hacen otras
+apps de guardado en la nube». Investigado (patrones offline-first: LWW por
+registro, merge de cambios que no se pisan, tombstones para borrados,
+reconciliar con el remoto ANTES de escribir). Encontrados y arreglados:
+
+- **La subida podía ENCOGER el archivo de la nube.** Si un día pasaba de 2
+  turnos a 1 en local (turno vaciado por error, `discardEmptyEdit`, un merge
+  raro), el PUT sobrescribía el archivo remoto con el conjunto más pequeño y
+  se perdía el turno también en la nube. Ahora `subirDia` **baja el archivo
+  remoto y UNE por id antes de escribir** (`unir()`): solo añade / actualiza
+  al más reciente, nunca quita un id. Igual que hacen los motores de sync
+  serios.
+- **Un turno creado en un dispositivo podía no llegar nunca a la nube.**
+  Tras bajar, el día se marcaba como «sincronizado» con el estado local ya
+  fusionado; si local tenía un turno que el archivo remoto no traía, el
+  sync-up lo veía «limpio» y no lo subía hasta la siguiente edición. Ahora
+  se guarda la **firma de lo que HAY en la nube** (no de lo local), así el
+  día queda sucio y se sube. Con una **forma canónica común**
+  (`REGISTRO.nube.canon`, misma normalización para local y remoto) para que
+  no haya subidas/bajadas en bucle. Verificado: `canon` estable ante orden
+  y ante repetición.
+- **`rviryo_nube_v1` crecía sin límite.** Guardaba una copia del JSON entero
+  de cada turno (`_json_<id>`) y de cada día. Con muchos turnos podía llenar
+  `localStorage` → `save()` falla → **la causa raíz de la pérdida de datos**.
+  Ahora guarda solo una **firma corta** (djb2) y **purga** turnos borrados.
+- **Crear la carpeta `EnRuta` usaba `conflictBehavior: replace`.** Si la
+  lectura previa fallaba por un fallo transitorio y la carpeta existía,
+  `replace` la **borraba con todo dentro**. Cambiado a `fail` + releer.
+- **412 (otro dispositivo escribió a la vez):** simplificado — como la unión
+  ya trae lo remoto, solo se refresca el eTag y se reintenta; si el archivo
+  ya no existe, se recrea.
+
+Pendiente (no crítico, hablarlo): merge **por servicio** dentro de un turno
+(hoy si se edita el MISMO turno en tablet y móvil gana el último, se pierde
+lo del otro) y **tombstones** para que los borrados se propaguen entre
+dispositivos (hoy un turno borrado en un aparato reaparece desde otro).
+
+- Versiones: `enruta-v53` · `registro.js?v=202609032` · `nube.js?v=202609032`
+  · `CACHE enruta-rv-v45`.
+
+---
+
 ### 2026-09-01 — Paso 23: importar copia en modo «Combinar» (recuperar días perdidos) (enruta-v52)
 
 David perdió los turnos del 27, 28 y 29 de agosto (borrados en la nube al
