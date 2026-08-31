@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v45';
+  var APP_VERSION = 'enruta-v46';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -59,6 +59,17 @@
       { t: 'campo', id: 'tipoValidacion', label: 'Se valida en', options: ['Pantalla', 'Señal'] },
       { t: 'text', v: ' ' },
       { t: 'campo', id: 'numeroValidacion', label: 'Número' }
+    ] },
+    { id: 'ltv', label: 'LTV', partes: [
+      { t: 'text', v: 'LTV a ' },
+      { t: 'campo', id: 'vel', label: 'km/h' },
+      { t: 'text', v: ' km/h desde PK ' },
+      { t: 'campo', id: 'pkDesde', label: 'PK desde' },
+      { t: 'text', v: ' al PK ' },
+      { t: 'campo', id: 'pkHasta', label: 'PK hasta' },
+      { t: 'text', v: ' por ' },
+      { t: 'campo', id: 'motivo', label: 'Motivo', options: ['estado de la vía', 'vientos', 'otros'] },
+      { t: 'campoCondicional', id: 'detalle', label: 'Detalle (opcional)', prefijo: ' — ' }
     ] },
     { id: 'mv', label: 'Marcha a la Vista (MV)', partes: [
       { t: 'text', v: 'Se realiza MV (Marcha a la Vista) desde el PK ' },

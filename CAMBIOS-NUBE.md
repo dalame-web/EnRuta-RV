@@ -38,6 +38,13 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 17: atajo «LTV» en Observaciones (enruta-v46)
+
+- Nuevo atajo `ltv` (tras los dos Vmeta):
+  «LTV a [X] km/h desde PK [X] al PK [X] por [estado de la vía / vientos /
+  otros][ — detalle opcional]».
+- Versiones: `enruta-v46` · `registro.js?v=202609017` · `CACHE enruta-rv-v38`.
+
 ### 2026-08-31 — Paso 16: crear servicio comercial manual (enruta-v45)
 
 Cambio de editor, independiente de la nube.
