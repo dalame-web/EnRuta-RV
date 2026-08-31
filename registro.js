@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v44';
+  var APP_VERSION = 'enruta-v45';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1160,7 +1160,7 @@
       fecha: fecha || today(),
       servicioComercial: '', servicioComercial2: '', origen: '', destino: '', via: '', rama: '',
       hSalida: '', hDestino: '', rSalida: '', rLlegDestino: '',
-      esTraslado: false, maniobraNombre: '',
+      esTraslado: false, maniobraNombre: '', servicioManual: false,
       horaLTV: '', paradas: [],
       n1: '', viajeros: '', asistencias: '', plazasH: '', pmr: [],
       comprobaciones: COMPROBACIONES.map(function () { return false; }),
@@ -1214,6 +1214,7 @@
       if (s.origen == null) s.origen = '';
       if (s.destino == null) s.destino = '';
       if (s.servicioComercial2 == null) s.servicioComercial2 = '';
+      if (s.servicioManual == null) s.servicioManual = false;
       if (s.rSalida == null) s.rSalida = '';
       if (s.rLlegDestino == null) s.rLlegDestino = '';
       if (s.horaLTV == null) s.horaLTV = '';
@@ -1225,7 +1226,7 @@
       // antes de que autofillServicio lo mapeara). Sin esto, las paradas
       // intermedias comerciales no muestran H. Llegada.
       var hr = null;
-      if (s.servicioComercial && horarios && horarios.length) {
+      if (s.servicioComercial && !s.servicioManual && horarios && horarios.length) {
         hr = horarios.find(function (h) {
           return String(h.servicio) === String(s.servicioComercial) &&
                  (!s.origen || h.origen === s.origen) &&
@@ -1310,7 +1311,7 @@
     return t.servicios.every(function (s) {
       if (s.servicioComercial || s.via || s.rama || s.n1 ||
           s.viajeros || s.asistencias || s.plazasH || s.observaciones ||
-          s.esTraslado || s.origen || s.destino) return false;
+          s.esTraslado || s.servicioManual || s.origen || s.destino) return false;
       if (s.paradas.some(function (p) {
         return p.nombre || p.hora || p.rLleg || p.rSal;
       })) return false;
@@ -1709,6 +1710,9 @@
       h += '<option value="man:' + i + '" data-man="' + i + '"' +
         (m.nombre === curMan ? ' selected' : '') + '>' + esc(m.nombre) + '</option>';
     });
+    // Servicio comercial que no está en el Libro — se rellena a mano.
+    h += '<option value="__MANUAL__" data-manual="1"' +
+      (s.servicioManual ? ' selected' : '') + '>✎ Crear servicio manual</option>';
     return h;
   }
   function ramaOptions(sel) {
@@ -2009,9 +2013,10 @@
     var h = '<div class="station-card ' + tipo + '">';
     h += '<div class="st-head">' +
       '<span class="st-badge ' + tipo + '">' + badgeTxt + '</span>';
-    if (cfg.parIdx != null && cfg.editable) {
+    if ((cfg.parIdx != null && cfg.editable) || cfg.editNombre) {
+      var bindNom = cfg.bindNombre || ('srv.' + si + '.par.' + cfg.parIdx + '.nombre');
       h += '<input type="text" class="st-name-input" placeholder="Estación" ' +
-        'data-bind="srv.' + si + '.par.' + cfg.parIdx + '.nombre" ' +
+        'data-bind="' + bindNom + '" ' +
         'value="' + esc(cfg.nombre || '') + '">';
     } else {
       h += '<span class="st-name">' + esc(cfg.nombre || '—');
@@ -2054,7 +2059,7 @@
         h += '<span class="st-h">' + esc(cfg.horaLlegada) + '</span>';
       }
       if (horaRealLleg) h += '<span class="st-real' + (retLlegMin < 0 ? ' early' : '') + '">' + horaRealLleg + '</span>';
-      h += '</div>' + (cfg.esTraslado ?
+      h += "</div>" + ((cfg.esTraslado || cfg.manual) ?
         horaNowBtnHtml(cfg.bindHoraLlegada) :
         retInlineHtml(cfg.bindRetLleg, cfg.valRetLleg) + retNowBtnHtml(cfg.bindRetLleg, cfg.horaLlegada)
       ) + '</div>';
@@ -2071,7 +2076,7 @@
         h += '<span class="st-h">' + esc(cfg.horaSalida) + '</span>';
       }
       if (horaRealSal) h += '<span class="st-real' + (retSalMin < 0 ? ' early' : '') + '">' + horaRealSal + '</span>';
-      h += '</div>' + (cfg.esTraslado ?
+      h += "</div>" + ((cfg.esTraslado || cfg.manual) ?
         horaNowBtnHtml(cfg.bindHoraSalida) :
         retInlineHtml(cfg.bindRetSal, cfg.valRetSal) + retNowBtnHtml(cfg.bindRetSal, cfg.horaSalida)
       ) + '</div>';
@@ -2131,15 +2136,19 @@
   function stationsBlock(s, si) {
     var h = '<div class="stations">';
     var esTraslado = !!s.esTraslado;
+    var manual = !!s.servicioManual; // servicio comercial creado a mano
     // Origen
     h += stationCard('origin', si, {
-      nombre: s.origen || '(origen)',
+      nombre: manual ? s.origen : (s.origen || '(origen)'),
+      editNombre: manual,
+      bindNombre: 'srv.' + si + '.origen',
       pmr: esTraslado ? null : pmrEnEstacion(s, s.origen, -1),
       horaSalida: s.hSalida,
       horaLlegada: '',
-      editSalida: esTraslado,
+      editSalida: esTraslado || manual,
       bindHoraSalida: 'srv.' + si + '.hSalida',
       esTraslado: esTraslado,
+      manual: manual,
       bindRetSal: 'srv.' + si + '.rSalida',
       valRetSal: s.rSalida,
       pax: esTraslado ? '' : paxBlockOrigen(s, si)
@@ -2152,14 +2161,17 @@
         nombre: p.nombre,
         parIdx: pi,
         editable: nuevaSinDatos,
+        editNombre: manual,
+        bindNombre: 'srv.' + si + '.par.' + pi + '.nombre',
         pmr: esTraslado ? null : pmrEnEstacion(s, p.nombre, pi),
         horaLlegada: hLlegParada,
         horaSalida: p.hora,
-        editLlegada: esTraslado,
+        editLlegada: esTraslado || manual,
         bindHoraLlegada: 'srv.' + si + '.par.' + pi + '.hLleg',
-        editSalida: esTraslado || !p.hora,
+        editSalida: esTraslado || manual || !p.hora,
         bindHoraSalida: 'srv.' + si + '.par.' + pi + '.hora',
         esTraslado: esTraslado,
+        manual: manual,
         bindRetLleg: 'srv.' + si + '.par.' + pi + '.rLleg',
         valRetLleg: p.rLleg,
         bindRetSal: 'srv.' + si + '.par.' + pi + '.rSal',
@@ -2169,13 +2181,16 @@
     });
     // Destino (con mini "+" para añadir parada al final)
     h += stationCard('destination', si, {
-      nombre: s.destino || '(destino)',
+      nombre: manual ? s.destino : (s.destino || '(destino)'),
+      editNombre: manual,
+      bindNombre: 'srv.' + si + '.destino',
       pmr: esTraslado ? null : pmrEnEstacion(s, s.destino, null),
       horaLlegada: s.hDestino,
       horaSalida: '',
-      editLlegada: esTraslado,
+      editLlegada: esTraslado || manual,
       bindHoraLlegada: 'srv.' + si + '.hDestino',
       esTraslado: esTraslado,
+      manual: manual,
       bindRetLleg: 'srv.' + si + '.rLlegDestino',
       valRetLleg: s.rLlegDestino,
       pax: ''
@@ -2216,7 +2231,7 @@
     // Fecha + Servicio Comercial [+ Nº de traslado, seguido a la derecha
     // del desplegable, en la misma fila — no en una fila aparte].
     h += '<div class="field-grid" style="grid-template-columns:' +
-      (s.esTraslado ? '130px 1fr 110px' : '130px 1fr') + '">' +
+      ((s.esTraslado || s.servicioManual) ? '130px 1fr 110px' : '130px 1fr') + '">' +
       '<div class="field"><label>Fecha</label>' +
       '<input type="date" data-bind="srv.' + si + '.fecha" value="' + esc(s.fecha) + '"></div>' +
       '<div class="field"><label>Servicio Comercial</label>';
@@ -2246,9 +2261,13 @@
           '<input type="text" inputmode="numeric" class="svc-man-num" data-bind="srv.' + si + '.servicioComercial" value="' +
           esc(s.servicioComercial) + '" placeholder="Número"></div>';
       }
+    } else if (s.servicioManual) {
+      h += '<div class="field"><label>Nº</label>' +
+        '<input type="text" inputmode="numeric" class="svc-man-num" data-bind="srv.' + si + '.servicioComercial" value="' +
+        esc(s.servicioComercial) + '" placeholder="Número"></div>';
     }
     h += '</div>';
-    if (s.origen || s.destino) {
+    if ((s.origen || s.destino) && !s.servicioManual) {
       h += '<div class="hint" style="margin:-6px 0 11px">' +
         esc(s.origen) + ' → ' + esc(s.destino) + '</div>';
     }
@@ -2261,10 +2280,10 @@
       '<select data-bind="srv.' + si + '.rama">' + ramaOptions(s.rama) + '</select></div>' +
       '</div>';
 
-    // N1 — no aplica en traslados (sin conductor/N1 asignado como tal).
+    // N1 — siempre escribible (también en traslados y servicios manuales).
     h += '<div class="field"><label class="red">N1</label>' +
       '<input type="text" data-bind="srv.' + si + '.n1" value="' +
-      esc(s.n1) + '" placeholder="Nombre"' + (s.esTraslado ? ' disabled' : '') + '></div>';
+      esc(s.n1) + '" placeholder="Nombre"></div>';
 
     // Estaciones (card por estación)
     h += stationsBlock(s, si);
@@ -3238,7 +3257,7 @@
     s.destino = hr.destino || '';
     s.hSalida = hr.hSalida || '';
     s.hDestino = hr.hDestino || '';
-    s.esTraslado = false; s.maniobraNombre = '';
+    s.esTraslado = false; s.maniobraNombre = ''; s.servicioManual = false;
     s.paradas = (hr.paradas || []).map(function (p) {
       var tP = typeof p.tParada === 'number' ? p.tParada : 0;
       return {
@@ -3273,6 +3292,7 @@
     if (!m) return;
     s.servicioComercial = '';
     s.esTraslado = true;
+    s.servicioManual = false;
     s.maniobraNombre = m.nombre;
     s.origen = m.origen || '';
     s.destino = m.destino || '';
@@ -4774,13 +4794,20 @@
       var s = t ? t.servicios[si] : null;
       // Aviso si hay servicio activo y aún en trayecto (evita cambios involuntarios).
       function doAutofillSrv() {
-        if (opt && opt.getAttribute('data-idx') != null) {
+        if (opt && opt.getAttribute('data-manual') != null) {
+          if (t && s) {
+            s.servicioManual = true;
+            s.esTraslado = false; s.maniobraNombre = '';
+            autosave();
+            refreshServicioCard(si);
+          }
+        } else if (opt && opt.getAttribute('data-idx') != null) {
           autofillServicio(si, +opt.getAttribute('data-idx'));
         } else if (opt && opt.getAttribute('data-man') != null) {
           autofillManiobra(si, +opt.getAttribute('data-man'));
         } else if (t && s) {
           s.servicioComercial = ''; s.origen = ''; s.destino = '';
-          s.esTraslado = false; s.maniobraNombre = '';
+          s.esTraslado = false; s.maniobraNombre = ''; s.servicioManual = false;
           autosave();
           refreshServicioCard(si);
         }

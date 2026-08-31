@@ -38,6 +38,29 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 16: crear servicio comercial manual (enruta-v45)
+
+Cambio de editor, independiente de la nube.
+
+- Opción **«✎ Crear servicio manual»** al final del desplegable Servicio
+  Comercial. Al elegirla (`s.servicioManual = true`):
+  - Aparece la casilla **Nº** a la derecha (un número, como los traslados).
+  - **Origen, paradas intermedias y destino** con el nombre **editable** en su
+    tarjeta.
+  - Horas de llegada/salida editables en todas las estaciones (botón ⏱ = hora
+    actual, sin campo de retraso, como en los traslados).
+  - **Viajeros/asistencias** por estación (como un servicio normal — NO es un
+    traslado: cuenta como servicio en Estadísticas, sin línea si la ruta no
+    coincide con ninguna conocida).
+- Nuevas props de `stationCard`: `editNombre` + `bindNombre` (nombre editable
+  en cualquier tarjeta) y `manual` (UI de horas tipo traslado).
+- `blankServicio` / `normTurno`: `s.servicioManual` (default false).
+- `normTurno` ya no intenta emparejar con el Libro si `servicioManual`.
+- `autofillServicio` / `autofillManiobra` limpian el flag; elegir otra opción
+  del desplegable también.
+- **N1 siempre escribible** (antes estaba deshabilitado en traslados).
+- Versiones: `enruta-v45` · `registro.js?v=202609016` · `CACHE enruta-rv-v37`.
+
 ### 2026-08-31 — Paso 15: Observaciones a mano con viñeta «• » (enruta-v44)
 
 - El texto escrito a mano en Observaciones ahora lleva «• » delante de cada
