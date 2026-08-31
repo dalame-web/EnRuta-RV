@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v46';
+  var APP_VERSION = 'enruta-v47';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1422,7 +1422,7 @@
     var rd = parseInt(String(s.rLlegDestino || '').replace(/^\+/, ''), 10);
     var ret = (!isNaN(rd) && rd > 0) ? ' <span class="ret">+' + rd + 'm</span>' : '';
     var tag = esTraslado ? '<span class="svc-tag">TRASLADO</span>' :
-      (num ? '<span class="svc-tag normal">SERVICIO</span>' : '');
+      (num ? '<span class="svc-tag normal">COMERCIAL</span>' : '');
     var line1 = tag + num + ret;
     var lineRuta = (!esTraslado && s.origen && s.destino) ?
       esc(abreviarEstacion(s.origen) + ' - ' + abreviarEstacion(s.destino)) : '';
@@ -2070,7 +2070,7 @@
         h += '<span class="st-h">' + esc(cfg.horaLlegada) + '</span>';
       }
       if (horaRealLleg) h += '<span class="st-real' + (retLlegMin < 0 ? ' early' : '') + '">' + horaRealLleg + '</span>';
-      h += "</div>" + ((cfg.esTraslado || cfg.manual) ?
+      h += "</div>" + (cfg.esTraslado ?
         horaNowBtnHtml(cfg.bindHoraLlegada) :
         retInlineHtml(cfg.bindRetLleg, cfg.valRetLleg) + retNowBtnHtml(cfg.bindRetLleg, cfg.horaLlegada)
       ) + '</div>';
@@ -2087,7 +2087,7 @@
         h += '<span class="st-h">' + esc(cfg.horaSalida) + '</span>';
       }
       if (horaRealSal) h += '<span class="st-real' + (retSalMin < 0 ? ' early' : '') + '">' + horaRealSal + '</span>';
-      h += "</div>" + ((cfg.esTraslado || cfg.manual) ?
+      h += "</div>" + (cfg.esTraslado ?
         horaNowBtnHtml(cfg.bindHoraSalida) :
         retInlineHtml(cfg.bindRetSal, cfg.valRetSal) + retNowBtnHtml(cfg.bindRetSal, cfg.horaSalida)
       ) + '</div>';
@@ -4809,6 +4809,7 @@
           if (t && s) {
             s.servicioManual = true;
             s.esTraslado = false; s.maniobraNombre = '';
+            s.servicioComercial = ''; // el <select> mete "__MANUAL__" por el evento input — se limpia aquí
             autosave();
             refreshServicioCard(si);
           }
@@ -5486,6 +5487,17 @@
       if (nv !== ta.value) {
         ta.value = nv;
         ta.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }, true);
+    // Nombres de estación escritos a mano (servicio manual / parada nueva) →
+    // a MAYÚSCULAS, como el resto de la app.
+    document.addEventListener('blur', function (e) {
+      var el = e.target;
+      if (!el.classList || !el.classList.contains('st-name-input')) return;
+      var up = (el.value || '').toUpperCase();
+      if (up !== el.value) {
+        el.value = up;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
       }
     }, true);
     document.addEventListener('change', function (e) {

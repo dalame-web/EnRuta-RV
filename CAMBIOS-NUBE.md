@@ -38,6 +38,20 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 18: ajustes del servicio manual + «COMERCIAL» en calendario (enruta-v47)
+
+1. Al crear servicio manual, la casilla Nº ya no aparece con «__MANUAL__»
+   (el `<select>` lo metía por el evento `input`; se limpia en `doAutofillSrv`).
+2. Nombres de estación escritos a mano → **MAYÚSCULAS** (blur handler para
+   `.st-name-input` + `text-transform:uppercase` en CSS). Aplica también a las
+   paradas nuevas de servicios normales.
+3. Paradas de un servicio manual: además de horas editables, tienen el editor
+   de **retrasos** como los servicios comerciales normales (se quitó
+   `cfg.manual` del ternario retraso/⏱).
+4. Calendario: en las celdas de los días, la etiqueta **«SERVICIO» → «COMERCIAL»**
+   (traslados siguen igual).
+- Versiones: `enruta-v47` · `?v=202609018` · `CACHE enruta-rv-v39`.
+
 ### 2026-08-31 — Paso 17: atajo «LTV» en Observaciones (enruta-v46)
 
 - Nuevo atajo `ltv` (tras los dos Vmeta):

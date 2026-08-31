@@ -743,7 +743,9 @@ input[type=number]::-webkit-inner-spin-button{
   flex:1; min-width:0; min-height:30px;
   padding:4px 8px; font-size:13px;
   font-family:Poppins,sans-serif; font-weight:600;
+  text-transform:uppercase;
 }
+.st-name-input::placeholder{text-transform:none}
 .st-row input[type=time]{
   flex:0 0 auto; min-height:30px; padding:3px 6px; font-size:13px;
   width:auto;
