@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v48';
+  var APP_VERSION = 'enruta-v49';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1436,8 +1436,15 @@
     return out;
   }
 
+  // En móvil (pantalla estrecha) la rejilla del mes no cabe bien — 7 columnas
+  // no dan para mostrar los servicios y se descuadra. Se fuerza la vista lista,
+  // que sí queda bien. En tablet/PC se respeta lo que elija el usuario.
+  function esMovil() {
+    try { return window.matchMedia('(max-width: 620px)').matches; }
+    catch (e) { return (window.innerWidth || 999) <= 620; }
+  }
   function renderCalendar() {
-    if (settings.calView === 'list') { renderList(); return; }
+    if (settings.calView === 'list' || esMovil()) { renderList(); return; }
     var pane = $('calendario-pane');
     var first = new Date(calYear, calMonth, 1);
     var offset = (first.getDay() + 6) % 7; // lunes primero
@@ -1558,7 +1565,8 @@
     var h = '<div class="cal-head">' +
       '<div class="cal-title" style="text-align:left;flex:1">Todos los turnos</div>' +
       nubeIconoBtn() + nubeInfoBtn() +
-      '<button class="cal-toggle" data-action="cal-toggle" title="Vista cuadrícula">▦</button>' +
+      // En móvil no hay vista cuadrícula (no cabe), así que no se ofrece el botón.
+      (esMovil() ? '' : '<button class="cal-toggle" data-action="cal-toggle" title="Vista cuadrícula">▦</button>') +
       '</div>';
 
     var sorted = turnos.slice().sort(function (a, b) {
@@ -1600,7 +1608,7 @@
           : '';
         var tagHtml = esTraslado ? '<span class="svc-tag">TRASLADO</span> ' : '';
         h += '<div class="lr-svc-line' + (esTraslado ? ' traslado' : ' normal') + '">' +
-          tagHtml + '<b>' + (esTraslado ? 'Traslado ' : 'Servicio ') + esc(num) + '</b> · ' + esc(hrs) + esc(ruta) + retHtml +
+          tagHtml + '<b>' + (esTraslado ? 'Traslado ' : 'Comercial ') + esc(num) + '</b> · ' + esc(hrs) + esc(ruta) + retHtml +
           '</div>';
       });
       h += '</div>';

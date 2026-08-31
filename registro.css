@@ -398,7 +398,7 @@ button.btn:disabled{opacity:.45; cursor:default}
   color:var(--fg); font-size:20px;
 }
 .cal-grid{
-  display:grid; grid-template-columns:repeat(7,1fr); gap:5px;
+  display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px;
 }
 .cal-dow{
   text-align:center; font-size:11px; font-weight:700;
@@ -409,11 +409,15 @@ button.btn:disabled{opacity:.45; cursor:default}
   background:var(--panel); cursor:pointer; padding:5px 6px 6px;
   display:flex; flex-direction:column; align-items:flex-start;
   position:relative; min-height:118px;
+  /* min-width:0 + overflow:hidden: sin esto, el texto sin envolver de los
+   * bloques de servicio (ruta/horas) ensancha la columna por encima de 1fr y
+   * revienta la rejilla → scroll horizontal, sobre todo en el móvil. */
+  min-width:0; overflow:hidden;
 }
 /* Todas las celdas de una MISMA fila crecen a la altura de la más alta
- * (p.ej. la que tiene 3 servicios): es el comportamiento por defecto de
- * grid (align-items:stretch) + .cal-day flex-column. Sin overflow:hidden
- * para que no se recorte el día con más servicios. */
+ * (grid align-items:stretch + flex-column). El día con más servicios define
+ * la altura de su fila, así que su contenido cabe y overflow:hidden solo
+ * recorta casos extremos. */
 .cal-day.empty{background:none; border:none; cursor:default; min-height:0}
 @media (min-width:760px){ .cal-day{ min-height:140px; } }
 @media (min-width:1000px){ .cal-day{ min-height:160px; } }

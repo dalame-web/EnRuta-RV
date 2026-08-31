@@ -38,6 +38,23 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 20: calendario en móvil (enruta-v49)
+
+David: la pestaña Calendario en el móvil se descuadra y tiene scroll horizontal.
+
+- **`.cal-grid`** → `repeat(7, minmax(0,1fr))` y **`.cal-day`** → `min-width:0` +
+  `overflow:hidden` (restaurado). Sin esto, el texto sin envolver de los
+  bloques de servicio ensanchaba las columnas y reventaba la rejilla → scroll
+  horizontal (peor en móvil). Arreglado en móvil Y tablet.
+- **En móvil** (`max-width: 620px`, helper `esMovil()`): `renderCalendar()`
+  fuerza la **vista lista** (la rejilla del mes no cabe). En tablet/PC se
+  respeta lo que elija el usuario. El botón de "vista cuadrícula" se oculta en
+  móvil.
+- Coherencia: en la vista lista, "Servicio N" → "Comercial N" (como ya se
+  cambió en las celdas de la rejilla).
+- Versiones: `enruta-v49` · `registro.js?v=202609021` · `registro.css?v=202609021`
+  · `CACHE enruta-rv-v41`.
+
 ### 2026-08-31 — Paso 19: PMR en servicio manual + obs con mayúscula + N1 traslados + timeouts nube (enruta-v48)
 
 1. **PMR en las tarjetas de estación del servicio manual:** el icono ♿↓/♿↑
