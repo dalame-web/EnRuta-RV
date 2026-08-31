@@ -38,6 +38,29 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-08-31 — Paso 8: mejoras de editor y calendario (misma rama, separables)
+
+Estos cambios NO son de la nube; van en la misma rama pero son independientes.
+
+- **(5) Celdas del calendario más altas y ajustables por fila.** `.cal-day`
+  `min-height` 92→118px (140 en tablet, 160 en pantalla grande) y **quitado
+  `overflow:hidden`**. Todas las celdas de una fila crecen a la altura de la
+  más alta (comportamiento por defecto de grid + flex-column) — verificado:
+  una fila con un día de 3 servicios = 206px las 7 celdas; otra fila = 118px.
+  Fuentes de los bloques de servicio un punto más grandes.
+- **(6) Hasta 5 servicios por día.** Botón «+ Añadir Nº servicio»
+  (2º/3er/4º/5º) visible mientras `servicios.length < 5`. El editor, la celda
+  del calendario y el PDF (`pintarTurnoEnDoc` ya pagina solo) ya iteraban con
+  `forEach`, sin límite duro.
+- **(8) Toma / Descanso / Deje en su propia card.** Sale del bloque de
+  servicio y pasa a una card propia (`.turno-horario-card`) al principio del
+  editor, entre la barra de botones y los servicios. Un solo dato de turno.
+- **(9) Quitado el check «Turno».** Toma/Descanso/Deje **siempre visibles**.
+  Fuera el `<input type=checkbox>`, la acción `turno-horario-toggle` y el CSS
+  `.turno-horario-check`. `isEmptyTurno` ahora cuenta toma/deje/descanso como
+  «tiene datos».
+- `registro.css?v=` añadido a `index.html` (antes no tenía cache-buster).
+
 ### 2026-08-31 — Paso 7: iconos en la barra + numeración de versión
 
 - **Numeración:** se deja de subir versión en cada commit de la rama. Toda la

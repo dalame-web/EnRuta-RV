@@ -1544,6 +1544,7 @@
   // ¿Turno sin ningún dato introducido? (solo la fecha automática del servicio)
   function isEmptyTurno(t) {
     if (t.horaLTV) return false;
+    if (t.toma || t.deje || t.descanso) return false;
     return t.servicios.every(function (s) {
       if (s.servicioComercial || s.via || s.rama || s.n1 ||
           s.viajeros || s.asistencias || s.plazasH || s.observaciones ||
@@ -2417,24 +2418,14 @@
       h += '<span class="inc-badge" title="Informe de incidencia generado">📋</span>';
     }
     h += '<div class="ltv-inline">' +
-      '<label class="turno-horario-check" title="Horario de turno (toma / deje / descanso)">' +
-      '<span>Turno</span><input type="checkbox" data-action="turno-horario-toggle"' +
-      (t.turnoHorarioActivo ? ' checked' : '') + '></label>' +
       '<label>Hora LTV</label>' +
       '<select data-bind="srv.' + si + '.horaLTV">' +
       horaLtvOptions(s.horaLTV) + '</select>' +
       '</div>';
     h += '</div>';
 
-    // Horario de turno (toma/deje/descanso) — opcional, dato de todo el
-    // turno (no del servicio), igual en las dos cards si es dormida.
-    if (t.turnoHorarioActivo) {
-      h += '<div class="field-grid" style="grid-template-columns:repeat(3,1fr)">' +
-        '<div class="field"><label>Toma</label><input type="time" data-bind="toma" value="' + esc(t.toma) + '"></div>' +
-        '<div class="field"><label>Descanso</label><input type="time" data-bind="descanso" value="' + esc(t.descanso) + '"></div>' +
-        '<div class="field"><label>Deje</label><input type="time" data-bind="deje" value="' + esc(t.deje) + '"></div>' +
-        '</div>';
-    }
+    // Toma/Deje/Descanso ya NO van aquí — están en su propia card al principio
+    // del editor (ver renderTurnoHorarioCard). Dato de todo el turno, uno solo.
 
     // Fecha + Servicio Comercial [+ Nº de traslado, seguido a la derecha
     // del desplegable, en la misma fila — no en una fila aparte].
@@ -2588,11 +2579,21 @@
     h += '<span class="tel-cabecera">' +
       (settings.telefono ? '📞 ' + esc(settings.telefono) : '') + '</span>';
     h += nubeIconoBtn();
-    if (t.servicios.length < 2) {
+    if (t.servicios.length < 5) {
+      var ord = ['', '', '2º', '3er', '4º', '5º'][t.servicios.length + 1] || '';
       h += '<button class="btn" data-action="add-servicio">' +
-        '+ Añadir 2º servicio</button>';
+        '+ Añadir ' + ord + ' servicio</button>';
     }
     h += '</div>';
+
+    // Toma / Deje / Descanso — card propia, un solo dato para todo el turno,
+    // entre la barra de arriba y los servicios. Siempre visible.
+    h += '<div class="card turno-horario-card">' +
+      '<div class="field-grid" style="grid-template-columns:repeat(3,1fr);margin:0">' +
+      '<div class="field"><label>Toma</label><input type="time" data-bind="toma" value="' + esc(t.toma) + '"></div>' +
+      '<div class="field"><label>Descanso</label><input type="time" data-bind="descanso" value="' + esc(t.descanso) + '"></div>' +
+      '<div class="field"><label>Deje</label><input type="time" data-bind="deje" value="' + esc(t.deje) + '"></div>' +
+      '</div></div>';
 
     // Servicios — acordeón: solo expandedSvc abierto.
     if (expandedSvc >= t.servicios.length) expandedSvc = 0;
@@ -5313,12 +5314,6 @@
       if (!svcChk) return;
       comprobacionesAbierta[siChk] = !comprobacionesOpen(siChk, svcChk);
       refreshServicioCard(siChk);
-      return;
-    }
-    if (act === 'turno-horario-toggle' && t) {
-      t.turnoHorarioActivo = !t.turnoHorarioActivo;
-      autosave();
-      renderEditor(); // repinta las dos cards si es dormida (mismos datos)
       return;
     }
     if (act === 'incidencia' && t) {

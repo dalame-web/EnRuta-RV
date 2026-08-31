@@ -411,9 +411,15 @@ button.btn:disabled{opacity:.45; cursor:default}
   border:1px solid var(--border); border-radius:8px;
   background:var(--panel); cursor:pointer; padding:5px 6px 6px;
   display:flex; flex-direction:column; align-items:flex-start;
-  position:relative; min-height:92px; overflow:hidden;
+  position:relative; min-height:118px;
 }
+/* Todas las celdas de una MISMA fila crecen a la altura de la más alta
+ * (p.ej. la que tiene 3 servicios): es el comportamiento por defecto de
+ * grid (align-items:stretch) + .cal-day flex-column. Sin overflow:hidden
+ * para que no se recorte el día con más servicios. */
 .cal-day.empty{background:none; border:none; cursor:default; min-height:0}
+@media (min-width:760px){ .cal-day{ min-height:140px; } }
+@media (min-width:1000px){ .cal-day{ min-height:160px; } }
 .cal-day .dnum{font-size:13px; font-weight:600; line-height:1}
 .cal-day.today{border-color:var(--accent); border-width:2px}
 .cal-day.today .dnum{color:var(--accent)}
@@ -445,17 +451,22 @@ button.btn:disabled{opacity:.45; cursor:default}
   display:flex; flex-direction:column; margin-top:3px; max-width:100%;
 }
 .cal-day .svc-head{
-  font-size:10px; line-height:1.15; color:var(--fg-dim);
+  font-size:11px; line-height:1.2; color:var(--fg-dim);
 }
 .cal-day .svc-head b{color:var(--fg); font-weight:700}
 .cal-day .svc-head .ret{color:var(--warn); font-weight:600; white-space:nowrap}
 .cal-day .svc-hrs{
-  font-size:9px; line-height:1.15; color:var(--fg-dim);
+  font-size:10px; line-height:1.2; color:var(--fg-dim);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .cal-day .svc-route{
-  font-size:10px; line-height:1.15; color:var(--fg); font-weight:600;
+  font-size:11px; line-height:1.2; color:var(--fg); font-weight:600;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+@media (min-width:760px){
+  .cal-day .svc-head{font-size:12px}
+  .cal-day .svc-hrs{font-size:11px}
+  .cal-day .svc-route{font-size:12px}
 }
 /* Traslados — distintos de un servicio normal, misma franja de color que
  * usa el resto de la app para "no es RC" (rosa, var(--tel-maquinista)). */
@@ -677,13 +688,9 @@ input[type=number]::-webkit-inner-spin-button{
 .ltv-inline select{
   min-height:30px; padding:2px 8px; font-size:12px; width:auto;
 }
-.turno-horario-check{
-  display:flex; align-items:center; gap:4px; font-size:11px;
-  color:var(--fg-dim); cursor:pointer; user-select:none;
-}
-.turno-horario-check input{width:16px; height:16px; min-height:0; padding:0; flex:0 0 auto}
-/* Ticks de la revisión de sincronización con Google Calendar — mismo
-   criterio que .turno-horario-check, sin depender de estilos inline. */
+/* Card propia de Toma/Deje/Descanso, al principio del editor. */
+.turno-horario-card{padding:12px 14px}
+/* Ticks de la revisión de sincronización con Google Calendar. */
 .gcal-check-sm{
   display:flex; align-items:center; gap:4px; font-size:12px;
   cursor:pointer; user-select:none;

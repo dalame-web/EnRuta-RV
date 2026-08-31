@@ -1,4 +1,4 @@
-const CACHE = 'enruta-rv-vDEV3';
+const CACHE = 'enruta-rv-vDEV4';
 const PRECACHE = [
   './', './index.html', './manifest.webmanifest',
   './data.js', './registro.js', './registro.css', './app-modal.js', './telefonemas-listado.js',
