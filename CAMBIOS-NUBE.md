@@ -38,6 +38,47 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 25: borrados que se propagan (lápidas / tombstones) (enruta-v54)
+
+David: «si borro un turno en un sitio, se tiene que borrar en todos. No
+puede quedar huérfano en un dispositivo porque al sincronizar volvería».
+
+- **Botón «Borrar turno» → lápida.** `NUBE.onTurnoBorrado(id)` deja
+  `{ id: ts }` en `st.tombstones` (y limpia `turnoAt`/`turnoHash` de ese id).
+- **Archivo compartido `EnRuta/_borrados.json`** = `{ id: ts, ... }` con
+  todas las lápidas. Al sincronizar:
+  - `bajarBorrados()` — trae las lápidas de otros dispositivos y las fusiona
+    (gana el `ts` mayor).
+  - `aplicarBorrados()` — quita de local los turnos con lápida (salvo que se
+    hayan **editado después** de la marca de borrado → gana la edición, LWW).
+  - `subirBorrados()` — sube las lápidas propias al archivo compartido.
+- **`unir()`** (la unión antes de cada PUT de un día) ahora **descarta los
+  ids con lápida**, así un turno borrado no puede volver a colarse en el
+  archivo del día desde ningún dispositivo.
+- **Día que queda vacío por un borrado explícito** → ahora SÍ se sube el
+  archivo vacío (la lápida lo justifica). Un falso vacío (sin lápida) sigue
+  sin tocar el archivo remoto (protección del Paso 22 intacta).
+- **Convergencia:** al confirmarse que el archivo de un día ya no tiene el
+  turno borrado, se suelta su `dayIndex` para no reintentar la limpieza en
+  cada sincro. La lápida sigue viva en `st.tombstones` + `_borrados.json`.
+- **`Borrar mis datos de la nube`** ahora también borra `_borrados.json` y
+  vacía `st.tombstones`.
+- Lápidas: no se recogen nunca (son minúsculas, `{id: ts}`). `ponytail:`
+  añadir caducidad si el archivo pasa de unos pocos KB.
+- «Sustituir» al importar copia NO genera lápidas (es una restauración
+  local, no un borrado meditado turno a turno).
+
+Verificado en preview: «Borrar turno» → el turno desaparece de
+`rviryo_turnos_v1` y aparece `tombstones: { <id>: <ts> }` en
+`rviryo_nube_v1`. La propagación por OneDrive (bajar/subir/unir) no se puede
+probar en el preview — hace falta cuenta real; lógica revisada y sin errores
+de sintaxis/consola.
+
+- Versiones: `enruta-v54` · `registro.js?v=202609033` · `nube.js?v=202609033`
+  · `CACHE enruta-rv-v46`.
+
+---
+
 ### 2026-09-01 — Paso 24: auditoría de la sincro vs. cómo lo hacen otras apps (enruta-v53)
 
 David: «revisa bien la lógica, que no dé fallos, mira cómo lo hacen otras

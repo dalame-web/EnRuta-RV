@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v53';
+  var APP_VERSION = 'enruta-v54';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1130,6 +1130,15 @@
       if (lt) turnos.splice(turnos.indexOf(lt), 1);
     });
     save(K_TURNOS, turnos); // NUBE.onTurnosSaved se autoignora (NUBE.aplicando())
+  }
+  // Aplica en local un borrado que viene de la nube (otro dispositivo lo borró).
+  // NO genera lápida nueva — solo ejecuta un borrado ya conocido.
+  function nubeBorrarIds(ids) {
+    var set = {};
+    (ids || []).forEach(function (id) { set[id] = true; });
+    var antes = turnos.length;
+    turnos = turnos.filter(function (t) { return !set[t.id]; });
+    if (turnos.length !== antes) { save(K_TURNOS, turnos); nubeReRender(); }
   }
   function nubeReRender() {
     if (lastSetView === 'calendario') renderCalendar();
@@ -5244,6 +5253,9 @@
         if (!ok) return;
         turnos = turnos.filter(function (x) { return x.id !== t.id; });
         save(K_TURNOS, turnos);
+        // Lápida para la nube: que el borrado se propague a los demás
+        // dispositivos y no reaparezca al sincronizar.
+        if (window.NUBE && window.NUBE.onTurnoBorrado) window.NUBE.onTurnoBorrado(t.id);
         editId = null;
         renderCalendar(); setView('calendario');
       });
@@ -5769,6 +5781,7 @@
       diaTurnos: nubeDiaTurnosReales,
       fechas: nubeFechasConTurnos,
       aplicarDia: nubeAplicarDia,
+      borrarIds: nubeBorrarIds,
       reRender: nubeReRender,
       trasVincular: nubeTrasVincular,
       pintarBanner: function () { nubeReRender(); },

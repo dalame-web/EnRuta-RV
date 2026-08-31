@@ -27,6 +27,7 @@
 
   var SCOPES = ['Files.ReadWrite', 'User.Read'];
   var FOLDER = 'EnRuta';
+  var BORRADOS = '_borrados.json'; // lápidas: { id: ts } — borrados que hay que propagar
   var GRAPH = 'https://graph.microsoft.com/v1.0';
   var K_NUBE = 'rviryo_nube_v1';
   var SUBIDA_DEBOUNCE = 5000;
@@ -51,6 +52,7 @@
     if (!st.turnoHash) st.turnoHash = {};   // {id: firma del contenido}
     if (!st.dayIndex) st.dayIndex = {};
     if (!st.syncedDayAt) st.syncedDayAt = {};
+    if (!st.tombstones) st.tombstones = {}; // {id: ts} — turnos borrados (lápidas)
   }
   ensureShape();
 
@@ -203,6 +205,10 @@
   //  → pérdida de datos. Ya no.)
   function sincronizarBajar() {
     return ensureFolder().then(function (fid) {
+      // Primero las lápidas de otros dispositivos: aplicar borrados en local
+      // ANTES de bajar los días (así no reaparece nada ya borrado).
+      return bajarBorrados().then(function () { aplicarBorrados(); return fid; });
+    }).then(function (fid) {
       var archivos = [];
       function pagina(url) {
         return graphJson(url).then(function (res) {
@@ -313,16 +319,22 @@
       var fechas = {};
       reg.fechas().forEach(function (f) { fechas[f] = true; });
       Object.keys(st.syncedDay).forEach(function (f) { fechas[f] = true; });
+      // Días con un borrado pendiente (para vaciar/limpiar su archivo remoto).
+      Object.keys(st.tombstones).forEach(function (id) {
+        var f = st.dayIndex[id]; if (f) fechas[f] = true;
+      });
 
       var cadena = Promise.resolve();
       Object.keys(fechas).forEach(function (fecha) {
         var actual = reg.diaJSON(fecha); // null si el día ya no tiene turnos
         var sincronizado = st.syncedDay[fecha];
-        if (sincronizado != null && firma(actual) === sincronizado) return; // no sucio
-        if (actual == null && sincronizado == null) return; // día vacío nunca subido
+        var lapida = Object.keys(st.tombstones).some(function (id) { return st.dayIndex[id] === fecha; });
+        if (!lapida && sincronizado != null && firma(actual) === sincronizado) return; // no sucio
+        if (!lapida && actual == null && sincronizado == null) return; // día vacío nunca subido
         cadena = cadena.then(function () { return subirDia(fecha, actual); });
       });
-      return cadena;
+      // Y por último, propagar nuestras lápidas al archivo compartido.
+      return cadena.then(subirBorrados);
     });
   }
 
@@ -331,20 +343,26 @@
     var name = fileName(fecha);
     var etag = st.fileEtags[name];
 
-    // El día ya no tiene turnos en local. NO se borra ni se vacía el archivo
-    // remoto: podría ser un falso vacío (un turno filtrado por _deCache, un
-    // discardEmptyEdit, un merge previo...) y perderíamos también los datos
-    // en la nube. El archivo remoto conserva su último contenido bueno. Si el
-    // turno reaparece, el siguiente sync-up lo vuelve a subir. Para quitar
-    // archivos de verdad: botón "Borrar mis datos de la nube".
-    if (jsonActual == null) {
+    var locales = jsonActual == null ? [] : (JSON.parse(jsonActual).turnos || []);
+
+    // Día vacío en local. Solo se propaga como vacío si hay una LÁPIDA que lo
+    // justifique (un borrado explícito). Si es un falso vacío (un turno
+    // filtrado por _deCache, un discardEmptyEdit, un merge previo...) NO se
+    // toca el archivo remoto — conserva su contenido bueno.
+    var lapidaAqui = Object.keys(st.tombstones).some(function (id) {
+      return st.dayIndex[id] === fecha;
+    });
+    if (!locales.length && !lapidaAqui) {
       delete st.syncedDay[fecha];
       delete st.syncedDayAt[fecha];
       persist();
       return Promise.resolve();
     }
-
-    var locales = JSON.parse(jsonActual).turnos || [];
+    if (!locales.length && !etag) {
+      // nada local, nada remoto que limpiar
+      delete st.syncedDay[fecha]; delete st.syncedDayAt[fecha]; persist();
+      return Promise.resolve();
+    }
 
     // Si el archivo ya existe, traer su contenido y UNIR antes de escribir.
     // Así NUNCA se sube un subconjunto que borre del archivo un turno que
@@ -404,14 +422,23 @@
           st.syncedDay[fecha] = firma(canonFinal);
           st.syncedDayAt[fecha] = Date.now();
           st.ultima = Date.now();
+          // Borrado ya propagado a este archivo: soltar el dayIndex para no
+          // reintentar la limpieza en cada sincro (la lápida sigue viva en
+          // st.tombstones y en _borrados.json).
+          var enArchivo = {};
+          turnosFinal.forEach(function (t) { enArchivo[t.id] = true; });
+          Object.keys(st.tombstones).forEach(function (id) {
+            if (st.dayIndex[id] === fecha && !enArchivo[id]) delete st.dayIndex[id];
+          });
           persist();
         });
       }).catch(function () { /* sin red: se reintenta luego, sin marcar error */ });
     });
   }
 
-  // Unión de dos listas de turnos por id: añade los que falten y se queda con
-  // el más reciente (_cloudAt remoto vs turnoAt local). NUNCA quita un id.
+  // Unión de dos listas de turnos por id: añade los que falten, se queda con el
+  // más reciente (_cloudAt remoto vs turnoAt local) y QUITA los que tienen
+  // lápida (borrados) — salvo que se hayan editado después de borrarse.
   function unir(remotos, locales) {
     var by = {};
     (remotos || []).forEach(function (t) { if (t && t.id) by[t.id] = t; });
@@ -422,7 +449,86 @@
       var lAt = st.turnoAt[t.id] || 0;
       if (!r || lAt >= rAt) by[t.id] = t;
     });
+    Object.keys(by).forEach(function (id) {
+      var tomb = st.tombstones[id];
+      if (!tomb) return;
+      var at = (by[id]._cloudAt) || st.turnoAt[id] || 0;
+      if (at <= tomb) delete by[id]; // borrado y no reeditado después → fuera
+    });
     return Object.keys(by).map(function (k) { return by[k]; });
+  }
+
+  // ── Lápidas (borrados que se propagan a todos los dispositivos) ─────────
+  // Un turno borrado en un aparato deja una lápida { id: ts }. Se guarda en
+  // EnRuta/_borrados.json (compartido). Al sincronizar: se bajan las lápidas
+  // de los demás, se aplican en local, y se suben las propias. unir() impide
+  // que un turno con lápida vuelva a colarse en un archivo de día.
+  function onTurnoBorrado(id) {
+    if (!configurada() || !id) return;
+    st.tombstones[id] = Date.now();
+    delete st.turnoHash[id];
+    delete st.turnoAt[id];
+    persist();
+    if (cuenta) {
+      clearTimeout(subidaTimer);
+      subidaTimer = setTimeout(function () { sincronizar(true); }, 1500);
+    }
+  }
+
+  function bajarBorrados() {
+    return graph('/me/drive/items/' + st.folderId + ':/' + BORRADOS + ':/content')
+      .then(function (r) {
+        if (!r || !r.ok) return null;
+        return r.text();
+      })
+      .then(function (txt) {
+        if (!txt) return;
+        var rem; try { rem = JSON.parse(txt); } catch (e) { return; }
+        Object.keys(rem || {}).forEach(function (id) {
+          var ts = rem[id] || 0;
+          if (!st.tombstones[id] || ts > st.tombstones[id]) st.tombstones[id] = ts;
+        });
+        persist();
+      })
+      .catch(function () { /* sin red / 404: nada */ });
+  }
+
+  // Quita de local los turnos con lápida (si no se editaron después de borrar).
+  function aplicarBorrados() {
+    var reg = R();
+    if (!reg || !reg.borrarIds) return;
+    var quitar = [];
+    Object.keys(st.tombstones).forEach(function (id) {
+      var lAt = st.turnoAt[id] || 0;
+      if (lAt > st.tombstones[id]) return; // reeditado tras borrar → se conserva
+      quitar.push(id);
+    });
+    if (!quitar.length) return;
+    _applying = true;
+    try { reg.borrarIds(quitar); } finally { _applying = false; }
+  }
+
+  var tombFirma = null;
+  function subirBorrados() {
+    if (!Object.keys(st.tombstones).length) return Promise.resolve();
+    var f = firma(JSON.stringify(st.tombstones));
+    if (f === tombFirma) return Promise.resolve(); // nada nuevo
+    var url = '/me/drive/items/' + st.folderId + ':/' + BORRADOS + ':/content';
+    return graph(url).then(function (r) {
+      return (r && r.ok) ? r.text() : null;
+    }).then(function (txt) {
+      var rem = {};
+      if (txt) { try { rem = JSON.parse(txt) || {}; } catch (e) {} }
+      var merged = {};
+      Object.keys(rem).forEach(function (id) { merged[id] = rem[id]; });
+      Object.keys(st.tombstones).forEach(function (id) {
+        if (!merged[id] || st.tombstones[id] > merged[id]) merged[id] = st.tombstones[id];
+      });
+      st.tombstones = merged;
+      return graph(url, { method: 'PUT', json: merged }).then(function (rr) {
+        if (rr && rr.ok) { tombFirma = firma(JSON.stringify(merged)); persist(); }
+      });
+    }).catch(function () {});
   }
 
   function quitarMeta(t) {
@@ -515,6 +621,7 @@
     ultimaCopia: function () { return st.ultima || 0; },
     aplicando: function () { return _applying; },
     onTurnosSaved: onTurnosSaved,
+    onTurnoBorrado: onTurnoBorrado,
     // Estado para el icono: 'sin' | 'reconectar' | 'sync' | 'error' | 'ok'
     estado: function () {
       if (!cuenta) return 'sin';
@@ -568,7 +675,8 @@
       }).then(function (res) {
         var borra = Promise.resolve();
         ((res && res.value) || []).forEach(function (it) {
-          if (!fechaDeNombre(it.name)) return;
+          // Archivos de día turno-*.json Y el de lápidas _borrados.json.
+          if (!fechaDeNombre(it.name) && it.name !== BORRADOS) return;
           borra = borra.then(function () {
             return graph('/me/drive/items/' + it.id, { method: 'DELETE' }).catch(function () {});
           });
@@ -583,7 +691,9 @@
         st.turnoAt = {};
         st.turnoHash = {};
         st.dayIndex = {};
+        st.tombstones = {};
         st.ultima = 0;
+        tombFirma = null;
         persist();
         pintarTarjeta();
       });
