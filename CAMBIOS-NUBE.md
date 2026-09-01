@@ -38,6 +38,25 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 36: telefonema LTV3 — selectores y checks con campo (enruta-v66)
+
+David: pulir el LTV3. Tipos de parte nuevos en el sistema de telefonemas:
+- **selector** (`{ t:'selector', id, opciones:[...] }`): desplegable en linea.
+  LTV3: "Establecida / Suprimida" y "señalizada / sin señalizar".
+- **opcionalCampo** (`{ t:'opcionalCampo', id, label, prefijo, campoHint }`):
+  check que, al marcarlo, muestra un campo de texto. LTV3: "en via/s" (numero
+  de via) y "por" (trinchera / zona inundable / vientos...).
+Cubierto en blankTelefonema, el render de la frase, guardar(),
+composeObsLineTelefonema y telefonemas-listado.js (catalogo). El texto de
+Observaciones se limpia de espacios sobrantes.
+Verificado: rellenar, marcar checks -> aparece el campo, guardar, reabrir ->
+todo restaurado; linea de Obs correcta.
+
+- Versiones: `enruta-v66` · `registro.js?v=202609050` · `registro.css?v=202609050`
+  · `telefonemas-listado.js?v=202609050` · `nube.js?v=202609050` · `CACHE enruta-rv-v62`.
+
+---
+
 ### 2026-09-01 — Paso 35: la 1a linea de Observaciones tambien sale con «•» (enruta-v65)
 
 Al escribir en Observaciones con el campo vacio, la primera linea no llevaba

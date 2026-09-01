@@ -206,7 +206,13 @@ button.btn.rec:hover{border-color:#fff}
   display:inline-flex; align-items:center; gap:4px; font-size:13px;
   color:var(--fg-dim); vertical-align:middle; margin:0 2px; cursor:pointer;
 }
-.tel-sentence .tel-opt input{width:15px; height:15px}
+.tel-sentence .tel-opt input[type=checkbox]{width:15px; height:15px}
+.tel-sentence .tel-inline-sel{
+  display:inline-block; margin:0 2px; padding:1px 4px; border:none;
+  border-bottom:1px solid var(--accent); background:transparent;
+  color:var(--accent); font-weight:600; font-size:inherit; font-style:inherit; font-family:inherit;
+}
+.tel-sentence .tel-inline-sel:focus-visible{outline:none; border-bottom-width:2px}
 
 /* Botón "cerrar" como X en la esquina superior derecha de la ventana del
  * telefonema, en vez de un botón "Cerrar" abajo, apelotonado con el resto. */

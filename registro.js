@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v65';
+  var APP_VERSION = 'enruta-v66';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -420,11 +420,11 @@
         {
           codigo: 'LTV3', nombre: 'Establecida o suprimida (con causa)',
           partes: [
-            { t: 'campo', id: 'accion', label: 'Establecida / suprimida', hint: 'Establecida o suprimida' },
+            { t: 'selector', id: 'accion', opciones: ['Establecida', 'Suprimida'] },
             { t: 'text', v: ' limitación temporal de velocidad máxima a ' },
             { t: 'campo', id: 'vel', label: 'Velocidad (km/h)' },
             { t: 'text', v: ' km/h ' },
-            { t: 'opcional', id: 'vias', label: 'Incluir "en vía/s ___"', v: 'en vía/s ___' },
+            { t: 'opcionalCampo', id: 'vias', label: 'en vía/s', prefijo: 'en vía/s ', campoHint: 'I, II…' },
             { t: 'text', v: ' desde el km ' },
             { t: 'campo', id: 'kmDesde', label: 'Km desde' },
             { t: 'text', v: ' al ' },
@@ -434,9 +434,9 @@
             { t: 'text', v: ' y ' },
             { t: 'campo', id: 'entre2', label: 'Estación' },
             { t: 'text', v: ' ' },
-            { t: 'opcional', id: 'causa', label: 'Incluir "por (trinchera, zona inundable, terraplén)"', v: 'por (trinchera, zona inundable, terraplén)' },
-            { t: 'text', v: '. ' },
-            { t: 'campo', id: 'senalizada', label: 'Señalizada / sin señalizar', hint: 'Se encuentra señalizada o sin señalizar' },
+            { t: 'opcionalCampo', id: 'causa', label: 'por', prefijo: 'por ', campoHint: 'trinchera, zona inundable, terraplén…' },
+            { t: 'text', v: '. Se encuentra ' },
+            { t: 'selector', id: 'senalizada', opciones: ['señalizada', 'sin señalizar'] },
             { t: 'text', v: ' ' },
             { t: 'opcional', id: 'csv', label: 'Incluir "Supone un CSV"', v: 'Supone un CSV' }
           ]
@@ -3110,7 +3110,9 @@
     var campos = {}, opcionales = {};
     variante.partes.forEach(function (p) {
       if (p.t === 'campo') campos[p.id] = (p.id === 'tren' && s0.servicioComercial) ? s0.servicioComercial : '';
+      else if (p.t === 'selector') campos[p.id] = (p.opciones || [''])[0];
       else if (p.t === 'opcional') opcionales[p.id] = false;
+      else if (p.t === 'opcionalCampo') { opcionales[p.id] = false; campos[p.id] = ''; }
     });
     return {
       cat: categoria.cat, codigo: variante.codigo, color: variante.color || categoria.color || 'rc',
@@ -3125,10 +3127,11 @@
   function composeObsLineTelefonema(tel, variante) {
     var texto = variante.partes.map(function (p) {
       if (p.t === 'text') return p.v;
-      if (p.t === 'campo') return tel.campos[p.id] || '___';
+      if (p.t === 'campo' || p.t === 'selector') return tel.campos[p.id] || '___';
       if (p.t === 'opcional') return tel.opcionales[p.id] ? p.v : '';
+      if (p.t === 'opcionalCampo') return tel.opcionales[p.id] ? (p.prefijo + (tel.campos[p.id] || '___')) : '';
       return '';
-    }).join('');
+    }).join('').replace(/\s+/g, ' ').trim();
     var linea = tel.codigo + ' · ' + (tel.hora || '') + ' — ' + texto;
     if (tel.transferido) linea += ' · Transferido';
     return linea;
@@ -3466,6 +3469,36 @@
             olbl.appendChild(document.createTextNode(p.label));
             campoInputs[p.id] = ocb;
             sentence.appendChild(olbl);
+          } else if (p.t === 'selector') {
+            var sel = document.createElement('select'); sel.className = 'tel-inline-sel';
+            (p.opciones || []).forEach(function (o) {
+              var opt = document.createElement('option'); opt.value = o; opt.textContent = o;
+              sel.appendChild(opt);
+            });
+            sel.value = tel.campos[p.id] || (p.opciones || [''])[0];
+            sel.addEventListener('change', function () { dirty = true; });
+            campoInputs[p.id] = sel;
+            sentence.appendChild(sel);
+          } else if (p.t === 'opcionalCampo') {
+            var oclbl = document.createElement('label'); oclbl.className = 'tel-opt';
+            var occb = document.createElement('input'); occb.type = 'checkbox';
+            occb.checked = !!tel.opcionales[p.id];
+            oclbl.appendChild(occb);
+            oclbl.appendChild(document.createTextNode(p.label));
+            var octxt = document.createElement('input'); octxt.type = 'text';
+            octxt.placeholder = p.campoHint || p.label;
+            octxt.value = tel.campos[p.id] || '';
+            octxt.style.display = occb.checked ? '' : 'none';
+            autosizeCh(octxt, (p.campoHint || p.label || '').length || 6);
+            occb.addEventListener('change', function () {
+              dirty = true;
+              octxt.style.display = occb.checked ? '' : 'none';
+              if (occb.checked) octxt.focus();
+            });
+            octxt.addEventListener('input', function () { dirty = true; });
+            campoInputs[p.id] = { cb: occb, txt: octxt };
+            sentence.appendChild(oclbl);
+            sentence.appendChild(octxt);
           }
         });
         textoContent.appendChild(sentence);
@@ -3622,8 +3655,12 @@
 
         function guardar() {
           variante.partes.forEach(function (p) {
-            if (p.t === 'campo') tel.campos[p.id] = (campoInputs[p.id].value || '').trim();
+            if (p.t === 'campo' || p.t === 'selector') tel.campos[p.id] = (campoInputs[p.id].value || '').trim();
             else if (p.t === 'opcional') tel.opcionales[p.id] = campoInputs[p.id].checked;
+            else if (p.t === 'opcionalCampo') {
+              tel.opcionales[p.id] = campoInputs[p.id].cb.checked;
+              tel.campos[p.id] = (campoInputs[p.id].txt.value || '').trim();
+            }
           });
           tel.numTel = cNumTel.input.value.trim(); tel.hora = cHora.input.value.trim();
           tel.de = deInp.value.trim(); tel.a = aInp.value.trim();

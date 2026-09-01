@@ -42,6 +42,16 @@
         opt.className = 'tel-list-optional';
         opt.textContent = '[' + String(p.v || '') + ']';
         container.appendChild(opt);
+      } else if (p.t === 'selector') {
+        var selp = document.createElement('span');
+        selp.className = 'tel-list-placeholder';
+        selp.textContent = '(' + (p.opciones || []).join(' / ') + ')';
+        container.appendChild(selp);
+      } else if (p.t === 'opcionalCampo') {
+        var ocp = document.createElement('span');
+        ocp.className = 'tel-list-optional';
+        ocp.textContent = '[' + (p.prefijo || (p.label + ' ')) + '___]';
+        container.appendChild(ocp);
       }
     });
   }
@@ -51,6 +61,8 @@
       if (p.t === 'text') return p.v;
       if (p.t === 'campo') return campoTexto(p);
       if (p.t === 'opcional') return p.v;
+      if (p.t === 'selector') return '(' + (p.opciones || []).join(' / ') + ')';
+      if (p.t === 'opcionalCampo') return '[' + (p.prefijo || (p.label + ' ')) + '___]';
       return '';
     }).join('');
   }
