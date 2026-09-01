@@ -228,6 +228,9 @@ button.btn.rec:hover{border-color:#fff}
 }
 /* Hueco de una pastilla activada ("en vía/s [___]"): campo pegado a la pastilla. */
 .tel-sentence .tel-cop-inp{margin-left:4px}
+/* Estilo "hueco": prefijo delante del campo, en gris cuando el campo está vacío. */
+.tel-sentence .tel-cop-pref{margin-left:2px}
+.tel-sentence .tel-cop-pref.vacio{color:var(--fg-dim)}
 
 /* Botón "cerrar" como X en la esquina superior derecha de la ventana del
  * telefonema, en vez de un botón "Cerrar" abajo, apelotonado con el resto. */

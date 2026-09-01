@@ -38,7 +38,7 @@
 
 ## Cambios (más reciente arriba)
 
-### 2026-09-01 — Paso 38: campoOpcional del telefonema ahora es pastilla (enruta-v68, SIN PUBLICAR)
+### 2026-09-01 — Paso 38: campoOpcional del telefonema: pastilla O hueco (enruta-v68, SIN PUBLICAR)
 
 David: en "en via/s" quiere lo mismo que en "Supone un CSV" — una pastilla
 que al activarla muestra el campo para anadir las vias.

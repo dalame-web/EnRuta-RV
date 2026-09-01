@@ -434,7 +434,7 @@
             { t: 'text', v: ' y ' },
             { t: 'campo', id: 'entre2', label: 'Estación' },
             { t: 'text', v: ' ' },
-            { t: 'campoOpcional', id: 'causa', prefijo: 'por ', campoHint: 'trinchera, zona inundable, vientos…' },
+            { t: 'campoOpcional', id: 'causa', prefijo: 'por ', campoHint: 'trinchera, zona inundable, vientos…', hueco: true },
             { t: 'text', v: '. Se encuentra ' },
             { t: 'selector', id: 'senalizada', opciones: ['señalizada', 'sin señalizar'] },
             { t: 'text', v: ' ' },
@@ -3129,7 +3129,10 @@
       if (p.t === 'text') return p.v;
       if (p.t === 'campo' || p.t === 'selector') return tel.campos[p.id] || '___';
       if (p.t === 'opcional') return tel.opcionales[p.id] ? p.v : '';
-      if (p.t === 'campoOpcional') return tel.opcionales[p.id] ? (p.prefijo + (tel.campos[p.id] || '___')) : '';
+      if (p.t === 'campoOpcional') {
+        if (p.hueco) return tel.campos[p.id] ? (p.prefijo + tel.campos[p.id]) : '';
+        return tel.opcionales[p.id] ? (p.prefijo + (tel.campos[p.id] || '___')) : '';
+      }
       return '';
     }).join('').replace(/\s+/g, ' ').replace(/\s+([.,;:])/g, '$1').trim();
     var linea = tel.codigo + ' · ' + (tel.hora || '') + ' — ' + texto;
@@ -3491,9 +3494,24 @@
             });
             campoInputs[p.id] = cyc; // se lee por .dataset.val
             sentence.appendChild(cyc);
+          } else if (p.t === 'campoOpcional' && p.hueco) {
+            // Estilo "hueco": prefijo en gris + campo siempre visible. Vacío =
+            // no sale en el texto. Sin pastilla ni casilla.
+            var chPref = document.createElement('span'); chPref.className = 'tel-cop-pref';
+            chPref.textContent = p.prefijo;
+            var chInp = document.createElement('input'); chInp.type = 'text';
+            chInp.placeholder = p.campoHint || '';
+            chInp.value = tel.campos[p.id] || '';
+            autosizeCh(chInp, (p.campoHint || '').length || 5);
+            function pintaChPref() { chPref.classList.toggle('vacio', !chInp.value.trim()); }
+            pintaChPref();
+            chInp.addEventListener('input', function () { dirty = true; pintaChPref(); });
+            campoInputs[p.id] = { txt: chInp };
+            sentence.appendChild(chPref);
+            sentence.appendChild(chInp);
           } else if (p.t === 'campoOpcional') {
-            // Pastilla (como "Supone un CSV") que al activarla muestra un hueco
-            // para el valor. "+ en vía/s" → "en vía/s [___]".
+            // Estilo "pastilla" (como "Supone un CSV"): "+ etiqueta" → al
+            // activarla, "etiqueta" + el hueco para el valor.
             var copPill = document.createElement('button'); copPill.type = 'button';
             copPill.className = 'tel-pill';
             var copInp = document.createElement('input'); copInp.type = 'text';
@@ -3678,8 +3696,8 @@
             else if (p.t === 'selector') tel.campos[p.id] = campoInputs[p.id].dataset.val || '';
             else if (p.t === 'opcional') tel.opcionales[p.id] = !!campoInputs[p.id].dataset.on;
             else if (p.t === 'campoOpcional') {
-              tel.opcionales[p.id] = !!campoInputs[p.id].pill.dataset.on;
               tel.campos[p.id] = (campoInputs[p.id].txt.value || '').trim();
+              if (!p.hueco) tel.opcionales[p.id] = !!campoInputs[p.id].pill.dataset.on;
             }
           });
           tel.numTel = cNumTel.input.value.trim(); tel.hora = cHora.input.value.trim();
