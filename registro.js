@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v58';
+  var APP_VERSION = 'enruta-v59';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -815,6 +815,7 @@
   var maniobras = [];
   var editId = null;
   var expandedSvc = 0;
+  var cuadranteAbierto = false; // celda "Turno" (datos de Calendar) plegada/desplegada
   var incidenciaAbierta = {}; // svc index -> bool. Estado de UI, no se persiste.
   // Comprobaciones: svc index -> bool, solo cuando el usuario ha tocado el
   // toggle a mano (si no está la clave, el estado se deriva de si ya hay
@@ -1000,7 +1001,7 @@
     // que la copia en la nube (OneDrive) cubra cualquier cambio. Capa
     // opcional: si no hay sesión o nube.js no cargó, no hace nada.
     if (k === K_TURNOS && window.NUBE) window.NUBE.onTurnosSaved(out);
-    if (k === K_SETTINGS && window.NUBE && window.NUBE.onConfigSaved) window.NUBE.onConfigSaved();
+    if ((k === K_SETTINGS || k === K_GCAL_CACHE) && window.NUBE && window.NUBE.onConfigSaved) window.NUBE.onConfigSaved();
   }
   var saveTimer = null;
   function autosave() {
@@ -2686,6 +2687,104 @@
     return h;
   }
 
+  // ── Celda "Turno": datos del cuadrante (Google Calendar) para ese día ──
+  function cuadranteParaTurno(t) {
+    if (!settings.telDevMode) return null;
+    var fechas = {};
+    (t.servicios || []).forEach(function (s) { if (s.fecha) fechas[s.fecha] = 1; });
+    var ks = Object.keys(fechas).sort();
+    for (var i = 0; i < ks.length; i++) {
+      var c = gcalCacheFind(ks[i]);
+      if (c) return c;
+    }
+    return null;
+  }
+  function renderCuadranteCell(t) {
+    var cache = cuadranteParaTurno(t);
+    if (!cache) return '';
+    var full = cache.raw ? parseCalendarCompleto(cache.raw) : null;
+    var codigo = (full && full.turno) || cache.codigo || '—';
+    var horario = (full && full.horario) ||
+      ((cache.toma || '?') + '–' + (cache.deje || '?'));
+    var h = '<div class="card cuadrante-card' + (cuadranteAbierto ? ' abierta' : '') + '">' +
+      '<button type="button" class="cuadrante-head" data-action="cuadrante-toggle">' +
+      '<span class="cuadrante-resumen">' + esc(codigo) + ' · ' + esc(horario) + '</span>' +
+      '<span class="chev">' + (cuadranteAbierto ? '▴' : '▾') + '</span></button>';
+    if (cuadranteAbierto) h += renderCuadranteDetalle(full, cache, t);
+    h += '</div>';
+    return h;
+  }
+  function renderCuadranteDetalle(full, cache, t) {
+    var h = '<div class="cuadrante-detalle">';
+    if (!full) {
+      // Sin descripción completa guardada (caché antigua): lo básico.
+      h += '<div class="cuad-meta"><span>Toma <b>' + esc(cache.toma || '—') + '</b></span>' +
+        '<span>Deje <b>' + esc(cache.deje || '—') + '</b></span>' +
+        '<span>Descanso <b>' + esc(cache.descansoMin ? fmtDur(cache.descansoMin) : '—') + '</b></span></div>' +
+        '<div class="hint">Vuelve a sincronizar Google Calendar para ver el detalle completo.</div></div>';
+      return h;
+    }
+    // Cabecera: turno · horario · tiempo de trabajo
+    h += '<div class="cuad-meta">' +
+      (full.turno ? '<span>Turno <b>' + esc(full.turno) + '</b></span>' : '') +
+      (full.horario ? '<span>Horario <b>' + esc(full.horario) + '</b></span>' : '') +
+      (full.totalWT ? '<span>Tiempo de trabajo <b>' + esc(full.totalWT) + '</b></span>' : '') +
+      '</div>';
+    // Chivato: la toma/deje del cuadrante vs lo que hay en el turno.
+    var mh = full.horario.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+    var cuadToma = mh ? mh[1] : '', cuadDeje = mh ? mh[2] : '';
+    var avisos = [];
+    if (cuadToma && t.toma && cuadToma !== t.toma) avisos.push('La toma del turno (' + t.toma + ') no coincide con el cuadrante (' + cuadToma + ').');
+    if (cuadDeje && t.deje && cuadDeje !== t.deje) avisos.push('El deje del turno (' + t.deje + ') no coincide con el cuadrante (' + cuadDeje + ').');
+    if (cuadToma && !t.toma) avisos.push('Falta la toma en el turno (cuadrante: ' + cuadToma + ').');
+    if (cuadDeje && !t.deje) avisos.push('Falta el deje en el turno (cuadrante: ' + cuadDeje + ').');
+    avisos.forEach(function (a) { h += '<div class="cuad-alerta">⚠️ ' + esc(a) + '</div>'; });
+    // Línea de tiempo — todos los tramos, en orden.
+    var horasTurno = {};
+    (t.servicios || []).forEach(function (s) { if (s.hSalida) horasTurno[s.hSalida] = 1; });
+    h += '<div class="cuad-tl">';
+    var prevMin = null;
+    full.tramos.forEach(function (tr, idx) {
+      var curMin = hhmmToMin(tr.hora);
+      if (prevMin != null && curMin != null && curMin < prevMin) {
+        h += '<div class="cuad-noche">— noche —</div>';
+      }
+      prevMin = curMin;
+      var ruta = tr.origen ? (esc(tr.origen) + ' → ' + esc(tr.destino)) : esc(tr.lugar || '');
+      var extra = '';
+      if (tr.k === 'descanso') {
+        var sig = full.tramos[idx + 1];
+        var dm = sig ? durMin(tr.hora, sig.hora) : null;
+        if (dm != null) extra = ' <span class="cuad-dur">≈ ' + fmtDur(dm) + '</span>';
+      }
+      if (tr.k === 'conduce' && !horasTurno[tr.hora]) {
+        extra += ' <span class="cuad-alerta">· no está en el turno</span>';
+      }
+      h += '<div class="cuad-row t-' + tr.k + '">' +
+        '<span class="cuad-h">' + esc(tr.hora) + '</span>' +
+        '<span class="cuad-t"><b>' + esc(tr.et) + '</b>' + (ruta ? ' · ' + ruta : '') + extra + '</span>' +
+        '</div>';
+    });
+    h += '</div>';
+    if (full.extra && full.extra.length) {
+      h += '<div class="cuad-sub"><div class="cuad-sub-t">Más</div>' +
+        full.extra.map(function (x) { return '<div>' + esc(x) + '</div>'; }).join('') + '</div>';
+    }
+    if (full.historial && full.historial.length) {
+      h += '<div class="cuad-sub"><div class="cuad-sub-t">Cambios de turno (historial)</div>' +
+        full.historial.map(function (hh) {
+          return '<div>' + esc(hh.codigo) + (hh.horario ? ' · ' + esc(hh.horario) : '') +
+            (hh.totalWT ? ' · ' + esc(hh.totalWT) : '') + '</div>';
+        }).join('') + '</div>';
+    }
+    if (full.notas && full.notas.length) {
+      h += '<div class="cuad-sub"><div class="cuad-sub-t">Notas personales</div>' +
+        full.notas.map(function (n) { return '<div>' + esc(n) + '</div>'; }).join('') + '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
   function renderEditor() {
     var t = getTurno(editId);
     if (!t) { renderCalendar(); setView('calendario'); return; }
@@ -2712,6 +2811,10 @@
       h += '<div class="editor-ro-aviso">🔒 Turno cerrado — solo lectura. ' +
         'Pulsa <b>Reabrir turno</b> para editar.</div>';
     }
+
+    // Celda "Turno" — datos del cuadrante (Google Calendar) para ese día,
+    // ENCIMA de Toma/Descanso/Deje. Solo si hay datos y en modo desarrollador.
+    h += renderCuadranteCell(t);
 
     // Toma / Deje / Descanso — card propia, un solo dato para todo el turno,
     // entre la barra de arriba y los servicios. Siempre visible.
@@ -3958,6 +4061,82 @@
     return { fechaInicio: fechaInicioISO, fechaFin: fechaFinISO,
       toma: toma, deje: deje, descansoMin: descansoMin, servicios: servicios };
   }
+
+  // ── Lectura COMPLETA de la descripción de Calendar ─────────────────────
+  // Para la celda "Turno" del editor: saca TODO tal cual (cabecera, cada
+  // tramo de SERVICIOS, historial de cambios y notas personales), sin
+  // descartar nada. Nombres de tramo en inglés → español.
+  function tramoEsp(txtIngles) {
+    var t = String(txtIngles || '').toLowerCase();
+    if (/^toma/.test(t)) return { et: 'Toma', k: 'toma' };
+    if (/^deje/.test(t)) return { et: 'Deje', k: 'deje' };
+    if (/^train\b/.test(t)) return { et: 'Conduciendo', k: 'conduce' };
+    if (/travel time/.test(t)) return { et: 'De viajero', k: 'viaje' };
+    if (/passage connection/.test(t)) return { et: 'Enlace a pie', k: 'enlace' };
+    if (/duty interruption/.test(t)) return { et: 'Descanso (dormida)', k: 'descanso' };
+    if (/^break/.test(t)) return { et: 'Pausa', k: 'pausa' };
+    if (/preparation/.test(t)) return { et: 'Preparación', k: 'prep' };
+    if (/limpieza|apagado/.test(t)) return { et: 'Limpieza / apagado', k: 'limpieza' };
+    return { et: txtIngles, k: 'otro' }; // desconocido: se muestra tal cual
+  }
+  function parseCalendarCompleto(desc) {
+    var lineas = String(desc || '').split('\n');
+    var out = { turno: '', horario: '', totalWT: '', tramos: [], historial: [], notas: [], extra: [] };
+    var sec = 'cab';           // cab | serv | hist | notas
+    var pend = null;           // tramo esperando su línea de ubicación
+    var histAct = null;
+    for (var i = 0; i < lineas.length; i++) {
+      var ln = lineas[i].trim();
+      if (!ln) continue;
+      if (/^[─—–_=-]{4,}$/.test(ln)) { pend = null; continue; }
+      if (/CAMBIO DE TURNO/i.test(ln)) { sec = 'hist'; pend = null; continue; }
+      if (/NOTAS PERSONALES/i.test(ln)) { sec = 'notas'; pend = null; continue; }
+      if (/^SERVICIOS:?\s*$/i.test(ln)) { sec = 'serv'; pend = null; continue; }
+      if (/^===.*===\s*$/.test(ln)) { pend = null; continue; }
+      var m;
+      if ((m = ln.match(/^Turno:\s*(.+)$/i))) {
+        if (sec === 'hist' && histAct) histAct.codigo = m[1].trim();
+        else out.turno = m[1].trim();
+        pend = null; continue;
+      }
+      if ((m = ln.match(/^Anterior:\s*(.+)$/i))) {
+        histAct = { codigo: m[1].trim(), horario: '', totalWT: '' };
+        out.historial.push(histAct); pend = null; continue;
+      }
+      if ((m = ln.match(/^Horario:\s*(.+)$/i))) {
+        if (sec === 'hist' && histAct) histAct.horario = m[1].trim();
+        else if (!out.horario) out.horario = m[1].trim();
+        pend = null; continue;
+      }
+      if ((m = ln.match(/^Total\s*WT:\s*(.+)$/i))) {
+        if (sec === 'hist' && histAct) histAct.totalWT = m[1].trim();
+        else if (!out.totalWT) out.totalWT = m[1].trim();
+        pend = null; continue;
+      }
+      if (sec === 'notas') { out.notas.push(ln); continue; }
+      if (sec === 'hist') { continue; }
+      // Sección de servicios: "HH:MM <emoji> <Tipo>" o su línea de ubicación
+      var mt = ln.match(/^(\d{1,2}:\d{2})\s+(.+)$/);
+      if (mt) {
+        var tipoRaw = mt[2].replace(/^[^A-Za-zÀ-ÿ0-9]+/, '').trim();
+        var esp = tramoEsp(tipoRaw);
+        var tr = { hora: mt[1], et: esp.et, k: esp.k, lugar: '', origen: '', destino: '' };
+        out.tramos.push(tr); pend = tr; continue;
+      }
+      if (pend) {
+        if (ln.indexOf('→') !== -1 || ln.indexOf('->') !== -1) {
+          var pr = ln.split(/→|->/);
+          pend.origen = (pr[0] || '').trim(); pend.destino = (pr[1] || '').trim();
+        } else {
+          pend.lugar = ln;
+        }
+        pend = null; continue;
+      }
+      // Línea suelta que no encaja: se guarda para no perder información.
+      if (sec === 'cab' || sec === 'serv') out.extra.push(ln);
+    }
+    return out;
+  }
   // Normaliza un nombre de estación para comparar a pesar de que el
   // portal de la empresa y el Libro de Horarios escriban distinto
   // ("Madrid Puerta de Atocha" vs "MADRID-P.ATOCHA-ALMUDENA GRANDES").
@@ -4177,7 +4356,8 @@
       });
       var codigo = (ev.summary || '').replace(/^\*\s*/, '');
       gcalCache[fechaInicio] = { codigo: codigo, fechaFin: fechaFin, toma: parsed.toma,
-        deje: parsed.deje, descansoMin: parsed.descansoMin, servicios: parsed.servicios };
+        deje: parsed.deje, descansoMin: parsed.descansoMin, servicios: parsed.servicios,
+        raw: (ev.description || '') };
 
       // Dormida: el turno guardado puede estar indexado por cualquiera de
       // los dos días — se busca en ambos.
@@ -5287,7 +5467,7 @@
     var t = editId != null ? getTurno(editId) : null;
     return !!(t && t.estado === 'cerrado');
   }
-  var ACCIONES_RO = /^(volver|reabrir|borrar|svc-toggle|comprobaciones-toggle|nube-icono|nube-privacidad|telefonema-abrir)$/;
+  var ACCIONES_RO = /^(volver|reabrir|borrar|svc-toggle|cuadrante-toggle|comprobaciones-toggle|nube-icono|nube-privacidad|telefonema-abrir)$/;
 
   function onClick(e) {
     var el = e.target.closest('[data-action]');
@@ -5383,6 +5563,10 @@
     if (act === 'svc-toggle') {
       var nv = +el.getAttribute('data-svc');
       expandedSvc = (expandedSvc === nv) ? -1 : nv;
+      renderEditor(); return;
+    }
+    if (act === 'cuadrante-toggle') {
+      cuadranteAbierto = !cuadranteAbierto;
       renderEditor(); return;
     }
     if (act === 'del-servicio' && t) {
@@ -6134,6 +6318,14 @@
       dedupe: dedupeYPropaga,
       configParaSubir: nubeConfigParaSubir,
       aplicarConfig: nubeAplicarConfig,
+      gcalGet: function () { return gcalCache; },
+      gcalSet: function (obj) {
+        if (!obj || typeof obj !== 'object') return;
+        gcalCache = obj;
+        save(K_GCAL_CACHE, gcalCache);
+        if (lastSetView === 'registro' && editId != null) nubeReRender();
+        else if (lastSetView === 'calendario') renderCalendar();
+      },
       reRender: nubeReRender,
       trasVincular: nubeTrasVincular,
       pintarBanner: function () { nubeReRender(); },

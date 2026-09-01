@@ -573,10 +573,14 @@
         var reg = R();
         if (reg && reg.aplicarConfig) {
           _applying = true;
-          try { reg.aplicarConfig(rem.settings); } finally { _applying = false; }
+          try {
+            reg.aplicarConfig(rem.settings);
+            // Caché del cuadrante (Google Calendar) → a todos los dispositivos.
+            if (rem.gcal && typeof rem.gcal === 'object' && reg.gcalSet) reg.gcalSet(rem.gcal);
+          } finally { _applying = false; }
         }
         st.configAt = rem.at || Date.now();
-        st.configFirma = firma(JSON.stringify(rem.settings));
+        st.configFirma = firma(JSON.stringify(rem.settings) + '|' + JSON.stringify(rem.gcal || {}));
         persist();
       })
       .catch(function () { syncIncompleto = true; });
@@ -585,10 +589,11 @@
     var reg = R();
     if (!reg || !reg.configParaSubir) return Promise.resolve();
     var local = reg.configParaSubir();
-    var f = firma(JSON.stringify(local));
+    var gcal = reg.gcalGet ? (reg.gcalGet() || {}) : {};
+    var f = firma(JSON.stringify(local) + '|' + JSON.stringify(gcal));
     if (f === st.configFirma) return Promise.resolve(); // sin cambios
     var at = Math.max(Date.now(), (st.configAt || 0) + 1);
-    var body = JSON.stringify({ at: at, settings: local }, null, 2);
+    var body = JSON.stringify({ at: at, settings: local, gcal: gcal }, null, 2);
     return graph('/me/drive/items/' + st.folderId + ':/' + CONFIG + ':/content', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: body
     }).then(function (r) {

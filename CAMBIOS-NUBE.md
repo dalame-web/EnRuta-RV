@@ -38,6 +38,41 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 30: celda "Turno" con los datos del cuadrante (Calendar) en el editor (enruta-v59)
+
+David: mostrar los datos que salen en Google Calendar dentro del editor de
+Registro, en una celda plegable ENCIMA de Toma/Descanso/Deje. Solo modo
+desarrollador.
+
+- **`parseCalendarCompleto(desc)`** — lector nuevo que saca TODO de la
+  descripción del evento sin descartar nada: cabecera (Turno, Horario,
+  Total WT), cada tramo de SERVICIOS, «CAMBIO DE TURNO (Historial)» y
+  «NOTAS PERSONALES». Líneas sueltas que no encajan → `extra` (no se
+  pierden). No toca `parseEventoTurno` (que sigue para la sincro).
+- **Nombres en inglés → español:** Train → Conduciendo, Travel time → De
+  viajero, Passage connection → Enlace a pie, Duty interruption → Descanso
+  (dormida), Break → Pausa, Preparation → Preparación, Limpieza/apagado tal
+  cual. Desconocido → se muestra tal cual.
+- **Celda "Turno"** (`renderCuadranteCell`):
+  - Plegada: `<código> · <horario> ▾` (sin icono ni etiqueta).
+  - Desplegada: cabecera + **chivato ámbar** si la toma/deje del turno no
+    coincide con el cuadrante + línea de tiempo con todos los tramos
+    (Conduciendo en verde, descanso de dormida en ámbar con su duración,
+    divisor «— noche —» al cruzar medianoche, aviso «no está en el turno»
+    junto a un tramo de conducción que no tenga servicio) + historial +
+    notas.
+  - Estado plegado/desplegado en `cuadranteAbierto` (no se persiste).
+- **La caché del cuadrante (`gcalCache`) ahora se sincroniza** en
+  `_config.json` (`{ at, settings, gcal }`) → todos los dispositivos ven el
+  cuadrante aunque solo la tablet tenga el login de Google. `gcalProcesarEventos`
+  guarda además `raw` (la descripción del evento). Enganche en `save()` para
+  `K_GCAL_CACHE`.
+
+- Versiones: `enruta-v59` · `registro.js?v=202609043` · `registro.css?v=202609043`
+  · `nube.js?v=202609043` · `CACHE enruta-rv-v55`.
+
+---
+
 ### 2026-09-01 — Paso 29: cambio automático de tema claro/oscuro por hora (enruta-v58)
 
 David: que el modo claro/oscuro cambie solo según la hora.

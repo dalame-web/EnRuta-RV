@@ -890,6 +890,39 @@ input[type=number]::-webkit-inner-spin-button{
 .obs-bd-line.obs-hl-rc{background:color-mix(in srgb, var(--ok) 15%, transparent)}
 .obs-bd-line.obs-hl-maquinista{background:color-mix(in srgb, var(--tel-maquinista) 15%, transparent)}
 
+/* Celda "Turno" — datos del cuadrante (Google Calendar), plegable */
+.cuadrante-card{padding:0; overflow:hidden; border-left:3px solid var(--fg-dim)}
+.cuadrante-head{
+  width:100%; display:flex; align-items:center; gap:10px;
+  background:none; border:0; color:var(--fg); padding:11px 12px;
+  cursor:pointer; font-size:14px; text-align:left;
+}
+.cuadrante-head .cuadrante-resumen{flex:1; font-weight:600; font-variant-numeric:tabular-nums}
+.cuadrante-head .chev{color:var(--fg-dim)}
+.cuadrante-detalle{padding:2px 12px 12px; font-size:13px}
+.cuad-meta{display:flex; gap:8px 16px; flex-wrap:wrap; color:var(--fg-dim); margin:4px 0 10px}
+.cuad-meta b{color:var(--fg); font-weight:700}
+.cuad-alerta{color:var(--warn); font-size:12px; margin:2px 0}
+.cuad-tl{display:flex; flex-direction:column; margin-top:4px}
+.cuad-row{
+  display:grid; grid-template-columns:46px 1fr; gap:10px;
+  padding:5px 0; border-top:1px solid var(--border);
+}
+.cuad-row .cuad-h{color:var(--fg-dim); font-variant-numeric:tabular-nums}
+.cuad-row .cuad-t b{font-weight:600}
+.cuad-row.t-conduce .cuad-t b{color:var(--ok)}
+.cuad-row.t-viaje .cuad-t, .cuad-row.t-enlace .cuad-t{color:var(--fg-dim)}
+.cuad-row.t-toma .cuad-t b, .cuad-row.t-deje .cuad-t b{color:var(--fg)}
+.cuad-row.t-descanso, .cuad-row.t-pausa{background:color-mix(in srgb, var(--warn) 9%, transparent)}
+.cuad-dur{color:var(--fg-dim)}
+.cuad-noche{text-align:center; color:var(--fg-dim); font-size:11px; padding:5px 0; letter-spacing:.05em}
+.cuad-sub{margin-top:11px}
+.cuad-sub-t{
+  font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  color:var(--fg-dim); margin-bottom:3px;
+}
+.cuad-sub div{color:var(--fg-dim); padding:1px 0}
+
 /* Comprobaciones — dos columnas, relleno por columnas (arriba→abajo) */
 .checks{
   display:grid; grid-template-columns:1fr 1fr;
