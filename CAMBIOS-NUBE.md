@@ -38,6 +38,18 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 28: botón de telefonema LTV con etiqueta corta (enruta-v57)
+
+En el editor de Registro, el botón de telefonema LTV ponía «Limitación
+temporal velocidad». Ahora pone solo «LTV» (como ETCS y LZB). Campo nuevo
+opcional `catCorto` en la categoría; el botón usa `catCorto || catLabel`.
+El catálogo de la pestaña Telefonemas sigue con el nombre largo.
+
+- Versiones: `enruta-v57` · `registro.js?v=202609041` · `nube.js?v=202609041`
+  · `registro.css?v=202609040` · `CACHE enruta-rv-v53`.
+
+---
+
 ### 2026-09-01 — Paso 27: lote enruta-v56 (dedupe seguro · móvil · turno cerrado · config en la nube · sincro blindada · LTV3 · color en Observaciones)
 
 Todo esto se desarrolló en pasos separados y se publica JUNTO como

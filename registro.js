@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v56';
+  var APP_VERSION = 'enruta-v57';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -414,7 +414,7 @@
       ]
     },
     {
-      cat: 'LTV', catLabel: 'Limitación temporal velocidad', color: 'rc',
+      cat: 'LTV', catLabel: 'Limitación temporal velocidad', catCorto: 'LTV', color: 'rc',
       nombre: 'Limitación Temporal de Velocidad',
       variantes: [
         {
@@ -2646,7 +2646,7 @@
       h += '<div class="tel-cats">';
       CATS_REGISTRO.forEach(function (c) {
         h += '<button class="btn ghost" data-action="telefonema-cat" data-svc="' + si +
-          '" data-cat="' + esc(c.cat) + '">' + esc(c.catLabel) + '</button>';
+          '" data-cat="' + esc(c.cat) + '">' + esc(c.catCorto || c.catLabel) + '</button>';
       });
       h += '</div>';
     }
