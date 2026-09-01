@@ -38,6 +38,58 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 33: fuera el chivato por tramo + la revisión de Ajustes lista qué falta (enruta-v63, SIN PUBLICAR)
+
+**1. Fuera el chivato por tramo** («falta este servicio en el turno»). En una
+dormida completa seguía saliendo porque comparaba solo por hora del día, sin
+fecha → un tramo del día 2 no casaba con el servicio del día 2. Calendar ya
+muestra bien cuándo se conduce (tramos verdes). Eliminado + su código muerto.
+Se mantiene el chivato de **toma/deje** (turno vs `Horario:` del cuadrante,
+en minutos).
+
+**2. La revisión de sincronización (Ajustes / botón 🔄) ahora lista QUÉ
+FALTA.** Antes solo decía «se completarán los campos vacíos». Ahora, por cada
+día, sale «Falta por completar en el turno:» con la lista exacta:
+- `Toma: 08:38` / `Deje: 14:53` / `Descanso: 32 min` si falta alguno
+- `Servicio 6108: Madrid P.Atocha → Málaga (09:50)` por cada servicio del
+  cuadrante que no esté en el turno
+- Y en la cabecera del día: el **Tiempo de trabajo** (Total WT) del cuadrante.
+Texto aclarado: «Solo se rellenarán los campos vacíos — nunca se pisa lo que
+ya tienes».
+
+- Versiones (pendientes de publicar): `enruta-v63` · `registro.js?v=202609047`
+  · `registro.css?v=202609047` · `nube.js?v=202609047` · `CACHE enruta-rv-v59`.
+
+Pendiente de David: qué es «Condotta» (visto en la dormida BC0P2-D, línea
+«10:07 Condotta · Madrid Puerta de Atocha», antes del último Deje).
+
+---
+
+### 2026-09-01 — Paso 32: celda "Turno" — chivatos falsos «no está en el turno» (enruta-v62)
+
+David: en una dormida COMPLETA (ida + vuelta, la vuelta el día siguiente)
+seguía saliendo «falta este servicio». El chivato por tramo comparaba solo
+por hora del día, sin mirar la fecha → en una dormida un tramo del día 2 no
+casaba con el servicio del día 2.
+
+- **Quitado el chivato por tramo** («falta este servicio en el turno»). El
+  cuadrante ya muestra bien cuándo se conduce (tramos «Conduciendo» en
+  verde); el aviso por tramo confundía y daba falsos en dormidas. (David:
+  «en Calendar indica bien cuando conduzco».)
+- **Se mantiene** el chivato de toma/deje: si la toma o el deje del turno no
+  coinciden con el `Horario:` del cuadrante (comparando en minutos). Esos
+  campos son del turno completo, no de conducción — es una comparación
+  válida.
+- Eliminado el código muerto (`legEnTurno`, `minsTurno`).
+
+- Versiones (pendientes de publicar): `enruta-v63` · `registro.js?v=202609047`
+  · `nube.js?v=202609047` · `CACHE enruta-rv-v59`.
+
+Pendiente de David: qué es «Condotta» (visto en la dormida BC0P2-D, línea
+«10:07 Condotta · Madrid Puerta de Atocha», justo antes del último Deje).
+
+---
+
 ### 2026-09-01 — Paso 32: celda "Turno" — chivatos falsos «no está en el turno» (enruta-v62)
 
 David: en varios tramos salía «no está en el turno» siendo servicios que SÍ

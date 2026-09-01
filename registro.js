@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v62';
+  var APP_VERSION = 'enruta-v63';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -2775,25 +2775,7 @@
     if (cuadToma && !t.toma) avisos.push('Falta la toma en el turno (cuadrante: ' + cuadToma + ').');
     if (cuadDeje && !t.deje) avisos.push('Falta el deje en el turno (cuadrante: ' + cuadDeje + ').');
     avisos.forEach(function (a) { h += '<div class="cuad-alerta">⚠️ ' + esc(a) + '</div>'; });
-    // Línea de tiempo — todos los tramos, en orden. Para el chivato "no está en
-    // el turno": la hora de salida de cada servicio del turno, en minutos.
-    // Tolerancia ±5 min (el cuadrante trae la hora real y el Libro la teórica)
-    // y también se mira la hora de salida de cada PARADA (un servicio del Libro
-    // puede tener paradas que en el cuadrante salen como tramos sueltos).
-    var minsTurno = [];
-    (t.servicios || []).forEach(function (s) {
-      var m = hhmmToMin(s.hSalida);
-      if (m != null) minsTurno.push(m);
-      (s.paradas || []).forEach(function (p) {
-        var mp = hhmmToMin(p.hora);
-        if (mp != null) minsTurno.push(mp);
-      });
-    });
-    function legEnTurno(hhmm) {
-      var m = hhmmToMin(hhmm);
-      if (m == null) return true;
-      return minsTurno.some(function (x) { return Math.abs(x - m) <= 5; });
-    }
+    // Línea de tiempo — todos los tramos del cuadrante, en orden, tal cual.
     h += '<div class="cuad-tl">';
     var prevMin = null;
     full.tramos.forEach(function (tr, idx) {
@@ -2808,11 +2790,6 @@
         var sig = full.tramos[idx + 1];
         var dm = sig ? durMin(tr.hora, sig.hora) : null;
         if (dm != null) extra = ' <span class="cuad-dur">≈ ' + fmtDur(dm) + '</span>';
-      }
-      // "no está en el turno": solo para tramos de conducción con ruta real
-      // (origen→destino), no para movimientos sueltos a/desde cochera.
-      if (tr.k === 'conduce' && tr.origen && tr.destino && !legEnTurno(tr.hora)) {
-        extra += ' <span class="cuad-alerta">· falta este servicio en el turno</span>';
       }
       h += '<div class="cuad-row t-' + tr.k + '">' +
         '<span class="cuad-h">' + esc(tr.hora) + '</span>' +
@@ -4125,6 +4102,7 @@
     if (/^toma/.test(t)) return { et: 'Toma', k: 'toma' };
     if (/^deje/.test(t)) return { et: 'Deje', k: 'deje' };
     if (/^train\b/.test(t)) return { et: 'Conduciendo', k: 'conduce' };
+    if (/^condotta\b/.test(t)) return { et: 'Retraso conducción', k: 'conduce' };
     if (/travel time/.test(t)) return { et: 'De viajero', k: 'viaje' };
     if (/passage connection/.test(t)) return { et: 'Traslado', k: 'enlace' };
     if (/duty interruption/.test(t)) return { et: 'Descanso (dormida)', k: 'descanso' };
@@ -4444,6 +4422,21 @@
       // se metía SIEMPRE que hubiera turno + evento, así que un día ya
       // completado del todo seguía saliendo como pendiente en cada
       // sincronización sin parar.
+      // Lista EXACTA de lo que falta por completar en el turno (para la
+      // revisión de Ajustes — que el usuario vea qué va a rellenar).
+      var faltan = [];
+      if (!existente.toma && parsed.toma) faltan.push('Toma: ' + parsed.toma);
+      if (!existente.deje && parsed.deje) faltan.push('Deje: ' + parsed.deje);
+      if (!existente.descanso && parsed.descansoMin) faltan.push('Descanso: ' + fmtDescansoMin(parsed.descansoMin));
+      parsed.servicios.forEach(function (sv) {
+        if (servicioYaExiste(existente, sv)) return;
+        var num = (sv.guess && sv.guess.servicio) || '?';
+        faltan.push('Servicio ' + num + ': ' + prettyEstacion(sv.origen) + ' → ' +
+          prettyEstacion(sv.destino) + (sv.hSalida ? ' (' + sv.hSalida + ')' : ''));
+      });
+      prop.faltan = faltan;
+      var mWT = String(ev.description || '').match(/Total\s*WT:\s*([\d:]+)/i);
+      prop.totalWT = mWT ? mWT[1] : '';
       var faltaHorario = (!existente.toma && parsed.toma) || (!existente.deje && parsed.deje) ||
         (!existente.descanso && parsed.descansoMin);
       var faltaServicio = parsed.servicios.some(function (sv) { return !servicioYaExiste(existente, sv); });
@@ -4566,9 +4559,16 @@
         '<label class="gcal-check-sm">' +
         '<input type="checkbox" data-gcal-incluir data-gi="' + gi + '" checked>' +
         'Completar huecos</label></div>';
-      h += '<div class="hint">Toma ' + esc(prop.toma || '—') + ' · Deje ' + esc(prop.deje || '—') +
-        ' · Descanso ' + fmtDescansoMin(prop.descansoMin) + '</div>';
-      h += '<div class="hint">Ya hay un turno guardado ese día — solo se completarán los campos vacíos.</div>';
+      h += '<div class="hint">Cuadrante: Toma ' + esc(prop.toma || '—') + ' · Deje ' + esc(prop.deje || '—') +
+        ' · Descanso ' + fmtDescansoMin(prop.descansoMin) +
+        (prop.totalWT ? ' · Tiempo de trabajo ' + esc(prop.totalWT) : '') + '</div>';
+      if (prop.faltan && prop.faltan.length) {
+        h += '<div class="hint" style="color:var(--warn);margin-top:4px">Falta por completar en el turno:</div>' +
+          '<ul class="gcal-faltan">' +
+          prop.faltan.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') +
+          '</ul>';
+      }
+      h += '<div class="hint">Solo se rellenarán los campos vacíos — nunca se pisa lo que ya tienes.</div>';
       prop.servicios.forEach(function (sv, si) {
         h += '<div class="field-grid" style="grid-template-columns:1fr 1fr 90px;margin-top:6px">' +
           '<div class="field"><label>Origen' + (esDormida ? ' (' + esc(ymdNice(sv.fecha)) + ')' : '') + '</label><div class="hint" style="margin:0">' + esc(prettyEstacion(sv.origen)) + '</div></div>' +
