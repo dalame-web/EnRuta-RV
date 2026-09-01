@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v61';
+  var APP_VERSION = 'enruta-v62';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -2762,17 +2762,38 @@
       (full.totalWT ? '<span>Tiempo de trabajo <b>' + esc(full.totalWT) + '</b></span>' : '') +
       '</div>';
     // Chivato: la toma/deje del cuadrante vs lo que hay en el turno.
+    // Se compara EN MINUTOS ("8:38" y "08:38" son la misma hora).
+    function mismaHora(a, b) {
+      var ma = hhmmToMin(a), mb = hhmmToMin(b);
+      return ma != null && mb != null && ma === mb;
+    }
     var mh = full.horario.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
     var cuadToma = mh ? mh[1] : '', cuadDeje = mh ? mh[2] : '';
     var avisos = [];
-    if (cuadToma && t.toma && cuadToma !== t.toma) avisos.push('La toma del turno (' + t.toma + ') no coincide con el cuadrante (' + cuadToma + ').');
-    if (cuadDeje && t.deje && cuadDeje !== t.deje) avisos.push('El deje del turno (' + t.deje + ') no coincide con el cuadrante (' + cuadDeje + ').');
+    if (cuadToma && t.toma && !mismaHora(cuadToma, t.toma)) avisos.push('La toma del turno (' + t.toma + ') no coincide con el cuadrante (' + cuadToma + ').');
+    if (cuadDeje && t.deje && !mismaHora(cuadDeje, t.deje)) avisos.push('El deje del turno (' + t.deje + ') no coincide con el cuadrante (' + cuadDeje + ').');
     if (cuadToma && !t.toma) avisos.push('Falta la toma en el turno (cuadrante: ' + cuadToma + ').');
     if (cuadDeje && !t.deje) avisos.push('Falta el deje en el turno (cuadrante: ' + cuadDeje + ').');
     avisos.forEach(function (a) { h += '<div class="cuad-alerta">⚠️ ' + esc(a) + '</div>'; });
-    // Línea de tiempo — todos los tramos, en orden.
-    var horasTurno = {};
-    (t.servicios || []).forEach(function (s) { if (s.hSalida) horasTurno[s.hSalida] = 1; });
+    // Línea de tiempo — todos los tramos, en orden. Para el chivato "no está en
+    // el turno": la hora de salida de cada servicio del turno, en minutos.
+    // Tolerancia ±5 min (el cuadrante trae la hora real y el Libro la teórica)
+    // y también se mira la hora de salida de cada PARADA (un servicio del Libro
+    // puede tener paradas que en el cuadrante salen como tramos sueltos).
+    var minsTurno = [];
+    (t.servicios || []).forEach(function (s) {
+      var m = hhmmToMin(s.hSalida);
+      if (m != null) minsTurno.push(m);
+      (s.paradas || []).forEach(function (p) {
+        var mp = hhmmToMin(p.hora);
+        if (mp != null) minsTurno.push(mp);
+      });
+    });
+    function legEnTurno(hhmm) {
+      var m = hhmmToMin(hhmm);
+      if (m == null) return true;
+      return minsTurno.some(function (x) { return Math.abs(x - m) <= 5; });
+    }
     h += '<div class="cuad-tl">';
     var prevMin = null;
     full.tramos.forEach(function (tr, idx) {
@@ -2783,13 +2804,15 @@
       prevMin = curMin;
       var ruta = tr.origen ? (esc(tr.origen) + ' → ' + esc(tr.destino)) : esc(tr.lugar || '');
       var extra = '';
-      if (tr.k === 'descanso') {
+      if (tr.k === 'descanso' || tr.k === 'pausa') {
         var sig = full.tramos[idx + 1];
         var dm = sig ? durMin(tr.hora, sig.hora) : null;
         if (dm != null) extra = ' <span class="cuad-dur">≈ ' + fmtDur(dm) + '</span>';
       }
-      if (tr.k === 'conduce' && !horasTurno[tr.hora]) {
-        extra += ' <span class="cuad-alerta">· no está en el turno</span>';
+      // "no está en el turno": solo para tramos de conducción con ruta real
+      // (origen→destino), no para movimientos sueltos a/desde cochera.
+      if (tr.k === 'conduce' && tr.origen && tr.destino && !legEnTurno(tr.hora)) {
+        extra += ' <span class="cuad-alerta">· falta este servicio en el turno</span>';
       }
       h += '<div class="cuad-row t-' + tr.k + '">' +
         '<span class="cuad-h">' + esc(tr.hora) + '</span>' +

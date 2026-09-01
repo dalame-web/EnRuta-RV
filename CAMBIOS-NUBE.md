@@ -38,6 +38,36 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 32: celda "Turno" — chivatos falsos «no está en el turno» (enruta-v62)
+
+David: en varios tramos salía «no está en el turno» siendo servicios que SÍ
+están.
+
+- **Causa:** el chivato comparaba la hora del tramo con la hora de salida
+  del servicio **como texto** — `"09:30"` (cuadrante) ≠ `"9:30"` (Libro). Y
+  toma/deje igual (`"08:38"` ≠ `"8:38"`).
+- **Arreglado:** todo se compara **en minutos**, con tolerancia ±5 min para
+  los tramos de conducción (además se mira la hora de cada parada del
+  servicio). Verificado con un turno real (17/08, 2 servicios): 0 avisos
+  falsos.
+- El chivato de un tramo de conducción **solo** salta si tiene ruta real
+  (origen→destino) y de verdad no hay ningún servicio a esa hora — los
+  movimientos sueltos a/desde cochera ya no lo disparan.
+- Texto: «falta este servicio en el turno» (más claro que «no está»).
+- La **Pausa** también muestra su duración (≈ 32m), como el descanso.
+- Verificado con una dormida real (BC0P2-D): el tramo de vuelta que el
+  usuario aún NO había metido como servicio SÍ sale marcado (correcto); la
+  ida, que sí está, ya NO sale marcada.
+
+Pendiente de David: qué es el tipo de tramo «Condotta» (aparece sin
+traducir); y confirmar que los tramos marcados son de verdad servicios que
+faltan por meter.
+
+- Versiones: `enruta-v62` · `registro.js?v=202609046` · `nube.js?v=202609046`
+  · `registro.css?v=202609043` · `CACHE enruta-rv-v58`.
+
+---
+
 ### 2026-09-01 — Paso 31: arreglos de la sincro de Calendar y de config (enruta-v61)
 
 David: al sincronizar Google Calendar con un rango de fechas amplio desde
