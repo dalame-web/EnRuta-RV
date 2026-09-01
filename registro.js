@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v59';
+  var APP_VERSION = 'enruta-v60';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -4072,7 +4072,7 @@
     if (/^deje/.test(t)) return { et: 'Deje', k: 'deje' };
     if (/^train\b/.test(t)) return { et: 'Conduciendo', k: 'conduce' };
     if (/travel time/.test(t)) return { et: 'De viajero', k: 'viaje' };
-    if (/passage connection/.test(t)) return { et: 'Enlace a pie', k: 'enlace' };
+    if (/passage connection/.test(t)) return { et: 'Traslado', k: 'enlace' };
     if (/duty interruption/.test(t)) return { et: 'Descanso (dormida)', k: 'descanso' };
     if (/^break/.test(t)) return { et: 'Pausa', k: 'pausa' };
     if (/preparation/.test(t)) return { et: 'Preparación', k: 'prep' };

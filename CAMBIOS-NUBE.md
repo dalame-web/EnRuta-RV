@@ -50,7 +50,7 @@ desarrollador.
   «NOTAS PERSONALES». Líneas sueltas que no encajan → `extra` (no se
   pierden). No toca `parseEventoTurno` (que sigue para la sincro).
 - **Nombres en inglés → español:** Train → Conduciendo, Travel time → De
-  viajero, Passage connection → Enlace a pie, Duty interruption → Descanso
+  viajero, Passage connection → Traslado, Duty interruption → Descanso
   (dormida), Break → Pausa, Preparation → Preparación, Limpieza/apagado tal
   cual. Desconocido → se muestra tal cual.
 - **Celda "Turno"** (`renderCuadranteCell`):
