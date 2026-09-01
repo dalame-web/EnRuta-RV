@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v66';
+  var APP_VERSION = 'enruta-v67';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -424,7 +424,7 @@
             { t: 'text', v: ' limitación temporal de velocidad máxima a ' },
             { t: 'campo', id: 'vel', label: 'Velocidad (km/h)' },
             { t: 'text', v: ' km/h ' },
-            { t: 'opcionalCampo', id: 'vias', label: 'en vía/s', prefijo: 'en vía/s ', campoHint: 'I, II…' },
+            { t: 'campoOpcional', id: 'vias', prefijo: 'en vía/s ', campoHint: 'vía/s' },
             { t: 'text', v: ' desde el km ' },
             { t: 'campo', id: 'kmDesde', label: 'Km desde' },
             { t: 'text', v: ' al ' },
@@ -434,11 +434,11 @@
             { t: 'text', v: ' y ' },
             { t: 'campo', id: 'entre2', label: 'Estación' },
             { t: 'text', v: ' ' },
-            { t: 'opcionalCampo', id: 'causa', label: 'por', prefijo: 'por ', campoHint: 'trinchera, zona inundable, terraplén…' },
+            { t: 'campoOpcional', id: 'causa', prefijo: 'por ', campoHint: 'trinchera, zona inundable, vientos…' },
             { t: 'text', v: '. Se encuentra ' },
             { t: 'selector', id: 'senalizada', opciones: ['señalizada', 'sin señalizar'] },
             { t: 'text', v: ' ' },
-            { t: 'opcional', id: 'csv', label: 'Incluir "Supone un CSV"', v: 'Supone un CSV' }
+            { t: 'opcional', id: 'csv', label: 'Supone un CSV', v: 'Supone un CSV' }
           ]
         }
       ]
@@ -3109,10 +3109,9 @@
   function blankTelefonema(categoria, variante, s0, nombreCompleto, horaActual) {
     var campos = {}, opcionales = {};
     variante.partes.forEach(function (p) {
-      if (p.t === 'campo') campos[p.id] = (p.id === 'tren' && s0.servicioComercial) ? s0.servicioComercial : '';
+      if (p.t === 'campo' || p.t === 'campoOpcional') campos[p.id] = (p.id === 'tren' && s0.servicioComercial) ? s0.servicioComercial : '';
       else if (p.t === 'selector') campos[p.id] = (p.opciones || [''])[0];
       else if (p.t === 'opcional') opcionales[p.id] = false;
-      else if (p.t === 'opcionalCampo') { opcionales[p.id] = false; campos[p.id] = ''; }
     });
     return {
       cat: categoria.cat, codigo: variante.codigo, color: variante.color || categoria.color || 'rc',
@@ -3129,9 +3128,9 @@
       if (p.t === 'text') return p.v;
       if (p.t === 'campo' || p.t === 'selector') return tel.campos[p.id] || '___';
       if (p.t === 'opcional') return tel.opcionales[p.id] ? p.v : '';
-      if (p.t === 'opcionalCampo') return tel.opcionales[p.id] ? (p.prefijo + (tel.campos[p.id] || '___')) : '';
+      if (p.t === 'campoOpcional') return tel.campos[p.id] ? (p.prefijo + tel.campos[p.id]) : '';
       return '';
-    }).join('').replace(/\s+/g, ' ').trim();
+    }).join('').replace(/\s+/g, ' ').replace(/\s+([.,;:])/g, '$1').trim();
     var linea = tel.codigo + ' · ' + (tel.hora || '') + ' — ' + texto;
     if (tel.transferido) linea += ' · Transferido';
     return linea;
@@ -3461,44 +3460,51 @@
             campoInputs[p.id] = inp;
             sentence.appendChild(inp);
           } else if (p.t === 'opcional') {
-            var olbl = document.createElement('label'); olbl.className = 'tel-opt';
-            var ocb = document.createElement('input'); ocb.type = 'checkbox';
-            ocb.checked = !!tel.opcionales[p.id];
-            ocb.addEventListener('change', function () { dirty = true; });
-            olbl.appendChild(ocb);
-            olbl.appendChild(document.createTextNode(p.label));
-            campoInputs[p.id] = ocb;
-            sentence.appendChild(olbl);
+            // Pastilla: gris "+ texto" (fuera) → acento "texto" (dentro). Se
+            // toca para incluir/quitar. Nada de casilla en medio de la frase.
+            var pill = document.createElement('button'); pill.type = 'button';
+            pill.className = 'tel-pill';
+            var pillTxt = p.pill || p.v || p.label;
+            function pintaPill(on) {
+              pill.classList.toggle('on', on);
+              pill.textContent = on ? pillTxt : '+ ' + pillTxt;
+              pill.dataset.on = on ? '1' : '';
+            }
+            pintaPill(!!tel.opcionales[p.id]);
+            pill.addEventListener('click', function () { dirty = true; pintaPill(!pill.dataset.on); });
+            campoInputs[p.id] = pill; // se lee por .dataset.on
+            sentence.appendChild(pill);
           } else if (p.t === 'selector') {
-            var sel = document.createElement('select'); sel.className = 'tel-inline-sel';
-            (p.opciones || []).forEach(function (o) {
-              var opt = document.createElement('option'); opt.value = o; opt.textContent = o;
-              sel.appendChild(opt);
+            // Texto que cambia al tocarlo (rota entre las opciones). Compacto,
+            // se ajusta al texto, se ve como un hueco más de la frase.
+            var cyc = document.createElement('button'); cyc.type = 'button';
+            cyc.className = 'tel-cycle';
+            var cOpts = p.opciones && p.opciones.length ? p.opciones : [''];
+            var cCur = tel.campos[p.id];
+            if (cOpts.indexOf(cCur) === -1) cCur = cOpts[0];
+            cyc.textContent = cCur; cyc.dataset.val = cCur;
+            cyc.title = 'Tocar para cambiar';
+            cyc.addEventListener('click', function () {
+              var i = (cOpts.indexOf(cyc.dataset.val) + 1) % cOpts.length;
+              cyc.dataset.val = cOpts[i]; cyc.textContent = cOpts[i]; dirty = true;
             });
-            sel.value = tel.campos[p.id] || (p.opciones || [''])[0];
-            sel.addEventListener('change', function () { dirty = true; });
-            campoInputs[p.id] = sel;
-            sentence.appendChild(sel);
-          } else if (p.t === 'opcionalCampo') {
-            var oclbl = document.createElement('label'); oclbl.className = 'tel-opt';
-            var occb = document.createElement('input'); occb.type = 'checkbox';
-            occb.checked = !!tel.opcionales[p.id];
-            oclbl.appendChild(occb);
-            oclbl.appendChild(document.createTextNode(p.label));
-            var octxt = document.createElement('input'); octxt.type = 'text';
-            octxt.placeholder = p.campoHint || p.label;
-            octxt.value = tel.campos[p.id] || '';
-            octxt.style.display = occb.checked ? '' : 'none';
-            autosizeCh(octxt, (p.campoHint || p.label || '').length || 6);
-            occb.addEventListener('change', function () {
-              dirty = true;
-              octxt.style.display = occb.checked ? '' : 'none';
-              if (occb.checked) octxt.focus();
-            });
-            octxt.addEventListener('input', function () { dirty = true; });
-            campoInputs[p.id] = { cb: occb, txt: octxt };
-            sentence.appendChild(oclbl);
-            sentence.appendChild(octxt);
+            campoInputs[p.id] = cyc; // se lee por .dataset.val
+            sentence.appendChild(cyc);
+          } else if (p.t === 'campoOpcional') {
+            // Hueco normal con un prefijo delante ("en vía/s ___"). Vacío =
+            // no se pone en el texto. Sin casilla.
+            var copPref = document.createElement('span'); copPref.className = 'tel-cop-pref';
+            copPref.textContent = p.prefijo;
+            var copInp = document.createElement('input'); copInp.type = 'text';
+            copInp.placeholder = p.campoHint || p.prefijo;
+            copInp.value = tel.campos[p.id] || '';
+            autosizeCh(copInp, (p.campoHint || '').length || 5);
+            function pintaPref() { copPref.classList.toggle('vacio', !copInp.value.trim()); }
+            pintaPref();
+            copInp.addEventListener('input', function () { dirty = true; pintaPref(); });
+            campoInputs[p.id] = copInp;
+            sentence.appendChild(copPref);
+            sentence.appendChild(copInp);
           }
         });
         textoContent.appendChild(sentence);
@@ -3655,12 +3661,9 @@
 
         function guardar() {
           variante.partes.forEach(function (p) {
-            if (p.t === 'campo' || p.t === 'selector') tel.campos[p.id] = (campoInputs[p.id].value || '').trim();
-            else if (p.t === 'opcional') tel.opcionales[p.id] = campoInputs[p.id].checked;
-            else if (p.t === 'opcionalCampo') {
-              tel.opcionales[p.id] = campoInputs[p.id].cb.checked;
-              tel.campos[p.id] = (campoInputs[p.id].txt.value || '').trim();
-            }
+            if (p.t === 'campo' || p.t === 'campoOpcional') tel.campos[p.id] = (campoInputs[p.id].value || '').trim();
+            else if (p.t === 'selector') tel.campos[p.id] = campoInputs[p.id].dataset.val || '';
+            else if (p.t === 'opcional') tel.opcionales[p.id] = !!campoInputs[p.id].dataset.on;
           });
           tel.numTel = cNumTel.input.value.trim(); tel.hora = cHora.input.value.trim();
           tel.de = deInp.value.trim(); tel.a = aInp.value.trim();

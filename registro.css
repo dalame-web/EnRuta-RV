@@ -207,12 +207,28 @@ button.btn.rec:hover{border-color:#fff}
   color:var(--fg-dim); vertical-align:middle; margin:0 2px; cursor:pointer;
 }
 .tel-sentence .tel-opt input[type=checkbox]{width:15px; height:15px}
-.tel-sentence .tel-inline-sel{
-  display:inline-block; margin:0 2px; padding:1px 4px; border:none;
-  border-bottom:1px solid var(--accent); background:transparent;
-  color:var(--accent); font-weight:600; font-size:inherit; font-style:inherit; font-family:inherit;
+/* Selector "de tocar": el texto cambia de opción al pulsarlo. Se ve como un
+ * hueco más de la frase, subrayado punteado para que se note que se puede tocar. */
+.tel-sentence .tel-cycle{
+  display:inline; margin:0 2px; padding:0 2px; border:0; background:transparent;
+  color:var(--accent); font:inherit; font-weight:700; cursor:pointer;
+  border-bottom:2px dotted var(--accent); line-height:1;
 }
-.tel-sentence .tel-inline-sel:focus-visible{outline:none; border-bottom-width:2px}
+.tel-sentence .tel-cycle:active{opacity:.6}
+/* Pastilla opcional: "+ texto" (fuera) → "texto" en acento (dentro). */
+.tel-sentence .tel-pill{
+  display:inline; margin:0 3px; padding:1px 8px; border-radius:11px;
+  border:1px dashed var(--fg-dim); background:transparent;
+  color:var(--fg-dim); font:inherit; font-size:12px; font-style:normal; cursor:pointer;
+  vertical-align:middle;
+}
+.tel-sentence .tel-pill.on{
+  border-style:solid; border-color:var(--accent);
+  background:color-mix(in srgb, var(--accent) 15%, transparent); color:var(--accent); font-weight:600;
+}
+/* Prefijo de un hueco opcional ("en vía/s ___"): gris cuando el hueco está vacío. */
+.tel-sentence .tel-cop-pref{margin-left:2px}
+.tel-sentence .tel-cop-pref.vacio{color:var(--fg-dim)}
 
 /* Botón "cerrar" como X en la esquina superior derecha de la ventana del
  * telefonema, en vez de un botón "Cerrar" abajo, apelotonado con el resto. */

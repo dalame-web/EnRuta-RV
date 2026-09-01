@@ -38,6 +38,29 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 37: telefonema — fuera los desplegables y las casillas de la frase (enruta-v67)
+
+David: los desplegables nativos ocupan mucho y las casillas en medio de la
+frase no se entienden. Rediseno del sistema de partes de la frase:
+- **selector** ahora es un TEXTO QUE CAMBIA AL TOCARLO (rota entre las
+  opciones), subrayado punteado. Compacto, se ajusta al texto. Nada de
+  `<select>` nativo. LTV3: "Establecida/Suprimida" y "señalizada/sin
+  señalizar".
+- **opcionalCampo** -> **campoOpcional**: un hueco normal con un prefijo
+  delante ("en via/s ___"), en gris cuando esta vacio. Vacio = no sale en
+  el texto. **Sin casilla.**
+- **opcional** ahora es una PASTILLA: "+ texto" (fuera, punteada) -> "texto"
+  en acento (dentro). Se toca. Afecta tambien a ETC/LZB/ARS/RET.
+Cubierto en render, guardar (selector por dataset.val, opcional por
+dataset.on), blankTelefonema, composeObsLineTelefonema y el catalogo. El
+texto de Obs se limpia de espacios y de espacio antes de ". , ; :".
+Verificado el flujo completo en preview.
+
+- Versiones: `enruta-v67` · `registro.js?v=202609051` · `registro.css?v=202609051`
+  · `telefonemas-listado.js?v=202609051` · `nube.js?v=202609051` · `CACHE enruta-rv-v63`.
+
+---
+
 ### 2026-09-01 — Paso 36: telefonema LTV3 — selectores y checks con campo (enruta-v66)
 
 David: pulir el LTV3. Tipos de parte nuevos en el sistema de telefonemas:
