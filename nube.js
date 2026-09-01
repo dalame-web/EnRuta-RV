@@ -571,16 +571,18 @@
         var primeraVez = st.configAt == null;
         if (!primeraVez && !(rem.at > st.configAt)) return; // no es más nuevo
         var reg = R();
+        var gcalKeys = rem.gcal && typeof rem.gcal === 'object' ? Object.keys(rem.gcal).length : 0;
         if (reg && reg.aplicarConfig) {
           _applying = true;
           try {
-            reg.aplicarConfig(rem.settings);
-            // Caché del cuadrante (Google Calendar) → a todos los dispositivos.
-            if (rem.gcal && typeof rem.gcal === 'object' && reg.gcalSet) reg.gcalSet(rem.gcal);
+            reg.aplicarConfig(rem.settings, primeraVez);
+            // Caché del cuadrante (Google Calendar): solo si trae datos.
+            // gcalSet ya hace MERGE (nunca borra lo local).
+            if (gcalKeys && reg.gcalSet) reg.gcalSet(rem.gcal);
           } finally { _applying = false; }
         }
         st.configAt = rem.at || Date.now();
-        st.configFirma = firma(JSON.stringify(rem.settings) + '|' + JSON.stringify(rem.gcal || {}));
+        st.configFirma = firma(JSON.stringify(rem.settings) + '|' + (gcalKeys ? JSON.stringify(rem.gcal) : ''));
         persist();
       })
       .catch(function () { syncIncompleto = true; });
@@ -590,10 +592,15 @@
     if (!reg || !reg.configParaSubir) return Promise.resolve();
     var local = reg.configParaSubir();
     var gcal = reg.gcalGet ? (reg.gcalGet() || {}) : {};
-    var f = firma(JSON.stringify(local) + '|' + JSON.stringify(gcal));
+    var gcalKeys = Object.keys(gcal).length;
+    var f = firma(JSON.stringify(local) + '|' + (gcalKeys ? JSON.stringify(gcal) : ''));
     if (f === st.configFirma) return Promise.resolve(); // sin cambios
     var at = Math.max(Date.now(), (st.configAt || 0) + 1);
-    var body = JSON.stringify({ at: at, settings: local, gcal: gcal }, null, 2);
+    // Sin datos de cuadrante en este aparato → NO se manda `gcal` (no se pisa
+    // el del otro que sí lo tenga).
+    var payload = { at: at, settings: local };
+    if (gcalKeys) payload.gcal = gcal;
+    var body = JSON.stringify(payload, null, 2);
     return graph('/me/drive/items/' + st.folderId + ':/' + CONFIG + ':/content', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: body
     }).then(function (r) {

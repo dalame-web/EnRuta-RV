@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v60';
+  var APP_VERSION = 'enruta-v61';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1148,6 +1148,13 @@
   // NO se sincroniza: calView (lista/mes es preferencia por aparato) y los
   // contadores locales (aviso de nube, última copia).
   var CONFIG_NO_SYNC = { calView: 1, nubeAvisoContador: 1, lastBackup: 1 };
+  // Ajustes de bajo riesgo (no hay nada que "perder"): siempre gana la última
+  // escritura, así un cambio de tema propaga a los dos aparatos. El resto
+  // (nombre, ramas, Client ID de Google...) solo se rellena si aquí falta.
+  var CONFIG_LWW = {
+    theme: 1, themeAuto: 1, themeAutoClaro: 1, themeAutoOscuro: 1,
+    autoDownload: 1, nubePrivacidadVista: 1
+  };
   function nubeConfigParaSubir() {
     var out = {};
     Object.keys(settings).forEach(function (k) {
@@ -1156,15 +1163,29 @@
     });
     return out;
   }
-  function nubeAplicarConfig(remote) {
+  function nubeConfigVacio(v) {
+    return v == null || v === '' || v === false ||
+      (Array.isArray(v) && v.length === 0);
+  }
+  // primeraVez=true (este aparato nunca sincronizó config): se trae TODO del
+  // otro. Después: solo se RELLENA lo que aquí esté vacío y NUNCA se pisa un
+  // valor que ya tienes con otro distinto — así un aparato sin configurar
+  // (p.ej. el móvil sin login de Google) no borra los ajustes del que sí lo
+  // está (Client ID de Google, modo desarrollador, nombre, ramas...).
+  function nubeAplicarConfig(remote, primeraVez) {
     if (!remote) return false;
     var cambio = false;
     Object.keys(remote).forEach(function (k) {
       if (k.charAt(0) === '_' || CONFIG_NO_SYNC[k]) return;
-      if (JSON.stringify(settings[k]) !== JSON.stringify(remote[k])) {
-        settings[k] = remote[k];
-        cambio = true;
+      if (JSON.stringify(settings[k]) === JSON.stringify(remote[k])) return;
+      // CONFIG_LWW (tema, autoDownload...) siempre gana el más nuevo — el
+      // que baja aquí ya es más reciente (bajarConfig comprueba rem.at).
+      if (!primeraVez && !CONFIG_LWW[k]) {
+        if (!nubeConfigVacio(settings[k])) return; // ya tienes valor → no se pisa
+        if (nubeConfigVacio(remote[k])) return;    // no traer un vacío
       }
+      settings[k] = remote[k];
+      cambio = true;
     });
     if (!cambio) return false;
     if (!settings.ramas || !settings.ramas.length) settings.ramas = DEFAULT_RAMAS.slice();
@@ -2717,11 +2738,21 @@
   function renderCuadranteDetalle(full, cache, t) {
     var h = '<div class="cuadrante-detalle">';
     if (!full) {
-      // Sin descripción completa guardada (caché antigua): lo básico.
-      h += '<div class="cuad-meta"><span>Toma <b>' + esc(cache.toma || '—') + '</b></span>' +
+      // Caché antigua (sin la descripción completa): se muestra lo que hay.
+      h += '<div class="cuad-meta">' +
+        '<span>Toma <b>' + esc(cache.toma || '—') + '</b></span>' +
         '<span>Deje <b>' + esc(cache.deje || '—') + '</b></span>' +
-        '<span>Descanso <b>' + esc(cache.descansoMin ? fmtDur(cache.descansoMin) : '—') + '</b></span></div>' +
-        '<div class="hint">Vuelve a sincronizar Google Calendar para ver el detalle completo.</div></div>';
+        '<span>Descanso <b>' + esc(cache.descansoMin ? fmtDur(cache.descansoMin) : '—') + '</b></span>' +
+        '</div>';
+      if (cache.servicios && cache.servicios.length) {
+        h += '<div class="cuad-tl">';
+        cache.servicios.forEach(function (s) {
+          h += '<div class="cuad-row t-conduce"><span class="cuad-h">' + esc(s.hSalida || '') + '</span>' +
+            '<span class="cuad-t">' + esc(s.origen || '') + ' → ' + esc(s.destino || '') + '</span></div>';
+        });
+        h += '</div>';
+      }
+      h += '<div class="hint" style="margin-top:8px">El detalle completo aparece en la próxima sincronización de Google Calendar.</div></div>';
       return h;
     }
     // Cabecera: turno · horario · tiempo de trabajo
@@ -4313,22 +4344,30 @@
     if (!gcalToken) return Promise.reject(new Error('Sin token de Google.'));
     var calId = encodeURIComponent(settings.gcalCalendarId || 'primary');
     var off = offsetLocal();
-    var url = 'https://www.googleapis.com/calendar/v3/calendars/' + calId + '/events' +
+    var base = 'https://www.googleapis.com/calendar/v3/calendars/' + calId + '/events' +
       '?timeMin=' + encodeURIComponent(desdeISO + 'T00:00:00' + off) +
       '&timeMax=' + encodeURIComponent(hastaISO + 'T23:59:59' + off) +
-      '&singleEvents=true&orderBy=startTime';
-    return fetch(url, { headers: { Authorization: 'Bearer ' + gcalToken } })
-      .then(function (r) {
-        if (r.ok) return r.json();
-        // 401 = el token guardado ya no vale (caducado de verdad antes de
-        // lo previsto, o revocado) — se limpia para no reintentar con uno
-        // que Google ya ha rechazado.
-        if (r.status === 401) { gcalToken = null; save(K_GCAL_TOKEN, null); }
-        return r.text().then(function (body) {
-          throw new Error('HTTP ' + r.status + ': ' + body.slice(0, 300));
+      '&singleEvents=true&orderBy=startTime&maxResults=2500';
+    var todos = [];
+    // Google devuelve como mucho 2500 eventos por página. Rangos amplios
+    // (varias semanas/meses) los parte en varias — hay que seguir el
+    // nextPageToken o se pierden los del final del rango.
+    function pagina(pageToken) {
+      var url = base + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
+      return fetch(url, { headers: { Authorization: 'Bearer ' + gcalToken } })
+        .then(function (r) {
+          if (r.ok) return r.json();
+          if (r.status === 401) { gcalToken = null; save(K_GCAL_TOKEN, null); }
+          return r.text().then(function (body) {
+            throw new Error('HTTP ' + r.status + ': ' + body.slice(0, 300));
+          });
+        })
+        .then(function (data) {
+          (data.items || []).forEach(function (it) { todos.push(it); });
+          if (data.nextPageToken) return pagina(data.nextPageToken);
         });
-      })
-      .then(function (data) { return data.items || []; });
+    }
+    return pagina(null).then(function () { return todos; });
   }
   // Compara cada evento con lo que ya hay guardado ese día — nunca decide
   // sobrescribir, solo detecta huecos y (para "ayer") posibles cambios de
@@ -6319,9 +6358,16 @@
       configParaSubir: nubeConfigParaSubir,
       aplicarConfig: nubeAplicarConfig,
       gcalGet: function () { return gcalCache; },
+      // MERGE, nunca reemplazo: se añaden/actualizan días del cuadrante que
+      // vengan de otro aparato, pero NUNCA se borra lo que ya hay aquí (un
+      // aparato sin login de Google no puede vaciar la caché del que sí).
       gcalSet: function (obj) {
         if (!obj || typeof obj !== 'object') return;
-        gcalCache = obj;
+        var n = 0;
+        Object.keys(obj).forEach(function (f) {
+          if (obj[f] && typeof obj[f] === 'object') { gcalCache[f] = obj[f]; n++; }
+        });
+        if (!n) return;
         save(K_GCAL_CACHE, gcalCache);
         if (lastSetView === 'registro' && editId != null) nubeReRender();
         else if (lastSetView === 'calendario') renderCalendar();

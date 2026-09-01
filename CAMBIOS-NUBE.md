@@ -38,6 +38,44 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 31: arreglos de la sincro de Calendar y de config (enruta-v61)
+
+David: al sincronizar Google Calendar con un rango de fechas amplio desde
+Ajustes, «no se actualizan completamente los turnos»; con la sincro
+automática de la semana sí salen todos los datos. Además avisos raros de
+«vuelve a sincronizar con Google».
+
+- **`gcalFetchEventos` no paginaba.** Google devuelve como mucho 2500
+  eventos por página; un rango amplio se parte en varias y solo se leía la
+  primera → los días del final del rango no llegaban al caché. Ahora sigue
+  el `nextPageToken` hasta traerlos todos.
+- **La sincro de config podía PISAR ajustes.** v58 traía la config del otro
+  aparato con «gana el más nuevo» a lo bruto: si el móvil (sin login de
+  Google, sin modo desarrollador) sincronizaba después, borraba en la
+  tablet el **Client ID de Google**, el **modo desarrollador**, el nombre,
+  las ramas... y la sincro de Calendar dejaba de funcionar.
+  - Ahora: la **primera** sincro de un aparato trae TODO (aparato nuevo);
+    después solo se **rellena lo que aquí falte** y NUNCA se pisa un valor
+    que ya tienes.
+  - Excepción `CONFIG_LWW` (tema, auto-tema, autoDownload, aviso de
+    privacidad): esos sí «gana el más nuevo» — no hay nada que perder y así
+    un cambio de tema propaga.
+- **La caché del cuadrante (`gcalCache`) en la nube: MERGE, nunca
+  reemplazo.** Un aparato con caché vacía ya no la sube ni borra la del que
+  sí la tiene.
+- La celda "Turno" con caché antigua (sin `raw`) ahora muestra lo que hay
+  (toma/deje/descanso + servicios) con una nota discreta, en vez del aviso
+  «vuelve a sincronizar».
+
+Verificado en preview: un config «de móvil sin configurar» ya NO pisa
+Client ID / modo desarrollador / nombre / ramas; tema y autoDownload sí
+propagan.
+
+- Versiones: `enruta-v61` · `registro.js?v=202609045` · `nube.js?v=202609045`
+  · `registro.css?v=202609043` · `CACHE enruta-rv-v57`.
+
+---
+
 ### 2026-09-01 — Paso 30: celda "Turno" con los datos del cuadrante (Calendar) en el editor (enruta-v59)
 
 David: mostrar los datos que salen en Google Calendar dentro del editor de
