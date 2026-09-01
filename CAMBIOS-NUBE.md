@@ -38,6 +38,16 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 34: "Reserve" -> "Reserva" (enruta-v64)
+
+Otro tipo de tramo en ingles que quedaba sin traducir (aparece en turnos de
+reserva/disponibilidad). "Reserve" -> "Reserva".
+
+- Versiones: `enruta-v64` · `registro.js?v=202609048` · `registro.css?v=202609048`
+  · `nube.js?v=202609048` · `CACHE enruta-rv-v60`.
+
+---
+
 ### 2026-09-01 — Paso 33: fuera el chivato por tramo + la revisión de Ajustes lista qué falta (enruta-v63, SIN PUBLICAR)
 
 **1. Fuera el chivato por tramo** («falta este servicio en el turno»). En una
