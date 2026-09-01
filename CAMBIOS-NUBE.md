@@ -38,6 +38,28 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 29: cambio automático de tema claro/oscuro por hora (enruta-v58)
+
+David: que el modo claro/oscuro cambie solo según la hora.
+
+- **Ajustes → «Tema»:** casilla «Cambio automático claro / oscuro por hora».
+  Al activarla salen dos horas: «Claro desde» y «Oscuro desde».
+  Recomendado / por defecto: **claro 08:00, oscuro 20:00**.
+- `temaSegunHora()` decide el tema según la hora actual y los dos umbrales.
+  `applyTheme()` usa ese valor si `themeAuto`, si no `settings.theme`.
+- Se recalcula: al abrir la app, al volver de segundo plano, y cada minuto
+  (`setInterval`).
+- El botón 🌙/☀️ de la barra sigue funcionando como manual y **desactiva el
+  automático** (un toque manual manda).
+- Se sincroniza por `_config.json` (los umbrales van a los dos aparatos).
+- Verificado en preview: casilla, horas, forzar claro/oscuro cambiando los
+  umbrales, y el toque manual apaga el automático.
+
+- Versiones: `enruta-v58` · `registro.js?v=202609042` · `nube.js?v=202609042`
+  · `registro.css?v=202609040` · `CACHE enruta-rv-v54`.
+
+---
+
 ### 2026-09-01 — Paso 28: botón de telefonema LTV con etiqueta corta (enruta-v57)
 
 En el editor de Registro, el botón de telefonema LTV ponía «Limitación

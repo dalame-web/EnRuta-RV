@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v57';
+  var APP_VERSION = 'enruta-v58';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1038,6 +1038,10 @@
     if (settings.apellidos == null) settings.apellidos = '';
     if (settings.idEmpleado == null) settings.idEmpleado = '';
     if (!settings.theme) settings.theme = 'dark';
+    // Cambio automático claro/oscuro por hora. Por defecto: claro 08:00–20:00.
+    if (settings.themeAuto == null) settings.themeAuto = false;
+    if (settings.themeAutoClaro == null) settings.themeAutoClaro = '08:00';
+    if (settings.themeAutoOscuro == null) settings.themeAutoOscuro = '20:00';
     if (settings.calView !== 'list') settings.calView = 'grid';
     if (settings.lastBackup == null) settings.lastBackup = '';
     if (settings.autoDownload == null) settings.autoDownload = false;
@@ -4506,6 +4510,26 @@
     // 7c. Sincronizar Google Calendar (solo modo desarrollador)
     if (settings.telDevMode) h += renderGcalCard();
 
+    // 7d. Tema (claro / oscuro / automático por hora)
+    h += '<div class="card"><div class="card-title">Tema</div>' +
+      '<label class="check-item" style="margin-bottom:8px">' +
+      '<input type="checkbox" data-action="theme-auto-toggle"' + (settings.themeAuto ? ' checked' : '') + '>' +
+      '<span>Cambio automático claro / oscuro por hora</span></label>';
+    if (settings.themeAuto) {
+      h += '<div class="field-grid" style="margin:0">' +
+        '<div class="field"><label>Claro desde</label>' +
+        '<input type="time" id="set-theme-claro" value="' + esc(settings.themeAutoClaro) + '"></div>' +
+        '<div class="field"><label>Oscuro desde</label>' +
+        '<input type="time" id="set-theme-oscuro" value="' + esc(settings.themeAutoOscuro) + '"></div>' +
+        '</div>' +
+        '<div class="hint" style="margin-top:6px">Ahora mismo tocaría el modo <b>' +
+        (temaSegunHora() === 'light' ? 'claro' : 'oscuro') + '</b>.</div>';
+    } else {
+      h += '<div class="hint">Manual — usa el botón 🌙/☀️ de la barra superior. ' +
+        'Recomendado para el automático: claro 08:00, oscuro 20:00.</div>';
+    }
+    h += '</div>';
+
     // 8. Aplicación
     h += '<div class="card"><div class="card-title">Aplicación</div>' +
       '<div class="hint" data-action="app-version-tap" style="cursor:default; user-select:none">' +
@@ -4527,8 +4551,20 @@
     pane.innerHTML = h;
   }
 
+  // Tema que toca AHORA según la hora y los dos umbrales de Ajustes.
+  function temaSegunHora() {
+    var now = new Date();
+    var m = now.getHours() * 60 + now.getMinutes();
+    var claro = hhmmToMin(settings.themeAutoClaro) ;
+    var oscuro = hhmmToMin(settings.themeAutoOscuro);
+    if (claro == null) claro = 8 * 60;
+    if (oscuro == null) oscuro = 20 * 60;
+    if (claro < oscuro) return (m >= claro && m < oscuro) ? 'light' : 'dark';
+    return (m >= claro || m < oscuro) ? 'light' : 'dark'; // por si se invierten
+  }
   function applyTheme() {
-    document.body.classList.toggle('light', settings.theme === 'light');
+    var t = settings.themeAuto ? temaSegunHora() : settings.theme;
+    document.body.classList.toggle('light', t === 'light');
   }
 
   // ===== Exportación PDF =====
@@ -5661,8 +5697,21 @@
       return;
     }
     if (act === 'theme-toggle') {
-      settings.theme = (settings.theme === 'light') ? 'dark' : 'light';
-      saveSettings(); applyTheme(); return;
+      // Un toque manual manda: desactiva el modo automático.
+      settings.themeAuto = false;
+      settings.theme = (document.body.classList.contains('light')) ? 'dark' : 'light';
+      saveSettings(); applyTheme();
+      if (lastSetView === 'ajustes') renderSettings();
+      return;
+    }
+    if (act === 'theme-auto-toggle') {
+      settings.themeAuto = !settings.themeAuto;
+      if (!settings.themeAuto) {
+        // Al apagar el automático, se queda con el tema que hay puesto ahora.
+        settings.theme = document.body.classList.contains('light') ? 'light' : 'dark';
+      }
+      saveSettings(); applyTheme(); renderSettings();
+      return;
     }
     if (act === 'save-datos-personales') {
       settings.telefono = $('set-tel').value.trim();
@@ -5862,9 +5911,12 @@
     // página (cambio a segundo plano, cierre, recarga del Service Worker).
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') flushAutosave();
+      else if (settings.themeAuto) applyTheme(); // al volver, recalcular el tema
     });
     window.addEventListener('pagehide', flushAutosave);
     window.addEventListener('beforeunload', flushAutosave);
+    // Modo tema automático: revisar la hora cada minuto.
+    setInterval(function () { if (settings.themeAuto) applyTheme(); }, 60000);
 
     // Editor inline de retraso: Enter o blur guardan; Escape cancela.
     function commitRet(inp) {
@@ -5941,6 +5993,11 @@
       if (e.target.id === 'set-autodl') {
         settings.autoDownload = e.target.checked;
         saveSettings(); flashSaved();
+      }
+      if (e.target.id === 'set-theme-claro' || e.target.id === 'set-theme-oscuro') {
+        settings.themeAutoClaro = $('set-theme-claro').value || '08:00';
+        settings.themeAutoOscuro = $('set-theme-oscuro').value || '20:00';
+        saveSettings(); applyTheme(); flashSaved();
       }
     });
 
