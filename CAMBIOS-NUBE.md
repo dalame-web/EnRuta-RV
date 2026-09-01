@@ -38,6 +38,21 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 35: la 1a linea de Observaciones tambien sale con «•» (enruta-v65)
+
+Al escribir en Observaciones con el campo vacio, la primera linea no llevaba
+«• » hasta salir del campo (blur). Ahora sale al momento, en cuanto se
+escribe el primer caracter — igual que las siguientes (Enter ya mete «
+• »).
+Listener de input que antepone «• » a la primera linea si no la tiene (salvo
+que sea una linea de telefonema o el campo este vacio). Verificado: campo
+vacio se queda vacio, telefonema intacto, no se duplica la vineta.
+
+- Versiones:  ·  · 
+  ·  · .
+
+---
+
 ### 2026-09-01 — Paso 34: "Reserve" -> "Reserva" (enruta-v64)
 
 Otro tipo de tramo en ingles que quedaba sin traducir (aparece en turnos de

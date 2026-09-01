@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v64';
+  var APP_VERSION = 'enruta-v65';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -6222,6 +6222,21 @@
         ta.dispatchEvent(new Event('input', { bubbles: true }));
       }
     }, true);
+    // Al escribir la PRIMERA línea de Observaciones (campo vacío), que salga
+    // con "• " al momento, igual que las siguientes (Enter ya mete "\n• ").
+    document.addEventListener('input', function (e) {
+      var ta = e.target;
+      if (!esObsTextarea(ta) || !ta.value) return;
+      var nl = ta.value.indexOf('\n');
+      var primera = nl === -1 ? ta.value : ta.value.slice(0, nl);
+      if (!primera.trim()) return;
+      if (primera.indexOf('•') !== -1) return;                  // ya hay viñeta en esa línea
+      if (/^[A-Z]{2,5}\d{0,2} · /.test(primera)) return;        // línea de telefonema
+      var sel = ta.selectionStart;
+      ta.value = '• ' + ta.value;
+      ta.selectionStart = ta.selectionEnd = (sel || 0) + 2;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));  // que applyBind y el fondo se enteren
+    });
     // Nombres de estación escritos a mano (servicio manual / parada nueva) →
     // a MAYÚSCULAS, como el resto de la app.
     document.addEventListener('blur', function (e) {
