@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v67';
+  var APP_VERSION = 'enruta-v68';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -3109,9 +3109,10 @@
   function blankTelefonema(categoria, variante, s0, nombreCompleto, horaActual) {
     var campos = {}, opcionales = {};
     variante.partes.forEach(function (p) {
-      if (p.t === 'campo' || p.t === 'campoOpcional') campos[p.id] = (p.id === 'tren' && s0.servicioComercial) ? s0.servicioComercial : '';
+      if (p.t === 'campo') campos[p.id] = (p.id === 'tren' && s0.servicioComercial) ? s0.servicioComercial : '';
       else if (p.t === 'selector') campos[p.id] = (p.opciones || [''])[0];
       else if (p.t === 'opcional') opcionales[p.id] = false;
+      else if (p.t === 'campoOpcional') { opcionales[p.id] = false; campos[p.id] = ''; }
     });
     return {
       cat: categoria.cat, codigo: variante.codigo, color: variante.color || categoria.color || 'rc',
@@ -3128,7 +3129,7 @@
       if (p.t === 'text') return p.v;
       if (p.t === 'campo' || p.t === 'selector') return tel.campos[p.id] || '___';
       if (p.t === 'opcional') return tel.opcionales[p.id] ? p.v : '';
-      if (p.t === 'campoOpcional') return tel.campos[p.id] ? (p.prefijo + tel.campos[p.id]) : '';
+      if (p.t === 'campoOpcional') return tel.opcionales[p.id] ? (p.prefijo + (tel.campos[p.id] || '___')) : '';
       return '';
     }).join('').replace(/\s+/g, ' ').replace(/\s+([.,;:])/g, '$1').trim();
     var linea = tel.codigo + ' · ' + (tel.hora || '') + ' — ' + texto;
@@ -3491,19 +3492,31 @@
             campoInputs[p.id] = cyc; // se lee por .dataset.val
             sentence.appendChild(cyc);
           } else if (p.t === 'campoOpcional') {
-            // Hueco normal con un prefijo delante ("en vía/s ___"). Vacío =
-            // no se pone en el texto. Sin casilla.
-            var copPref = document.createElement('span'); copPref.className = 'tel-cop-pref';
-            copPref.textContent = p.prefijo;
+            // Pastilla (como "Supone un CSV") que al activarla muestra un hueco
+            // para el valor. "+ en vía/s" → "en vía/s [___]".
+            var copPill = document.createElement('button'); copPill.type = 'button';
+            copPill.className = 'tel-pill';
             var copInp = document.createElement('input'); copInp.type = 'text';
-            copInp.placeholder = p.campoHint || p.prefijo;
+            copInp.className = 'tel-cop-inp';
+            copInp.placeholder = p.campoHint || '';
             copInp.value = tel.campos[p.id] || '';
             autosizeCh(copInp, (p.campoHint || '').length || 5);
-            function pintaPref() { copPref.classList.toggle('vacio', !copInp.value.trim()); }
-            pintaPref();
-            copInp.addEventListener('input', function () { dirty = true; pintaPref(); });
-            campoInputs[p.id] = copInp;
-            sentence.appendChild(copPref);
+            var copLbl = (p.prefijo || '').trim();
+            function pintaCop(on) {
+              copPill.classList.toggle('on', on);
+              copPill.textContent = on ? copLbl : '+ ' + copLbl;
+              copPill.dataset.on = on ? '1' : '';
+              copInp.style.display = on ? '' : 'none';
+            }
+            pintaCop(!!tel.opcionales[p.id]);
+            copPill.addEventListener('click', function () {
+              var nv = !copPill.dataset.on;
+              dirty = true; pintaCop(nv);
+              if (nv) copInp.focus();
+            });
+            copInp.addEventListener('input', function () { dirty = true; });
+            campoInputs[p.id] = { pill: copPill, txt: copInp };
+            sentence.appendChild(copPill);
             sentence.appendChild(copInp);
           }
         });
@@ -3661,9 +3674,13 @@
 
         function guardar() {
           variante.partes.forEach(function (p) {
-            if (p.t === 'campo' || p.t === 'campoOpcional') tel.campos[p.id] = (campoInputs[p.id].value || '').trim();
+            if (p.t === 'campo') tel.campos[p.id] = (campoInputs[p.id].value || '').trim();
             else if (p.t === 'selector') tel.campos[p.id] = campoInputs[p.id].dataset.val || '';
             else if (p.t === 'opcional') tel.opcionales[p.id] = !!campoInputs[p.id].dataset.on;
+            else if (p.t === 'campoOpcional') {
+              tel.opcionales[p.id] = !!campoInputs[p.id].pill.dataset.on;
+              tel.campos[p.id] = (campoInputs[p.id].txt.value || '').trim();
+            }
           });
           tel.numTel = cNumTel.input.value.trim(); tel.hora = cHora.input.value.trim();
           tel.de = deInp.value.trim(); tel.a = aInp.value.trim();

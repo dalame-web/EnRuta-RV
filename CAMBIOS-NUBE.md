@@ -38,6 +38,23 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 38: campoOpcional del telefonema ahora es pastilla (enruta-v68, SIN PUBLICAR)
+
+David: en "en via/s" quiere lo mismo que en "Supone un CSV" — una pastilla
+que al activarla muestra el campo para anadir las vias.
+- **campoOpcional** pasa de "hueco en gris (vacio = no sale)" a **pastilla +
+  campo**: "+ en via/s" (fuera) -> "en via/s [___]" (dentro, con el campo).
+  Guarda `opcionales[id]` (pastilla) + `campos[id]` (valor).
+- Aplica a "en via/s" y "por (trinchera...)" del LTV3.
+- Verificado: activar pastilla -> aparece el campo -> escribir -> guardar ->
+  linea de Obs correcta; sin activar no sale nada.
+
+- Versiones (pendientes de publicar): `enruta-v68` · `registro.js?v=202609052`
+  · `registro.css?v=202609052` · `telefonemas-listado.js?v=202609052`
+  · `nube.js?v=202609052` · `CACHE enruta-rv-v64`.
+
+---
+
 ### 2026-09-01 — Paso 37: telefonema — fuera los desplegables y las casillas de la frase (enruta-v67)
 
 David: los desplegables nativos ocupan mucho y las casillas en medio de la

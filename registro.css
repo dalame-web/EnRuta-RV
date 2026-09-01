@@ -226,9 +226,8 @@ button.btn.rec:hover{border-color:#fff}
   border-style:solid; border-color:var(--accent);
   background:color-mix(in srgb, var(--accent) 15%, transparent); color:var(--accent); font-weight:600;
 }
-/* Prefijo de un hueco opcional ("en vía/s ___"): gris cuando el hueco está vacío. */
-.tel-sentence .tel-cop-pref{margin-left:2px}
-.tel-sentence .tel-cop-pref.vacio{color:var(--fg-dim)}
+/* Hueco de una pastilla activada ("en vía/s [___]"): campo pegado a la pastilla. */
+.tel-sentence .tel-cop-inp{margin-left:4px}
 
 /* Botón "cerrar" como X en la esquina superior derecha de la ventana del
  * telefonema, en vez de un botón "Cerrar" abajo, apelotonado con el resto. */
