@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v55';
+  var APP_VERSION = 'enruta-v56';
 
   var COMPROBACIONES = [
     'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
@@ -1000,6 +1000,7 @@
     // que la copia en la nube (OneDrive) cubra cualquier cambio. Capa
     // opcional: si no hay sesión o nube.js no cargó, no hace nada.
     if (k === K_TURNOS && window.NUBE) window.NUBE.onTurnosSaved(out);
+    if (k === K_SETTINGS && window.NUBE && window.NUBE.onConfigSaved) window.NUBE.onConfigSaved();
   }
   var saveTimer = null;
   function autosave() {
@@ -1134,6 +1135,42 @@
     dedupeTurnos();
     save(K_TURNOS, turnos); // NUBE.onTurnosSaved se autoignora (NUBE.aplicando())
   }
+  // ===== Configuración (ajustes) en la nube =====
+  // Además de los turnos, se sincroniza la configuración del dispositivo:
+  // ramas, nombre/apellidos/ID, teléfono, tema, modo desarrollador, config de
+  // Google Calendar... Así, al vincular OneDrive en un aparato nuevo, se trae
+  // TODO del que ya lo tenía, no solo los registros.
+  // NO se sincroniza: calView (lista/mes es preferencia por aparato) y los
+  // contadores locales (aviso de nube, última copia).
+  var CONFIG_NO_SYNC = { calView: 1, nubeAvisoContador: 1, lastBackup: 1 };
+  function nubeConfigParaSubir() {
+    var out = {};
+    Object.keys(settings).forEach(function (k) {
+      if (k.charAt(0) === '_' || CONFIG_NO_SYNC[k]) return;
+      out[k] = settings[k];
+    });
+    return out;
+  }
+  function nubeAplicarConfig(remote) {
+    if (!remote) return false;
+    var cambio = false;
+    Object.keys(remote).forEach(function (k) {
+      if (k.charAt(0) === '_' || CONFIG_NO_SYNC[k]) return;
+      if (JSON.stringify(settings[k]) !== JSON.stringify(remote[k])) {
+        settings[k] = remote[k];
+        cambio = true;
+      }
+    });
+    if (!cambio) return false;
+    if (!settings.ramas || !settings.ramas.length) settings.ramas = DEFAULT_RAMAS.slice();
+    if (!settings.theme) settings.theme = 'dark';
+    saveSettings();
+    applyTheme();
+    if (lastSetView === 'ajustes') renderSettings();
+    else nubeReRender();
+    return true;
+  }
+
   // Aplica en local un borrado que viene de la nube (otro dispositivo lo borró).
   // NO genera lápida nueva — solo ejecuta un borrado ya conocido.
   function nubeBorrarIds(ids) {
@@ -1436,10 +1473,18 @@
   // aleatorio: si se crea el turno del mismo día en la tablet Y en el móvil
   // (antes de que sincronicen), la nube fusiona por id y acaban DOS turnos
   // para el mismo día → "servicios duplicados". Esto los vuelve a juntar.
-  function claveFechas(t) {
+  function fechasDe(t) {
     var fs = {};
     (t.servicios || []).forEach(function (s) { if (s.fecha) fs[s.fecha] = 1; });
-    return Object.keys(fs).sort().join('|');
+    return Object.keys(fs);
+  }
+  // ¿fechas(a) ⊆ fechas(b)? Se juntan dos turnos solo si uno "cabe" dentro
+  // del otro (28 dentro de 28→29). Dos dormidas consecutivas (28→29 y 29→30)
+  // comparten un día pero ninguna cabe en la otra → NO se juntan.
+  function fechasContenidas(a, b) {
+    var bf = fechasDe(b);
+    var af = fechasDe(a);
+    return af.length > 0 && af.every(function (d) { return bf.indexOf(d) !== -1; });
   }
   // ¿Dos servicios son "el mismo"? Por nº de tren + fecha (clave estable). Sin
   // número (traslado/manual) → por ruta + hora de salida.
@@ -1451,18 +1496,39 @@
            (a.destino || '') === (b.destino || '') &&
            (a.hSalida || '') === (b.hSalida || '');
   }
+  // Une src DENTRO de ds sin perder nada: rellena huecos, y para los campos
+  // multivalor (observaciones, incidencias, comprobaciones, PMR, paradas) une
+  // en vez de quedarse solo con uno.
   function rellenaHuecosServicio(ds, ss) {
     ['servicioComercial', 'servicioComercial2', 'via', 'rama', 'n1', 'viajeros',
      'asistencias', 'plazasH', 'hSalida', 'hDestino', 'rSalida', 'rLlegDestino',
      'horaLTV', 'origen', 'destino', 'maniobraNombre'].forEach(function (k) {
       if (!ds[k] && ss[k]) ds[k] = ss[k];
     });
-    if ((ss.observaciones || '').length > (ds.observaciones || '').length) ds.observaciones = ss.observaciones;
+    // Observaciones: unir líneas que falten (nunca descartar texto).
+    if (ss.observaciones && ss.observaciones !== ds.observaciones) {
+      var lns = (ds.observaciones || '').split('\n');
+      (ss.observaciones || '').split('\n').forEach(function (ln) {
+        if (ln.trim() && lns.indexOf(ln) === -1) lns.push(ln);
+      });
+      ds.observaciones = lns.filter(function (x) { return x !== '' || lns.length === 1; }).join('\n');
+    }
     if ((ss.pmr || []).length > (ds.pmr || []).length) ds.pmr = ss.pmr;
     (ss.comprobaciones || []).forEach(function (c, i) {
       if (c) { ds.comprobaciones = ds.comprobaciones || []; ds.comprobaciones[i] = true; }
     });
-    if ((ss.incidencias || []).length > (ds.incidencias || []).length) ds.incidencias = ss.incidencias;
+    // Incidencias: añadir las que no estén ya (por contenido), no descartar.
+    (ss.incidencias || []).forEach(function (inc) {
+      var js = JSON.stringify(inc);
+      ds.incidencias = ds.incidencias || [];
+      if (!ds.incidencias.some(function (x) { return JSON.stringify(x) === js; })) ds.incidencias.push(inc);
+    });
+    // Telefonemas: igual, añadir los que falten.
+    (ss.telefonemas || []).forEach(function (tel) {
+      var js2 = JSON.stringify(tel);
+      ds.telefonemas = ds.telefonemas || [];
+      if (!ds.telefonemas.some(function (x) { return JSON.stringify(x) === js2; })) ds.telefonemas.push(tel);
+    });
     (ss.paradas || []).forEach(function (sp) {
       var dp = (ds.paradas || []).find(function (p) { return p.nombre === sp.nombre; });
       if (dp) ['hLleg', 'hora', 'rLleg', 'rSal', 'viajeros', 'asistencias'].forEach(function (k) {
@@ -1470,13 +1536,15 @@
       });
     });
   }
-  // Vuelca src dentro de dst (mismo día). dst se queda; src se descarta.
+  // Vuelca src dentro de dst (turnos que son el mismo). dst se queda.
   function fusionarTurnoEn(dst, src) {
     if (!dst.toma && src.toma) dst.toma = src.toma;
     if (!dst.deje && src.deje) dst.deje = src.deje;
     if (!dst.descanso && src.descanso) dst.descanso = src.descanso;
     if (dst.toma || dst.deje || dst.descanso) dst.turnoHorarioActivo = true;
     if (!dst.horaLTV && src.horaLTV) dst.horaLTV = src.horaLTV;
+    // Si alguno estaba cerrado, el turno unido queda cerrado (no "reabrir" solo).
+    if (src.estado === 'cerrado') dst.estado = 'cerrado';
     (src.servicios || []).forEach(function (ss) {
       if (isEmptyServicio(ss)) return;
       var ds = (dst.servicios || []).find(function (d) { return mismoServicioLogico(d, ss); });
@@ -1484,38 +1552,61 @@
       else dst.servicios.push(ss);
     });
   }
-  // Junta turnos con el mismo día(s). Se queda el de id MENOR (determinista:
-  // tablet y móvil eligen el mismo). Devuelve los ids eliminados (para lápida).
-  function dedupeTurnos() {
-    var porClave = {}, fuera = [];
-    turnos.slice().forEach(function (t) {
-      var k = claveFechas(t);
-      if (!k) return;
-      var prev = porClave[k];
-      if (!prev) { porClave[k] = t; return; }
-      var keep, drop;
-      if (String(t.id) < String(prev.id)) { keep = t; drop = prev; }
-      else { keep = prev; drop = t; }
-      fusionarTurnoEn(keep, drop);
-      porClave[k] = keep;
-      fuera.push(drop.id);
+  // ¿Son DOS COPIAS del mismo turno (duplicado de sincronización), o dos
+  // turnos distintos que el usuario creó a propósito el mismo día?
+  // Se consideran el mismo SOLO si las fechas de uno están contenidas en las
+  // del otro Y ADEMÁS: uno es _deCache (nunca deliberado), o comparten un
+  // servicio real (mismo nº de tren + fecha). Dos turnos del mismo día con
+  // trenes distintos = deliberados → NO se juntan.
+  function mismoTurnoDuplicado(a, b) {
+    if (!(fechasContenidas(a, b) || fechasContenidas(b, a))) return false;
+    if (a._deCache || b._deCache) return true;
+    return (a.servicios || []).some(function (sa) {
+      if (isEmptyServicio(sa)) return false;
+      return (b.servicios || []).some(function (sb) {
+        return !isEmptyServicio(sb) && mismoServicioLogico(sa, sb);
+      });
     });
-    if (fuera.length) {
-      var q = {};
-      fuera.forEach(function (id) { q[id] = 1; });
-      turnos = turnos.filter(function (t) { return !q[t.id]; });
-    }
+  }
+  // Junta turnos cuyas fechas se solapan (uno contenido en el otro). Gana el
+  // que MÁS días abarca (una dormida sobre un turno de un día); a igualdad,
+  // el que no sea _deCache y luego el de id menor (determinista entre
+  // dispositivos). Devuelve los ids de turnos REALES eliminados (para lápida).
+  function dedupeTurnos() {
+    var kept = [], fuera = [];
+    turnos.slice().sort(function (a, b) {
+      return String(a.id) < String(b.id) ? -1 : (String(a.id) > String(b.id) ? 1 : 0);
+    }).forEach(function (t) {
+      if (!fechasDe(t).length) { kept.push(t); return; }
+      var idx = -1;
+      for (var i = 0; i < kept.length; i++) {
+        if (mismoTurnoDuplicado(t, kept[i])) { idx = i; break; }
+      }
+      if (idx === -1) { kept.push(t); return; }
+      var k = kept[idx], keep, drop;
+      var nt = fechasDe(t).length, nk = fechasDe(k).length;
+      if (k._deCache && !t._deCache) { keep = t; drop = k; }        // _deCache nunca gana
+      else if (t._deCache && !k._deCache) { keep = k; drop = t; }
+      else if (nt > nk) { keep = t; drop = k; }                     // más días (dormida) gana
+      else if (nt < nk) { keep = k; drop = t; }
+      else { keep = k; drop = t; }                                  // id menor (por el sort)
+      fusionarTurnoEn(keep, drop);
+      kept[idx] = keep;
+      if (!drop._deCache) fuera.push(drop.id);
+    });
+    if (kept.length !== turnos.length) turnos = kept;
     return fuera;
   }
   // Deduplica y propaga los borrados a la nube (lápidas).
   function dedupeYPropaga() {
+    var n0 = turnos.length;
     var fuera = dedupeTurnos();
-    if (!fuera.length) return 0;
+    if (turnos.length === n0) return 0; // nada que juntar
     save(K_TURNOS, turnos);
     if (window.NUBE && window.NUBE.onTurnoBorrado) {
       fuera.forEach(function (id) { window.NUBE.onTurnoBorrado(id); });
     }
-    return fuera.length;
+    return n0 - turnos.length;
   }
   // Al salir del editor, descarta el turno si quedó completamente vacío.
   // Si el turno tiene datos, se PRESERVA editId (y el servicio expandido) para
@@ -1630,7 +1721,7 @@
     catch (e) { return (window.innerWidth || 999) <= 620; }
   }
   function renderCalendar() {
-    if (settings.calView === 'list' || esMovil()) { renderList(); return; }
+    if (settings.calView === 'list') { renderList(); return; }
     var pane = $('calendario-pane');
     var first = new Date(calYear, calMonth, 1);
     var offset = (first.getDay() + 6) % 7; // lunes primero
@@ -1691,6 +1782,7 @@
       if (ds === today()) cls += ' today';
       if (info) cls += ' dormida';
       else if (tod.length) cls += ' has-turno';
+      if (t0 && t0.estado === 'en_curso') cls += ' en-curso'; // color del punto en móvil
       if (doble) cls += ' cal-day-double';
       if (info && !info.sameRow) {
         cls += info.role === 'first' ? ' pair-end-right' : ' pair-end-left';
@@ -1751,8 +1843,7 @@
     var h = '<div class="cal-head">' +
       '<div class="cal-title" style="text-align:left;flex:1">Todos los turnos</div>' +
       nubeIconoBtn() + nubeInfoBtn() +
-      // En móvil no hay vista cuadrícula (no cabe), así que no se ofrece el botón.
-      (esMovil() ? '' : '<button class="cal-toggle" data-action="cal-toggle" title="Vista cuadrícula">▦</button>') +
+      '<button class="cal-toggle" data-action="cal-toggle" title="Vista cuadrícula">▦</button>' +
       '</div>';
 
     var sorted = turnos.slice().sort(function (a, b) {
@@ -2522,7 +2613,8 @@
       }).join('') +
       '</div>' +
       '<div class="obs-wrapper" data-svc="' + si + '">' +
-      '<textarea data-bind="srv.' + si + '.observaciones">' + esc(s.observaciones) + '</textarea>' +
+      '<div class="obs-backdrop" data-obs-bd="' + si + '" aria-hidden="true"><div class="obs-bd-inner"></div></div>' +
+      '<textarea data-bind="srv.' + si + '.observaciones" data-obs-ta="' + si + '">' + esc(s.observaciones) + '</textarea>' +
       '</div></div>';
     if (s.telefonemas && s.telefonemas.length) {
       h += '<div class="tel-list">';
@@ -2542,12 +2634,14 @@
       });
       h += '</div>';
     }
-    // Registro solo ofrece ETC/LZB para rellenar — el resto de grupos
+    // Registro solo ofrece ETC/LZB/LTV para rellenar — el resto de grupos
     // (ABA, ARS, IVC, RET, SOC...) son de solo consulta en la pestaña
     // Telefonemas, no se rellenan desde aquí. Ocultos salvo telDevMode
     // (Ajustes → toca 7 veces "Versión instalada").
     var CATS_REGISTRO = settings.telDevMode ?
-      TELEFONEMAS.filter(function (c) { return c.cat === 'ETC' || c.cat === 'LZB'; }) : [];
+      TELEFONEMAS.filter(function (c) {
+        return c.cat === 'ETC' || c.cat === 'LZB' || c.cat === 'LTV';
+      }) : [];
     if (CATS_REGISTRO.length) {
       h += '<div class="tel-cats">';
       CATS_REGISTRO.forEach(function (c) {
@@ -2610,6 +2704,11 @@
     }
     h += '</div>';
 
+    if (cerrado) {
+      h += '<div class="editor-ro-aviso">🔒 Turno cerrado — solo lectura. ' +
+        'Pulsa <b>Reabrir turno</b> para editar.</div>';
+    }
+
     // Toma / Deje / Descanso — card propia, un solo dato para todo el turno,
     // entre la barra de arriba y los servicios. Siempre visible.
     h += '<div class="card turno-horario-card">' +
@@ -2652,17 +2751,61 @@
     h += '</div>';
 
     pane.innerHTML = h;
+
+    // Turno cerrado: desactivar todos los campos (también teclado / pegar /
+    // selectores nativos). Los botones que modifican los filtra onClick.
+    if (cerrado) {
+      pane.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = true; });
+      pane.classList.add('editor-ro');
+    } else {
+      pane.classList.remove('editor-ro');
+    }
+    pintarObsBackdrop(expandedSvc);
   }
 
   function refreshServicioCard(si) {
     var t = getTurno(editId);
     var card = $('svc-card-' + si);
-    if (t && card) card.innerHTML = servicioInner(t, si);
+    if (t && card) {
+      card.innerHTML = servicioInner(t, si);
+      if (t.estado === 'cerrado') {
+        card.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = true; });
+      }
+      pintarObsBackdrop(si);
+    }
+  }
+
+  // ¿La línea de Observaciones es el texto de un telefonema? Devuelve su color
+  // ('rc' verde / 'maquinista' rosa) o null. Los telefonemas escriben la línea
+  // como "<CODIGO> · <hora> — <texto>" (composeObsLineTelefonema).
+  function obsLineaColorTelefonema(linea, telefonemas) {
+    for (var i = 0; i < (telefonemas || []).length; i++) {
+      var c = telefonemas[i].codigo;
+      if (c && linea.indexOf(c + ' · ') === 0) return telefonemas[i].color || 'rc';
+    }
+    return null;
+  }
+  // Pinta el fondo de color bajo las líneas de telefonema en el textarea de
+  // Observaciones del servicio si (el "backdrop" detrás del textarea).
+  function pintarObsBackdrop(si) {
+    var t = getTurno(editId);
+    var s = t && t.servicios[si];
+    var bd = document.querySelector('[data-obs-bd="' + si + '"] .obs-bd-inner');
+    var ta = document.querySelector('[data-obs-ta="' + si + '"]');
+    if (!s || !bd || !ta) return;
+    var lineas = (s.observaciones || '').split('\n');
+    bd.innerHTML = lineas.map(function (ln) {
+      var col = obsLineaColorTelefonema(ln, s.telefonemas);
+      var safe = ln ? esc(ln) : ' ';
+      return '<div class="obs-bd-line' + (col ? ' obs-hl-' + col : '') + '">' + safe + '</div>';
+    }).join('');
+    bd.style.transform = 'translateY(' + (-ta.scrollTop) + 'px)';
   }
 
   function applyBind(bind, value) {
     var t = getTurno(editId);
     if (!t) return;
+    if (t.estado === 'cerrado') return; // turno cerrado = solo lectura
     t._deCache = false; // el usuario ha tocado un campo de verdad
     var p = bind.split('.');
     if (p[0] === 'srv') {
@@ -3353,18 +3496,29 @@
           if (variante.viaBanalizada && campoInputs.cond) { tel.viaBanalizada = viaCb.checked; tel.via = viaSel.value; }
 
           // Observaciones: una línea con el acrónimo, hora, el texto del
-          // telefonema y si se ha transferido — se actualiza en el sitio
-          // en vez de acumular una línea nueva cada vez que se guarda.
+          // telefonema y si se ha transferido — se actualiza EN SU SITIO (no
+          // se acumula una línea nueva cada vez que se guarda). El resto de
+          // Observaciones, incluido lo que se escriba a mano después del
+          // telefonema, se conserva tal cual.
           if (s0) {
             var linea = composeObsLineTelefonema(tel, variante);
             var lines = s0.observaciones ? s0.observaciones.split('\n') : [];
-            if (tel.obsLineIdx != null && lines[tel.obsLineIdx] !== undefined &&
-                lines[tel.obsLineIdx].indexOf(tel.codigo + ' · ') === 0) {
-              lines[tel.obsLineIdx] = linea;
+            var pref = tel.codigo + ' · ';
+            var idx = -1;
+            // 1) el índice guardado, si sigue apuntando a una línea de este telefonema
+            if (tel.obsLineIdx != null && lines[tel.obsLineIdx] != null &&
+                lines[tel.obsLineIdx].indexOf(pref) === 0) {
+              idx = tel.obsLineIdx;
             } else {
-              lines.push(linea);
-              tel.obsLineIdx = lines.length - 1;
+              // 2) si el usuario metió/quitó líneas por encima, buscar la línea
+              //    de este telefonema por su hora (composeObsLineTelefonema)
+              var prefHora = tel.codigo + ' · ' + (tel.hora || '') + ' — ';
+              for (var li = 0; li < lines.length; li++) {
+                if (lines[li].indexOf(prefHora) === 0) { idx = li; break; }
+              }
             }
+            if (idx >= 0) { lines[idx] = linea; tel.obsLineIdx = idx; }
+            else { lines.push(linea); tel.obsLineIdx = lines.length - 1; }
             s0.observaciones = lines.join('\n');
             var ta = document.querySelector('[data-bind="srv.' + si + '.observaciones"]');
             if (ta) ta.value = s0.observaciones;
@@ -4233,7 +4387,14 @@
       return h;
     }
     h += '<div class="hint">Vinculada como <b>' + esc(window.NUBE.correo()) + '</b>.<br>' +
-      'Última copia: ' + esc(nubeHaceX(window.NUBE.ultimaCopia())) + '.</div>';
+      'Última copia: ' + esc(nubeHaceX(window.NUBE.ultimaCopia())) + '.';
+    var okAt = window.NUBE.ultimoSyncOk ? window.NUBE.ultimoSyncOk() : 0;
+    if (okAt) h += '<br>Sincronización completa verificada: ' + esc(nubeHaceX(okAt)) + '.';
+    if (window.NUBE.estado() === 'error' && !window.NUBE.necesitaReconectar()) {
+      h += '<br><span style="color:var(--warn)">La última sincronización no se completó del todo ' +
+        '(cobertura). Nada se ha estropeado; se reintenta sola o toca «Sincronizar ahora».</span>';
+    }
+    h += '</div>';
     if (window.NUBE.necesitaReconectar()) {
       h += '<div class="hint" style="color:var(--warn)">La sesión de Microsoft ha caducado. Un toque y sigue.</div>' +
         '<div class="btn-row"><button class="btn primary" data-action="nube-reconectar">Reconectar</button></div>';
@@ -5012,6 +5173,9 @@
     var el = e.target;
     var bind = el.getAttribute && el.getAttribute('data-bind');
     if (!bind) return;
+    // Turno cerrado: no se toca nada del editor (los campos van disabled, esto
+    // es la red por si algo se cuela — atajos, dictado, etc.).
+    if (editorBloqueado() && el.closest && el.closest('#registro-pane')) return;
     if (bind.indexOf('inf.') === 0) { applyInformeBind(bind, el.type === 'checkbox' ? el.checked : el.value); return; }
     if (el.type === 'checkbox') applyBind(bind, el.checked);
     else applyBind(bind, el.value);
@@ -5022,9 +5186,13 @@
       var titEl = $('svc-titulo-' + mNum[1]);
       if (titEl) titEl.textContent = el.value || String(+mNum[1] + 1);
     }
+    // Observaciones: repintar el fondo de color de las líneas de telefonema.
+    var mObs = bind.match(/^srv\.(\d+)\.observaciones$/);
+    if (mObs) pintarObsBackdrop(+mObs[1]);
   }
   function onChange(e) {
     var el = e.target;
+    if (editorBloqueado() && el.closest && el.closest('#registro-pane')) return;
     if (el.classList && el.classList.contains('srv-sel')) {
       var si = +el.getAttribute('data-svc');
       var opt = el.selectedOptions && el.selectedOptions[0];
@@ -5078,11 +5246,22 @@
     onInput(e);
   }
 
+  // Turno cerrado = SOLO LECTURA. Hay que pulsar "Reabrir turno" para editar.
+  function editorBloqueado() {
+    var t = editId != null ? getTurno(editId) : null;
+    return !!(t && t.estado === 'cerrado');
+  }
+  var ACCIONES_RO = /^(volver|reabrir|borrar|svc-toggle|comprobaciones-toggle|nube-icono|nube-privacidad|telefonema-abrir)$/;
+
   function onClick(e) {
     var el = e.target.closest('[data-action]');
     if (!el) return;
     var act = el.getAttribute('data-action');
     var t = getTurno(editId);
+
+    // Con el turno cerrado, en el editor solo se permiten acciones de ver /
+    // navegar / reabrir / borrar. Todo lo que modifica, ignorado.
+    if (editorBloqueado() && el.closest('#registro-pane') && !ACCIONES_RO.test(act)) return;
 
     if (act === 'cal-prev') {
       calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; }
@@ -5670,6 +5849,14 @@
     document.addEventListener('input', onInput);
     document.addEventListener('change', onChange);
     document.addEventListener('click', onClick);
+    // El fondo de color de Observaciones (telefonemas) sigue el scroll del textarea.
+    document.addEventListener('scroll', function (e) {
+      var el = e.target;
+      if (el && el.getAttribute && el.getAttribute('data-obs-ta') != null) {
+        var bd = document.querySelector('[data-obs-bd="' + el.getAttribute('data-obs-ta') + '"] .obs-bd-inner');
+        if (bd) bd.style.transform = 'translateY(' + (-el.scrollTop) + 'px)';
+      }
+    }, true);
 
     // Guardar la última edición ANTES de que el navegador pueda matar la
     // página (cambio a segundo plano, cierre, recarga del Service Worker).
@@ -5711,6 +5898,9 @@
     }
     function bulletearObs(txt) {
       return String(txt || '').split('\n').map(function (ln) {
+        // Línea de telefonema ("ETC1 · 10:00 — ...") — se deja INTACTA: ni
+        // viñeta ni mayúscula, para no romper su detección ni su color.
+        if (/^[A-Z]{2,5}\d{0,2} · /.test(ln)) return ln;
         var t = ln.replace(/^\s*[•·*\-]\s*/, '').trim();
         if (!t) return '';
         // Primera letra en mayúscula (ortografía).
@@ -5885,6 +6075,8 @@
       aplicarDia: nubeAplicarDia,
       borrarIds: nubeBorrarIds,
       dedupe: dedupeYPropaga,
+      configParaSubir: nubeConfigParaSubir,
+      aplicarConfig: nubeAplicarConfig,
       reRender: nubeReRender,
       trasVincular: nubeTrasVincular,
       pintarBanner: function () { nubeReRender(); },

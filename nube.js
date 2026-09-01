@@ -28,6 +28,7 @@
   var SCOPES = ['Files.ReadWrite', 'User.Read'];
   var FOLDER = 'EnRuta';
   var BORRADOS = '_borrados.json'; // lápidas: { id: ts } — borrados que hay que propagar
+  var CONFIG = '_config.json';     // { at: ts, settings: {...} } — ajustes del usuario
   var GRAPH = 'https://graph.microsoft.com/v1.0';
   var K_NUBE = 'rviryo_nube_v1';
   var SUBIDA_DEBOUNCE = 5000;
@@ -56,14 +57,16 @@
   }
   ensureShape();
 
-  // Firma corta y determinista de un texto (djb2). Se guarda en vez del JSON
-  // entero para que rviryo_nube_v1 no crezca sin límite (una copia de cada
-  // turno + cada día llenaba localStorage → save() fallaba → PÉRDIDA DE DATOS).
+  // Firma determinista de un texto. Se guarda en vez del JSON entero para que
+  // rviryo_nube_v1 no crezca sin límite (una copia de cada turno + cada día
+  // llenaba localStorage → save() fallaba → PÉRDIDA DE DATOS).
+  // Dos djb2 con semillas distintas → ~53 bits: colisión (= un cambio visto
+  // como "sin cambios" y no subido) prácticamente imposible.
   function firma(s) {
     s = (s == null) ? '' : String(s);
-    var h = 5381, i = s.length;
-    while (i) h = (h * 33) ^ s.charCodeAt(--i);
-    return h >>> 0;
+    var a = 5381, b = 52711, i = s.length, c;
+    while (i) { c = s.charCodeAt(--i); a = (a * 33) ^ c; b = (b * 37) ^ c; }
+    return ((a >>> 0).toString(16)) + ((b >>> 0).toString(16));
   }
 
   // ── MSAL ─────────────────────────────────────────────────────────────────
@@ -205,27 +208,34 @@
   //  → pérdida de datos. Ya no.)
   function sincronizarBajar() {
     return ensureFolder().then(function (fid) {
-      // Primero las lápidas de otros dispositivos: aplicar borrados en local
-      // ANTES de bajar los días (así no reaparece nada ya borrado).
-      return bajarBorrados().then(function () { aplicarBorrados(); return fid; });
+      // Primero la config (ajustes) y las lápidas de otros dispositivos:
+      // aplicar borrados en local ANTES de bajar los días (así no reaparece
+      // nada ya borrado).
+      return bajarConfig()
+        .then(bajarBorrados)
+        .then(function () { aplicarBorrados(); return fid; });
     }).then(function (fid) {
       var archivos = [];
+      var listadoCompleto = true;
       function pagina(url) {
         return graphJson(url).then(function (res) {
-          if (!res) return;
+          if (!res) { listadoCompleto = false; return; }
           (res.value || []).forEach(function (it) {
             if (it.file && fechaDeNombre(it.name)) archivos.push(it);
           });
           if (res['@odata.nextLink']) {
             return pagina(res['@odata.nextLink'].replace(GRAPH, ''));
           }
-        });
+        }).catch(function () { listadoCompleto = false; });
       }
       return pagina('/me/drive/items/' + fid +
         '/children?$select=id,name,eTag,file&$top=200').then(function () {
-        return archivos;
+        return { archivos: archivos, completo: listadoCompleto };
       });
-    }).then(function (archivos) {
+    }).then(function (bundle) {
+      var archivos = bundle.archivos;
+      var listadoCompleto = bundle.completo;
+      if (!listadoCompleto) syncIncompleto = true;
       var reg = R();
       if (!reg) return { altas: 0 };
       var nombresRemotos = {};
@@ -236,18 +246,27 @@
         nombresRemotos[it.name] = true;
         if (st.fileEtags[it.name] === it.eTag) return; // sin cambios
         cadena = cadena.then(function () {
+          var etagBody = null;
           return graph('/me/drive/items/' + it.id + '/content').then(function (r) {
-            if (!r.ok) return;
+            if (!r || !r.ok) { syncIncompleto = true; return null; }
+            etagBody = r.headers && r.headers.get && r.headers.get('ETag');
             return r.text();
           }).then(function (txt) {
-            if (!txt) return;
+            // Sin cuerpo, o el corte de red dejó algo a medias → NO se aplica
+            // NADA y NO se guarda el eTag: se reintenta en la próxima sincro.
+            if (!txt) { syncIncompleto = true; return; }
             var data;
-            try { data = JSON.parse(txt); } catch (e) { return; }
+            try { data = JSON.parse(txt); }
+            catch (e) { syncIncompleto = true; return; } // JSON truncado
+            if (!data || !Array.isArray(data.turnos)) { syncIncompleto = true; return; }
+            // Si el archivo cambió entre el listado y esta descarga, el eTag
+            // del cuerpo manda; si no lo tenemos, usamos el del listado.
+            var etagReal = etagBody || it.eTag;
             var fecha = data.fecha || fechaDeNombre(it.name);
             var remotos = data.turnos || [];
             var res = fusionarDia(fecha, remotos);
             totalAltas += res.altas;
-            st.fileEtags[it.name] = it.eTag;
+            st.fileEtags[it.name] = etagReal;
             // Firma de lo que HAY en la nube ahora (no de lo que quede en local
             // tras fusionar). Si local tiene turnos que este archivo no trae,
             // el día queda "sucio" y sync-up los sube — un turno creado en un
@@ -259,6 +278,10 @@
             st.syncedDay[fecha] = firma(canonRem);
             st.syncedDayAt[fecha] = Date.now();
             persist();
+          }).catch(function () {
+            // Corte de red a media descarga: este archivo se reintenta en la
+            // próxima sincro; los demás siguen procesándose.
+            syncIncompleto = true;
           });
         });
       });
@@ -266,15 +289,19 @@
       // Archivo que ya no está en la carpeta remota: NO se borra NADA en
       // local. Solo se limpia el registro de sincro; si aquí seguimos
       // teniendo turnos de ese día, el próximo sync-up vuelve a crear el
-      // archivo (recupera de un borrado accidental o un listado incompleto).
-      Object.keys(st.fileEtags).forEach(function (name) {
-        if (nombresRemotos[name]) return;
-        var fecha = fechaDeNombre(name);
-        if (!fecha) return;
-        delete st.fileEtags[name];
-        delete st.syncedDay[fecha];
-        delete st.syncedDayAt[fecha];
-      });
+      // archivo (recupera de un borrado accidental).
+      // SOLO si el listado se descargó ENTERO — con un listado a medias por
+      // mala cobertura no se toca nada del registro de sincro.
+      if (listadoCompleto) {
+        Object.keys(st.fileEtags).forEach(function (name) {
+          if (nombresRemotos[name]) return;
+          var fecha = fechaDeNombre(name);
+          if (!fecha) return;
+          delete st.fileEtags[name];
+          delete st.syncedDay[fecha];
+          delete st.syncedDayAt[fecha];
+        });
+      }
       persist();
 
       return cadena.then(function () { return { altas: totalAltas }; });
@@ -333,8 +360,8 @@
         if (!lapida && actual == null && sincronizado == null) return; // día vacío nunca subido
         cadena = cadena.then(function () { return subirDia(fecha, actual); });
       });
-      // Y por último, propagar nuestras lápidas al archivo compartido.
-      return cadena.then(subirBorrados);
+      // Y por último, propagar nuestras lápidas y la config al archivo compartido.
+      return cadena.then(subirBorrados).then(subirConfig);
     });
   }
 
@@ -368,13 +395,21 @@
     // Así NUNCA se sube un subconjunto que borre del archivo un turno que
     // otro dispositivo puso ahí (o uno que aquí se quedó vacío por error).
     // La unión solo AÑADE / actualiza al más reciente — nunca quita.
+    // BLINDAJE: si el archivo existe pero NO se puede leer entero (corte de
+    // red), se ABORTA la subida de este día — NUNCA se sube "solo lo local",
+    // que podría encoger el archivo. Se reintenta en la próxima sincro.
     var prep = etag
       ? graph('/me/drive/items/' + st.folderId + ':/' + name + ':/content')
-          .then(function (rr) { return rr.ok ? rr.text() : null; })
+          .then(function (rr) {
+            if (!rr || !rr.ok) throw new Error('no-leer-remoto');
+            return rr.text();
+          })
           .then(function (txt) {
-            if (!txt) return locales;
-            try { return unir(JSON.parse(txt).turnos || [], locales); }
-            catch (e) { return locales; }
+            var rem;
+            try { rem = JSON.parse(txt); }
+            catch (e) { throw new Error('remoto-truncado'); }
+            if (!rem || !Array.isArray(rem.turnos)) throw new Error('remoto-invalido');
+            return unir(rem.turnos, locales);
           })
       : Promise.resolve(locales);
 
@@ -433,6 +468,10 @@
           persist();
         });
       }).catch(function () { /* sin red: se reintenta luego, sin marcar error */ });
+    }).catch(function () {
+      // No se pudo leer el archivo remoto entero antes de subir → subida
+      // abortada para este día (nunca se sube algo que pueda encogerlo).
+      syncIncompleto = true;
     });
   }
 
@@ -478,19 +517,23 @@
   function bajarBorrados() {
     return graph('/me/drive/items/' + st.folderId + ':/' + BORRADOS + ':/content')
       .then(function (r) {
-        if (!r || !r.ok) return null;
+        if (!r) { syncIncompleto = true; return null; }
+        if (r.status === 404) return null;      // aún no existe: normal
+        if (!r.ok) { syncIncompleto = true; return null; }
         return r.text();
       })
       .then(function (txt) {
         if (!txt) return;
-        var rem; try { rem = JSON.parse(txt); } catch (e) { return; }
-        Object.keys(rem || {}).forEach(function (id) {
+        var rem;
+        try { rem = JSON.parse(txt); } catch (e) { syncIncompleto = true; return; }
+        if (!rem || typeof rem !== 'object') { syncIncompleto = true; return; }
+        Object.keys(rem).forEach(function (id) {
           var ts = rem[id] || 0;
           if (!st.tombstones[id] || ts > st.tombstones[id]) st.tombstones[id] = ts;
         });
         persist();
       })
-      .catch(function () { /* sin red / 404: nada */ });
+      .catch(function () { syncIncompleto = true; });
   }
 
   // Quita de local los turnos con lápida (si no se editaron después de borrar).
@@ -506,6 +549,51 @@
     if (!quitar.length) return;
     _applying = true;
     try { reg.borrarIds(quitar); } finally { _applying = false; }
+  }
+
+  // ── Configuración (ajustes) del usuario ────────────────────────────────
+  // Un archivo _config.json compartido con { at, settings }. Al vincular un
+  // aparato nuevo (st.configAt sin definir) se trae la config del otro. Luego,
+  // gana la última escritura (por `at`).
+  function bajarConfig() {
+    return graph('/me/drive/items/' + st.folderId + ':/' + CONFIG + ':/content')
+      .then(function (r) {
+        if (!r) { syncIncompleto = true; return null; }
+        if (r.status === 404) return null;
+        if (!r.ok) { syncIncompleto = true; return null; }
+        return r.text();
+      })
+      .then(function (txt) {
+        if (!txt) return;
+        var rem;
+        try { rem = JSON.parse(txt); } catch (e) { syncIncompleto = true; return; }
+        if (!rem || !rem.settings || typeof rem.settings !== 'object') { syncIncompleto = true; return; }
+        var primeraVez = st.configAt == null;
+        if (!primeraVez && !(rem.at > st.configAt)) return; // no es más nuevo
+        var reg = R();
+        if (reg && reg.aplicarConfig) {
+          _applying = true;
+          try { reg.aplicarConfig(rem.settings); } finally { _applying = false; }
+        }
+        st.configAt = rem.at || Date.now();
+        st.configFirma = firma(JSON.stringify(rem.settings));
+        persist();
+      })
+      .catch(function () { syncIncompleto = true; });
+  }
+  function subirConfig() {
+    var reg = R();
+    if (!reg || !reg.configParaSubir) return Promise.resolve();
+    var local = reg.configParaSubir();
+    var f = firma(JSON.stringify(local));
+    if (f === st.configFirma) return Promise.resolve(); // sin cambios
+    var at = Math.max(Date.now(), (st.configAt || 0) + 1);
+    var body = JSON.stringify({ at: at, settings: local }, null, 2);
+    return graph('/me/drive/items/' + st.folderId + ':/' + CONFIG + ':/content', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: body
+    }).then(function (r) {
+      if (r && r.ok) { st.configAt = at; st.configFirma = f; persist(); }
+    }).catch(function () {});
   }
 
   var tombFirma = null;
@@ -539,9 +627,13 @@
 
   // Ciclo completo (bajar + subir), con guard anti-solapamiento.
   var errorSubida = false;
+  var syncIncompleto = false; // algún archivo no se pudo leer/aplicar entero
   var syncWatchdog = null;
   function terminarSync() {
     if (syncWatchdog) { clearTimeout(syncWatchdog); syncWatchdog = null; }
+    // Solo se marca "copia verificada" si el ciclo entero fue limpio.
+    if (!syncIncompleto && !errorSubida) st.ultimoSyncOk = Date.now();
+    persist();
     syncEnCurso = false;
     pintarTarjeta();
   }
@@ -549,6 +641,7 @@
     if (!cuenta || syncEnCurso) return Promise.resolve();
     syncEnCurso = true;
     errorSubida = false;
+    syncIncompleto = false;
     pintarBanner();
     // Red de seguridad: pase lo que pase, el icono deja de girar en 60 s.
     if (syncWatchdog) clearTimeout(syncWatchdog);
@@ -626,14 +719,21 @@
     aplicando: function () { return _applying; },
     onTurnosSaved: onTurnosSaved,
     onTurnoBorrado: onTurnoBorrado,
+    onConfigSaved: function () {
+      if (!cuenta || _applying) return;
+      clearTimeout(subidaTimer);
+      subidaTimer = setTimeout(function () { sincronizar(true); }, SUBIDA_DEBOUNCE);
+    },
     // Estado para el icono: 'sin' | 'reconectar' | 'sync' | 'error' | 'ok'
     estado: function () {
       if (!cuenta) return 'sin';
       if (needsReconnect) return 'reconectar';
       if (syncEnCurso) return 'sync';
-      if (errorSubida) return 'error';
+      if (errorSubida || syncIncompleto) return 'error'; // descarga a medias → reintentar
       return 'ok';
     },
+    // Fecha de la última sincronización VERIFICADA (ciclo entero sin cortes).
+    ultimoSyncOk: function () { return st.ultimoSyncOk || 0; },
 
     // Vincular (toque real del usuario)
     vincular: function () {
@@ -679,8 +779,8 @@
       }).then(function (res) {
         var borra = Promise.resolve();
         ((res && res.value) || []).forEach(function (it) {
-          // Archivos de día turno-*.json Y el de lápidas _borrados.json.
-          if (!fechaDeNombre(it.name) && it.name !== BORRADOS) return;
+          // Archivos de día turno-*.json, lápidas _borrados.json y _config.json.
+          if (!fechaDeNombre(it.name) && it.name !== BORRADOS && it.name !== CONFIG) return;
           borra = borra.then(function () {
             return graph('/me/drive/items/' + it.id, { method: 'DELETE' }).catch(function () {});
           });
@@ -696,6 +796,8 @@
         st.turnoHash = {};
         st.dayIndex = {};
         st.tombstones = {};
+        st.configAt = null;
+        st.configFirma = null;
         st.ultima = 0;
         tombFirma = null;
         persist();

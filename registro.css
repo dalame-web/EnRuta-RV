@@ -421,6 +421,26 @@ button.btn:disabled{opacity:.45; cursor:default}
 .cal-day.empty{background:none; border:none; cursor:default; min-height:0}
 @media (min-width:760px){ .cal-day{ min-height:140px; } }
 @media (min-width:1000px){ .cal-day{ min-height:160px; } }
+/* Móvil: vista mensual compacta — solo número + color de la celda (los
+ * bloques de servicio no caben en 7 columnas estrechas). Se toca para abrir
+ * el día. La lista sigue disponible con el botón ▦/≡. */
+@media (max-width:620px){
+  .cal-grid{ gap:3px; }
+  .cal-dow{ font-size:9px; padding:2px 0; }
+  .cal-day{ min-height:40px; padding:3px 3px 4px; border-radius:6px; }
+  .cal-day .svc-block, .cal-day .estado, .cal-day .gcal-preview,
+  .cal-day .svc-head, .cal-day .svc-hrs, .cal-day .svc-route{ display:none; }
+  .cal-day .dnum{ font-size:12px; }
+  .cal-day .dormida-icon{ font-size:10px; top:2px; right:2px; }
+  .cal-day .inc-badge{ font-size:10px; }
+  /* Punto indicador cuando hay turno (el fondo tintado a veces se ve poco). */
+  .cal-day.has-turno::after,
+  .cal-day.dormida::after{
+    content:''; position:absolute; left:3px; bottom:3px;
+    width:6px; height:6px; border-radius:50%; background:var(--ok);
+  }
+  .cal-day.en-curso::after{ background:var(--warn); }
+}
 .cal-day .dnum{font-size:13px; font-weight:600; line-height:1}
 .cal-day.today{border-color:var(--accent); border-width:2px}
 .cal-day.today .dnum{color:var(--accent)}
@@ -507,6 +527,20 @@ button.btn:disabled{opacity:.45; cursor:default}
   cursor:pointer; width:44px; height:44px; border-radius:8px;
   border:1px solid var(--border); background:var(--panel-2);
   color:var(--fg); font-size:18px; margin-left:6px;
+}
+
+/* Turno cerrado = solo lectura */
+.editor-ro-aviso{
+  background:var(--panel-2); border:1px solid var(--border);
+  border-left:3px solid var(--ok); border-radius:8px;
+  padding:8px 12px; margin:0 0 12px; font-size:13px; color:var(--fg-dim);
+}
+.editor-ro .card{ opacity:.9; }
+.editor-ro input:disabled,
+.editor-ro select:disabled,
+.editor-ro textarea:disabled{
+  opacity:1; -webkit-text-fill-color:var(--fg); color:var(--fg);
+  background:var(--panel); cursor:default;
 }
 .cal-toggle:hover{border-color:var(--accent); color:var(--accent)}
 
@@ -830,8 +864,31 @@ input[type=number]::-webkit-inner-spin-button{
   background:var(--panel); color:var(--bad); font-size:16px;
 }
 
+/* Observaciones con resaltado: un "backdrop" detrás del textarea pinta el
+ * fondo de las líneas que son un telefonema, con su color clarito. El
+ * textarea va transparente encima. Font/padding/line-height IDÉNTICOS en los
+ * dos para que el resaltado caiga justo bajo el texto. */
 .obs-wrapper{position:relative}
-.obs-wrapper textarea{min-height:280px}
+.obs-wrapper textarea{
+  min-height:280px; position:relative; z-index:1;
+  background:transparent; line-height:1.45;
+}
+.obs-backdrop{
+  position:absolute; inset:0; z-index:0; overflow:hidden;
+  pointer-events:none; border:1px solid transparent; border-radius:8px;
+  background:var(--panel-2);
+}
+.editor-ro .obs-backdrop{background:var(--panel)}
+.obs-bd-inner{
+  padding:10px; font-family:Inter,sans-serif; font-size:15px; line-height:1.45;
+  color:transparent;
+}
+.obs-bd-line{
+  white-space:pre-wrap; overflow-wrap:break-word; word-break:break-word;
+  margin:0 -10px; padding:0 10px;
+}
+.obs-bd-line.obs-hl-rc{background:color-mix(in srgb, var(--ok) 15%, transparent)}
+.obs-bd-line.obs-hl-maquinista{background:color-mix(in srgb, var(--tel-maquinista) 15%, transparent)}
 
 /* Comprobaciones — dos columnas, relleno por columnas (arriba→abajo) */
 .checks{

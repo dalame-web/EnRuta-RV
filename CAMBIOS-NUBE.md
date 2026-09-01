@@ -38,6 +38,95 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-01 — Paso 27: lote enruta-v56 (dedupe seguro · móvil · turno cerrado · config en la nube · sincro blindada · LTV3 · color en Observaciones)
+
+Todo esto se desarrolló en pasos separados y se publica JUNTO como
+`enruta-v56` (un solo deploy). Detalle por área:
+
+**A. Dedupe de turnos duplicados — seguro (sobre lo de v55).**
+- `dedupeTurnos` juntaba dos turnos si sus fechas se solapaban a secas.
+  Pero `openDay`/`renderDayChooser` SÍ permiten varios turnos el mismo día
+  («+ Crear otro turno») → habría destruido turnos deliberados (turno de
+  mañana + dormida esa tarde; dos servicios sueltos). Riesgo de pérdida de
+  datos + lápida propagada.
+- `mismoTurnoDuplicado(a,b)`: se juntan SOLO si las fechas de uno están
+  **contenidas** en las del otro **Y ADEMÁS** uno es `_deCache` (nunca
+  deliberado) **o** comparten un servicio real (mismo nº de tren + fecha).
+  Dos turnos del mismo día con trenes distintos → NO se juntan. Dos
+  dormidas consecutivas (28→29 y 29→30) → NO se juntan.
+- `_deCache` nunca gana la fusión (bug: podía quedarse el fantasma y
+  borrar el real). `_deCache` sobrante no deja lápida (nunca estuvo en la nube).
+- `fusionarTurnoEn` NO descarta datos: observaciones se unen línea a línea,
+  incidencias/telefonemas se añaden los que falten. Si un lado estaba
+  cerrado, el turno unido queda cerrado (no se reabre solo).
+- Verificado: (A) fantasma _deCache + dormida real → queda la dormida;
+  (B) dos turnos mismo día trenes 100/200 → los dos se conservan;
+  (C) misma guardia tren 300 en dos aparatos → se juntan con las
+  observaciones de los dos.
+
+**B. Vista mensual en el móvil.** Antes el móvil forzaba lista. Ahora tiene
+la cuadrícula del mes (compacta: número + punto de color, se toca para
+abrir), y el botón ▦/≡ alterna lista↔mes también en móvil. Sin scroll
+horizontal (probado a 375 px). `esMovil()` queda sin usar (se deja definida).
+
+**C. Turno cerrado = solo lectura.** Hay que pulsar «Reabrir turno».
+- Todos los `input/select/textarea` van `disabled` (también teclado/pegar).
+- `applyBind` corta cualquier mutación si `estado === 'cerrado'`.
+- `onClick` en el editor solo deja pasar: volver, reabrir, borrar, ver
+  servicios, ver/completar telefonemas ya creados, nube.
+- Aviso «🔒 Turno cerrado — solo lectura».
+- Un telefonema **ya creado** SÍ se puede completar con el turno cerrado
+  (ventana aparte, no usa `applyBind`). Añadir uno **nuevo** → hay que
+  reabrir (confirmado por David).
+- Verificado: 27 campos disabled, botones no hacen nada, forzar por script
+  tampoco escribe, «Reabrir» lo desbloquea entero.
+
+**D. Configuración (ajustes) en la nube.** Antes solo turnos. Ahora también
+los ajustes → al vincular OneDrive en un aparato nuevo se trae TODO.
+- Archivo `EnRuta/_config.json` = `{ at, settings }`. Gana la última
+  escritura (`at`). Enganche en `save()` para `K_SETTINGS`.
+- NO se sincroniza: `calView`, `nubeAvisoContador`, `lastBackup`. Sí:
+  ramas, nombre, apellidos, idEmpleado, teléfono, tema, telDevMode, gcal,
+  autoDownload, nubePrivacidadVista.
+- `Borrar mis datos de la nube` borra también `_config.json`.
+
+**E. Sincronización blindada contra mala cobertura** (David: uso con datos
+móviles, zonas sin cobertura, cortes).
+- Nunca se aplica una descarga a medias: cada archivo (`turno-*.json`,
+  `_borrados.json`, `_config.json`) se valida (JSON + forma esperada) antes
+  de usarlo; si falla no se aplica nada ni se guarda el eTag → reintento.
+- `subirDia` ABORTA si no puede leer el archivo remoto entero antes del PUT
+  (nunca sube «solo lo local», que podía encoger el archivo).
+- Listado de carpeta paginado incompleto → no se toca el registro de sincro.
+- Se usa el eTag del cuerpo de la respuesta, no solo el del listado.
+- Firma de detección de cambios: 32 → ~53 bits (dos djb2). *Efecto único al
+  actualizar:* resubida de todo con `unir()` (sin pérdida).
+- `st.ultimoSyncOk` solo se sella si el ciclo entero fue limpio; si hubo un
+  corte, icono ⚠️ + aviso en Ajustes «no se completó del todo (cobertura),
+  nada estropeado, se reintenta».
+- `localStorage` sigue siendo la fuente de verdad.
+
+**F. LTV3 en la zona de Registro.** `CATS_REGISTRO` incluye `LTV` además de
+ETC/LZB. La categoría/variante LTV3 ya existía en `TELEFONEMAS` con el
+texto oficial (PDF pág. 32). Color indiferente (`rc`).
+- **LZB:** revisado contra el PDF oficial (pág. 32) — LZB1–LZB5 **correctos**.
+  Único hueco: LZB5 sin «Guía y uso» (pendiente de David).
+
+**G. Fondo de color en las líneas de telefonema de Observaciones.** Un
+backdrop invisible detrás del textarea pinta el fondo de cada línea; las de
+telefonema (`"<CÓDIGO> · <hora> — ..."`) llevan el color del telefonema al
+15% (verde/rosa). El textarea va transparente encima, 100% editable.
+- `bulletearObs` ya NO toca las líneas de telefonema (antes las convertía en
+  «• ETC1 · ...» y rompía detección + color).
+- Reguardar un telefonema tras mover líneas por encima → lo localiza por su
+  hora y actualiza en su sitio, sin duplicar.
+- Se puede seguir escribiendo tras el telefonema con normalidad.
+
+- Versiones: `enruta-v56` · `registro.js?v=202609040` · `registro.css?v=202609040`
+  · `nube.js?v=202609040` · `CACHE enruta-rv-v52`.
+
+---
+
 ### 2026-09-01 — Paso 26: turnos duplicados del mismo día — juntar (enruta-v55)
 
 David: «en varios días se han duplicado los servicios al sincronizar con
