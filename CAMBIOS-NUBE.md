@@ -38,6 +38,44 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 49: lote de retoques (celda "Turno", Ajustes plegables, novedades) (enruta-v79, SIN PUBLICAR)
+
+David, bloque de 8:
+
+1. **Ajustes → "Sincronizar Google Calendar"** ahora es plegable (cerrada por
+   defecto). `setGcalOpen` + `set-gcal-toggle`. `renderGcalCard` reestructurado
+   (cabecera = `section-toggle`; contenido solo si abierta).
+2. **Ajustes → "Exportar a PDF"** ahora es plegable (cerrada por defecto).
+   `setPdfOpen` + `set-pdf-toggle`.
+3. **"Retraso conducción" en ROJO** (antes verde como Conducción). `tramoEsp`
+   de `Condotta` pasa de `k:'conduce'` a `k:'retraso'`; CSS
+   `.cuad-row.t-retraso .cuad-t b{color:var(--bad)}`. "Conduciendo" sigue en
+   verde. `parseEventoTurno`: la Condotta ya no genera servicio (guard `k ===
+   'conduce'` a secas).
+4. **Jornada > 8h en un turno de UN día → valor en rojo y negrita.** Dormidas
+   excluidas. En `renderCuadranteDetalle` y en la revisión de la sincro. Clase
+   `b.cuad-alto`.
+5. **Dormida con descanso < 9h → ese tramo en rojo y negrita.** Clase
+   `.cuad-row.cuad-alto` sobre el tramo de descanso. También en la revisión.
+6. **"Tiempo de trabajo" → "Jornada"** (celda "Turno" + revisión de la sincro).
+7. **Dormidas: el horario sale con "+"** — "18:35 - 10:00" → "18:35 - 10:00+".
+   Helper `horarioMasDormida` (si el fin < inicio, añade "+"). En el resumen
+   plegado y en el detalle de la celda "Turno".
+8. **Ventana de Novedades actualizada** — antes salía la lista vieja (v72) en
+   cada actualización. Ahora encabeza el traslado de La Sagrera CTT + PDF
+   plegable + lo más útil reciente. (Nada de modo desarrollador en el texto.)
+
+- Dormida en la celda "Turno" se detecta por `horario` (fin < inicio),
+  independiente de `isDormida(t)`.
+- CSS nuevo: `.cuad-row.t-retraso`, `b.cuad-alto`, `.cuad-row.cuad-alto`.
+- Verificado en preview: TESTA (jornada 08:35 en rojo, Condotta en rojo,
+  Conducción en verde), TESTB (dormida: horario "10:00+", Jornada 09:00 NO
+  roja por ser dormida, descanso 8h00 en rojo). Ajustes: los dos plegables
+  cerrados por defecto y abren al pulsar. Novedades sale al subir de versión
+  con el texto nuevo. Sin errores de consola.
+- Versiones (pendientes de publicar): `enruta-v79` · `registro.js?v=202609065`
+  · `registro.css?v=202609065` · `CACHE enruta-rv-v77`.
+
 ### 2026-09-02 — Paso 48: Calendar manda en Toma/Deje/Descanso (aunque el turno esté cerrado) (enruta-v78, SIN PUBLICAR)
 
 David: cuando la Toma o el Deje difieren entre Google Calendar y la app, no

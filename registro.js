@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v78';
+  var APP_VERSION = 'enruta-v79';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -868,6 +868,8 @@
   var expandedSvc = 0;
   var cuadranteAbierto = false; // celda "Turno" (datos de Calendar) plegada/desplegada
   var setComprobsOpen = false; // tarjeta "Comprobaciones" de Ajustes, plegada por defecto
+  var setPdfOpen = false;      // tarjeta "Exportar a PDF" de Ajustes, plegada por defecto
+  var setGcalOpen = false;     // tarjeta "Sincronizar Google Calendar", plegada por defecto
   var incidenciaAbierta = {}; // svc index -> bool. Estado de UI, no se persiste.
   // Comprobaciones: svc index -> bool, solo cuando el usuario ha tocado el
   // toggle a mano (si no está la clave, el estado se deriva de si ya hay
@@ -1459,15 +1461,13 @@
     titulo: 'Novedades',
     fig: null,
     puntos: [
+      'Traslado a/desde La Sagrera CTT dentro del servicio: en Barcelona-Sants, el botón 🅿️ añade el traslado de apartadero con su hora y su nº.',
+      '«Exportar a PDF» en Ajustes ahora se pliega (cerrado por defecto).',
       'Comprobaciones editables (Ajustes → «Editar el registro»): renómbralas, ocúltalas o añade las tuyas.',
       'Oculta lo que no uses: la hora de LTV, la celda de Toma / Descanso / Deje.',
-      'Nuevo campo «Asistentes» por estación (se activa en Ajustes).',
-      'Servicio comercial manual cuando no está en el Libro de Horarios.',
+      'Campo «Asistentes» por estación (se activa en Ajustes).',
       'PMR con dirección y cantidad (♿↑ suben / ♿↓ bajan) en cada estación.',
-      'Observaciones con viñetas y atajos (LTV, «detenido ante…», Vmáx…).',
-      'Telefonemas rediseñados: selectores de un toque, sin desplegables.',
-      'Copia en la nube (OneDrive) más robusta: sincroniza sola, aguanta mala cobertura y los borrados se propagan entre dispositivos.',
-      'Calendario en el móvil arreglado.',
+      'Servicio comercial manual cuando no está en el Libro de Horarios.',
       'Los cambios de Ajustes se ven al instante en el editor, sin reabrir el turno.'
     ]
   };
@@ -3074,8 +3074,8 @@
     if (!cache) return '';
     var full = cache.raw ? parseCalendarCompleto(cache.raw) : null;
     var codigo = (full && full.turno) || cache.codigo || '—';
-    var horario = (full && full.horario) ||
-      ((cache.toma || '?') + '–' + (cache.deje || '?'));
+    var horario = horarioMasDormida((full && full.horario) ||
+      ((cache.toma || '?') + '–' + (cache.deje || '?')));
     var h = '<div class="card cuadrante-card' + (cuadranteAbierto ? ' abierta' : '') + '">' +
       '<button type="button" class="cuadrante-head" data-action="cuadrante-toggle">' +
       '<span class="cuadrante-resumen">' + esc(codigo) + ' · ' + esc(horario) + '</span>' +
@@ -3104,20 +3104,26 @@
       h += '<div class="hint" style="margin-top:8px">El detalle completo aparece en la próxima sincronización de Google Calendar.</div></div>';
       return h;
     }
-    // Cabecera: turno · horario · tiempo de trabajo
-    h += '<div class="cuad-meta">' +
-      (full.turno ? '<span>Turno <b>' + esc(full.turno) + '</b></span>' : '') +
-      (full.horario ? '<span>Horario <b>' + esc(full.horario) + '</b></span>' : '') +
-      (full.totalWT ? '<span>Tiempo de trabajo <b>' + esc(full.totalWT) + '</b></span>' : '') +
-      '</div>';
     // Chivato: la toma/deje del cuadrante vs lo que hay en el turno.
     // Se compara EN MINUTOS ("8:38" y "08:38" son la misma hora).
     function mismaHora(a, b) {
       var ma = hhmmToMin(a), mb = hhmmToMin(b);
       return ma != null && mb != null && ma === mb;
     }
-    var mh = full.horario.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+    var mh = (full.horario || '').match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
     var cuadToma = mh ? mh[1] : '', cuadDeje = mh ? mh[2] : '';
+    // Dormida: el horario "cierra" pasada la medianoche (deje < toma).
+    var esDormidaCuad = mh && hhmmToMin(cuadDeje) < hhmmToMin(cuadToma);
+    // Jornada > 8h en un turno de un solo día → valor en rojo y negrita.
+    var jornadaMin = hhmmToMin(full.totalWT);
+    var jornadaLarga = !esDormidaCuad && jornadaMin != null && jornadaMin > 480;
+    // Cabecera: turno · horario · jornada
+    h += '<div class="cuad-meta">' +
+      (full.turno ? '<span>Turno <b>' + esc(full.turno) + '</b></span>' : '') +
+      (full.horario ? '<span>Horario <b>' + esc(horarioMasDormida(full.horario)) + '</b></span>' : '') +
+      (full.totalWT ? '<span>Jornada <b' + (jornadaLarga ? ' class="cuad-alto"' : '') + '>' +
+        esc(full.totalWT) + '</b></span>' : '') +
+      '</div>';
     var avisos = [];
     if (cuadToma && t.toma && !mismaHora(cuadToma, t.toma)) avisos.push('La toma del turno (' + t.toma + ') no coincide con el cuadrante (' + cuadToma + ').');
     if (cuadDeje && t.deje && !mismaHora(cuadDeje, t.deje)) avisos.push('El deje del turno (' + t.deje + ') no coincide con el cuadrante (' + cuadDeje + ').');
@@ -3140,7 +3146,13 @@
       else if (tr.destino) det = ' → ' + esc(tr.destino);
       else if (tr.lugar) det = ' · ' + esc(tr.lugar);
       else det = '';
-      h += '<div class="cuad-row t-' + tr.k + '">' +
+      // Dormida con descanso < 9h → tramo en rojo y negrita.
+      var descCorto = false;
+      if (tr.k === 'descanso' && esDormidaCuad) {
+        var dm = durMin(tr.hora, tr.horaFin);
+        if (dm != null && dm < 540) descCorto = true;
+      }
+      h += '<div class="cuad-row t-' + tr.k + (descCorto ? ' cuad-alto' : '') + '">' +
         '<span class="cuad-h">' + horas + '</span>' +
         '<span class="cuad-t"><b>' + esc(tr.et) + '</b>' + det + '</span>' +
         '</div>';
@@ -4489,6 +4501,13 @@
     var x = hhmmToMin(a), y = hhmmToMin(b);
     return x != null && y != null && x === y;
   }
+  // "11:50 - 10:28" (dormida: fin < inicio) → "11:50 - 10:28+".
+  function horarioMasDormida(hor) {
+    var m = String(hor || '').match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
+    if (!m) return hor;
+    var ini = hhmmToMin(m[1]), fin = hhmmToMin(m[2]);
+    return (ini != null && fin != null && fin < ini) ? m[1] + ' - ' + m[2] + '+' : hor;
+  }
   function siguienteDia(fechaISO) {
     var p = fechaISO.split('-');
     var d = new Date(+p[0], +p[1] - 1, +p[2]);
@@ -4534,7 +4553,8 @@
       // Conducción (Train): origen = lugar/destino del tramo anterior,
       // destino del "→", horas del propio rango. "Condotta" (retraso de
       // conducción) NO genera servicio aunque tramoEsp lo marque 'conduce'.
-      if (tr.k === 'conduce' && /^(train|conducc)/i.test(tr.tipo)) {
+      // 'conduce' = Train real; 'retraso' (Condotta) NO genera servicio.
+      if (tr.k === 'conduce') {
         var prev = tramos[j - 1];
         servicios.push({ fecha: tr.fecha,
           origen: prev ? (prev.lugar || prev.destino || '') : '',
@@ -4586,7 +4606,7 @@
     if (/^toma/.test(t)) return { et: 'Toma', k: 'toma' };
     if (/^deje/.test(t)) return { et: 'Deje', k: 'deje' };
     if (/^train\b/.test(t)) return { et: 'Conduciendo', k: 'conduce' };
-    if (/^condotta\b/.test(t)) return { et: 'Retraso conducción', k: 'conduce' };
+    if (/^condotta\b/.test(t)) return { et: 'Retraso conducción', k: 'retraso' };
     if (/travel time/.test(t)) return { et: 'De viajero', k: 'viaje' };
     if (/passage connection/.test(t)) return { et: 'Traslado', k: 'enlace' };
     if (/duty interruption/.test(t)) return { et: 'Descanso (dormida)', k: 'descanso' };
@@ -5074,9 +5094,12 @@
         '<label class="gcal-check-sm">' +
         '<input type="checkbox" data-gcal-incluir data-gi="' + gi + '" checked>' +
         'Completar huecos</label></div>';
+      var jMin = hhmmToMin(prop.totalWT);
+      var jLarga = !esDormida && jMin != null && jMin > 480;
+      var descCortoP = esDormida && prop.descansoMin && prop.descansoMin < 540;
       h += '<div class="hint">Cuadrante: Toma ' + esc(prop.toma || '—') + ' · Deje ' + esc(prop.deje || '—') +
-        ' · Descanso ' + fmtDescansoMin(prop.descansoMin) +
-        (prop.totalWT ? ' · Tiempo de trabajo ' + esc(prop.totalWT) : '') + '</div>';
+        ' · Descanso ' + (descCortoP ? '<b class="cuad-alto">' + fmtDescansoMin(prop.descansoMin) + '</b>' : fmtDescansoMin(prop.descansoMin)) +
+        (prop.totalWT ? ' · Jornada ' + (jLarga ? '<b class="cuad-alto">' + esc(prop.totalWT) + '</b>' : esc(prop.totalWT)) : '') + '</div>';
       if (prop.faltan && prop.faltan.length) {
         h += '<div class="hint" style="color:var(--warn);margin-top:4px">Falta por completar en el turno:</div>' +
           '<ul class="gcal-faltan">' +
@@ -5175,8 +5198,11 @@
   }
 
   function renderGcalCard() {
-    var h = '<div class="card"><div class="card-title">Sincronizar Google Calendar</div>';
-    h += '<div class="hint" style="margin-bottom:8px">Experimental — si el día ya tiene turno creado, propone completar huecos aquí (nunca sobrescribe). Si no lo tiene, solo se guarda para cuando lo crees en Calendario (botón 🔄).</div>';
+    var h = '<div class="card"><button type="button" class="section-toggle" style="margin:0" ' +
+      'data-action="set-gcal-toggle">Sincronizar Google Calendar ' +
+      '<span class="chev">' + (setGcalOpen ? '▴' : '▾') + '</span></button>';
+    if (!setGcalOpen) { h += '</div>'; return h; }
+    h += '<div class="hint" style="margin:10px 0 8px">Experimental — si el día ya tiene turno creado, propone completar huecos aquí (nunca sobrescribe). Si no lo tiene, solo se guarda para cuando lo crees en Calendario (botón 🔄).</div>';
     h += '<div class="field"><label>Client ID de Google</label>' +
       '<input type="text" id="set-gcal-client" value="' + esc(settings.gcalClientId) + '" placeholder="xxxx.apps.googleusercontent.com"></div>';
     h += '<div class="field"><label>ID de calendario</label>' +
@@ -5287,11 +5313,14 @@
       var fb = (b.servicios[0] && b.servicios[0].fecha) || '';
       return fb.localeCompare(fa);
     });
-    h += '<div class="card"><div class="card-title">Exportar a PDF</div>';
+    h += '<div class="card"><button type="button" class="section-toggle" style="margin:0" ' +
+      'data-action="set-pdf-toggle">Exportar a PDF ' +
+      '<span class="chev">' + (setPdfOpen ? '▴' : '▾') + '</span></button>';
+    if (setPdfOpen) {
     if (!sortedT.length) {
-      h += '<div class="hint">Aún no hay turnos para exportar.</div>';
+      h += '<div class="hint" style="margin-top:10px">Aún no hay turnos para exportar.</div>';
     } else {
-      h += '<div class="hint" style="margin-bottom:8px">Marca los turnos que quieras exportar:</div>' +
+      h += '<div class="hint" style="margin:10px 0 8px">Marca los turnos que quieras exportar:</div>' +
         '<div class="pdf-list">';
       sortedT.forEach(function (t) {
         var f = (t.servicios[0] && t.servicios[0].fecha) ? ymdNice(t.servicios[0].fecha) : 'sin fecha';
@@ -5309,6 +5338,7 @@
         '<button class="btn primary" data-action="pdf-export" style="margin-left:auto">Exportar seleccionados</button>' +
         '</div>';
     }
+    } // fin if (setPdfOpen)
     h += '</div>';
 
     // 7. Copia de seguridad
@@ -6673,6 +6703,8 @@
       return;
     }
     if (act === 'set-comprobs-toggle') { setComprobsOpen = !setComprobsOpen; renderSettings(); return; }
+    if (act === 'set-pdf-toggle') { setPdfOpen = !setPdfOpen; renderSettings(); return; }
+    if (act === 'set-gcal-toggle') { setGcalOpen = !setGcalOpen; renderSettings(); return; }
     if (act === 'comprob-add') {
       var caL = comprobsLista().slice();
       caL.push({ id: slugComprob('comprob', caL), label: 'Nueva comprobación', oculta: false });

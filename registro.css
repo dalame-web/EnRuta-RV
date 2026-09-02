@@ -957,9 +957,13 @@ input[type=number]::-webkit-inner-spin-button{
 }
 .cuad-row .cuad-t b{font-weight:600}
 .cuad-row.t-conduce .cuad-t b{color:var(--ok)}
+.cuad-row.t-retraso .cuad-t b{color:var(--bad)}
 .cuad-row.t-viaje .cuad-t, .cuad-row.t-enlace .cuad-t{color:var(--fg-dim)}
 .cuad-row.t-toma .cuad-t b, .cuad-row.t-deje .cuad-t b{color:var(--fg)}
 .cuad-row.t-descanso, .cuad-row.t-pausa{background:color-mix(in srgb, var(--warn) 9%, transparent)}
+/* Jornada > 8h (turno de un día) o descanso de dormida < 9h → rojo + negrita */
+b.cuad-alto{color:var(--bad); font-weight:800}
+.cuad-row.cuad-alto .cuad-t, .cuad-row.cuad-alto .cuad-t b{color:var(--bad); font-weight:800}
 .cuad-noche{text-align:center; color:var(--fg-dim); font-size:11px; padding:5px 0; letter-spacing:.05em}
 .cuad-sub{margin-top:11px}
 .cuad-sub-t{
