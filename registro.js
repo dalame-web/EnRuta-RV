@@ -4868,14 +4868,14 @@
     // 3b. Comprobaciones — plegable (cerrado por defecto, ocupa mucho abierto).
     var _cl = comprobsLista();
     h += '<div class="card"><button type="button" class="section-toggle" style="margin:0" ' +
-      'data-action="set-comprobs-toggle">Comprobaciones ' +
+      'data-action="set-comprobs-toggle">Editar las comprobaciones ' +
       '<span class="hint" style="font-weight:400;margin:0">(' + _cl.length + ')</span>' +
-      '<span class="chev">' + (setComprobsOpen ? '▴' : '▾') + '</span></button>';
-    if (setComprobsOpen) {
-    h += '<div class="hint" style="margin:8px 0 10px">Lo que sale como checklist en el editor del turno. ' +
+      '<span class="chev">' + (setComprobsOpen ? '▴' : '▾') + '</span></button>' +
+      '<div class="hint" style="margin:8px 0 0">Lo que sale como checklist en el editor del turno. ' +
       'Apaga el interruptor para ocultar una sin borrarla; las marcas de los turnos guardados no se tocan. ' +
-      'Las de fábrica solo se pueden ocultar.</div>' +
-      '<div class="comprob-editor">';
+      'Las de fábrica solo se pueden ocultar.</div>';
+    if (setComprobsOpen) {
+    h += '<div class="comprob-editor" style="margin-top:10px">';
     _cl.forEach(function (c, i) {
       var fab = esComprobFabrica(c.id);
       h += '<div class="comprob-row' + (c.oculta ? ' oculta' : '') + '">' +
