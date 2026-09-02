@@ -867,6 +867,7 @@
   var editId = null;
   var expandedSvc = 0;
   var cuadranteAbierto = false; // celda "Turno" (datos de Calendar) plegada/desplegada
+  var setComprobsOpen = false; // tarjeta "Comprobaciones" de Ajustes, plegada por defecto
   var incidenciaAbierta = {}; // svc index -> bool. Estado de UI, no se persiste.
   // Comprobaciones: svc index -> bool, solo cuando el usuario ha tocado el
   // toggle a mano (si no está la clave, el estado se deriva de si ya hay
@@ -4864,10 +4865,14 @@
       esc(settings.ramas.join('\n')) + '</textarea></div>' +
       '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-ramas">Guardar ramas</button></div></div>';
 
-    // 3b. Comprobaciones — editor fila a fila, guardado en vivo.
+    // 3b. Comprobaciones — plegable (cerrado por defecto, ocupa mucho abierto).
     var _cl = comprobsLista();
-    h += '<div class="card"><div class="card-title">Comprobaciones</div>' +
-      '<div class="hint" style="margin:0 0 10px">Lo que sale como checklist en el editor del turno. ' +
+    h += '<div class="card"><button type="button" class="section-toggle" style="margin:0" ' +
+      'data-action="set-comprobs-toggle">Comprobaciones ' +
+      '<span class="hint" style="font-weight:400;margin:0">(' + _cl.length + ')</span>' +
+      '<span class="chev">' + (setComprobsOpen ? '▴' : '▾') + '</span></button>';
+    if (setComprobsOpen) {
+    h += '<div class="hint" style="margin:8px 0 10px">Lo que sale como checklist en el editor del turno. ' +
       'Apaga el interruptor para ocultar una sin borrarla; las marcas de los turnos guardados no se tocan. ' +
       'Las de fábrica solo se pueden ocultar.</div>' +
       '<div class="comprob-editor">';
@@ -4890,7 +4895,9 @@
     h += '</div>' +
       '<div class="btn-row" style="margin-top:10px">' +
       '<button class="btn" data-action="comprob-add">+ Añadir comprobación</button>' +
-      '<button class="btn ghost" data-action="reset-comprobs">Restaurar de fábrica</button></div></div>';
+      '<button class="btn ghost" data-action="reset-comprobs">Restaurar de fábrica</button></div>';
+    }
+    h += '</div>';
 
     // 6. Exportar a PDF (multi-select)
     var sortedT = turnos.slice().sort(function (a, b) {
@@ -6206,6 +6213,7 @@
       });
       return;
     }
+    if (act === 'set-comprobs-toggle') { setComprobsOpen = !setComprobsOpen; renderSettings(); return; }
     if (act === 'comprob-add') {
       var caL = comprobsLista().slice();
       caL.push({ id: slugComprob('comprob', caL), label: 'Nueva comprobación', oculta: false });

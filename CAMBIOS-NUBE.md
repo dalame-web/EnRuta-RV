@@ -53,8 +53,11 @@ editor y en el PDF del turno; **nunca** en el informe de incidencia.
   carga hasta el primer guardado). Helper `algunaComprob(s)` soporta los dos
   formatos (usado en `tieneDatosDeUsuario`, `isEmptyServicio`).
 - **`fusionarTurnoEn`**: OR por clave, soporta origen en formato viejo.
-- **Ajustes -> tarjeta "Comprobaciones"**: editor fila a fila, guardado en
-  vivo (nada de textarea ni boton Guardar). Cada fila:
+- **Ajustes -> tarjeta "Comprobaciones"**: plegable, cerrada por defecto
+  (14 filas abiertas ocupan mucho). Cabecera `.section-toggle` con el numero
+  y chevron; `setComprobsOpen` (estado de UI, no se persiste);
+  `set-comprobs-toggle`. Abierta: editor fila a fila, guardado en vivo
+  (nada de textarea ni boton Guardar). Cada fila:
   - interruptor "se ve en el editor" (checkbox). Apagarlo pone `oculta:true`
     -> no sale en el turno pero **no se borra**.
   - campo de texto para el nombre (renombrar en el sitio, `change`/blur).
