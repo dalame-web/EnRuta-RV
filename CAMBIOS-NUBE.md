@@ -38,6 +38,44 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 42: los ajustes del editor se reflejan al instante en Registro (enruta-v72, SIN PUBLICAR)
+
+David: "cada vez que se active/desactive algo en Ajustes se tiene que ver YA
+en la pestaña de Registro, sin tener que borrar/reabrir el turno."
+
+**Causa**: los handlers de Ajustes que tocan el editor hacían
+`if (lastSetView === 'registro' && editId != null) renderEditor();`. Estando
+en Ajustes, `lastSetView === 'ajustes'` → nunca se repintaba el editor. Al
+volver a Registro, `switchTo('registro')` sí repinta si hay turno cargado —
+pero según el flujo de vuelta (sub-nav, discardEmptyEdit, etc.) podía no
+pasar, y entonces la única forma de ver el cambio era reabrir el turno.
+
+- **Helper `refrescarEditorTrasAjuste()`**: `if (editId != null &&
+  getTurno(editId)) renderEditor();` — repinta el editor SIEMPRE tras un
+  cambio de Ajustes, aunque el pane no esté visible. No cambia de vista ni
+  roba el foco (el usuario está en Ajustes).
+- Sustituye el guard `lastSetView === 'registro' && editId != null` en:
+  `data-comprob-label`, `data-comprob-vis`, `data-reg-vis` (LTV / toma-deje /
+  Asistentes), `comprob-mov`, `comprob-del`, `reset-comprobs`. Añadido a
+  `comprob-add` (antes no refrescaba nada) y a `save-ramas` /
+  `save-datos-personales` (la rama y el teléfono se ven en el editor).
+- No se toca: `nubeReRender` (línea 1288 / 6766, cross-feed nube con su
+  propio guard de foco) ni el `discardEmptyEdit` de `setView`.
+
+**Compatibilidad con turnos anteriores — verificado, no dado por hecho:**
+Probado en preview cargando un turno con schema viejo (sin `asistentes` en
+servicio ni paradas, `comprobaciones` como array posicional `[true,false,
+true]`, `descanso` en minutos sueltos `'826'`, `horaLTV` global, settings sin
+las claves `reg*`). Resultado: abre sin errores de consola; `descanso` migra
+a `13:46`, `horaLTV` global migra a `s.horaLTV`, comprobaciones migran a
+objeto por clave (13 filas), `asistentes` ausente → campo oculto sin
+`esc(undefined)`; turno cerrado sigue en solo lectura. Los cambios de los
+pasos 40-42 son **aditivos** (`== null` guards, `s.asistentes ? … : ''` en
+PDF/HTML) — un turno viejo sin el campo se comporta igual que antes.
+
+- Versiones (pendientes de publicar): `enruta-v72` · `registro.js?v=202609058`
+  · `CACHE enruta-rv-v70`.
+
 ### 2026-09-02 — Paso 41: campo "Asistentes" opcional por estación (enruta-v71, SIN PUBLICAR)
 
 David: en las paradas, debajo de PMR, poder añadir (opcionable desde Ajustes)

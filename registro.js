@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v71';
+  var APP_VERSION = 'enruta-v72';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -2927,6 +2927,15 @@
     return h;
   }
 
+  // Un cambio de Ajustes que afecta a lo que se ve en el editor (comprobaciones,
+  // sección LTV, celda toma/deje, Asistentes...) debe reflejarse YA en la
+  // pestaña Registro, sin tener que reabrir el turno. Se repinta el editor
+  // aunque el pane no esté visible (el usuario está en Ajustes); al volver a
+  // Registro ya está fresco. No roba el foco ni cambia de vista.
+  function refrescarEditorTrasAjuste() {
+    if (editId != null && getTurno(editId)) renderEditor();
+  }
+
   function renderEditor() {
     var t = getTurno(editId);
     if (!t) { renderCalendar(); setView('calendario'); return; }
@@ -5738,7 +5747,7 @@
       clL[cli].label = nv;
       settings.comprobaciones = clL;
       saveSettings();
-      if (lastSetView === 'registro' && editId != null) renderEditor();
+      refrescarEditorTrasAjuste();
       return;
     }
     if (el.getAttribute && el.getAttribute('data-comprob-vis') != null) {
@@ -5747,7 +5756,7 @@
       cvL[cvi].oculta = !el.checked;
       settings.comprobaciones = cvL;
       saveSettings(); renderSettings();
-      if (lastSetView === 'registro' && editId != null) renderEditor();
+      refrescarEditorTrasAjuste();
       return;
     }
     // Ajustes → "Editar el registro": ocultar/mostrar secciones del editor.
@@ -5756,7 +5765,7 @@
       if (!rvK) return;
       settings[rvK] = !el.checked;
       saveSettings();
-      if (lastSetView === 'registro' && editId != null) renderEditor();
+      refrescarEditorTrasAjuste();
       return;
     }
     if (el.classList && el.classList.contains('srv-sel')) {
@@ -6261,13 +6270,13 @@
       settings.nombre = $('set-nombre').value.trim();
       settings.apellidos = $('set-apellidos').value.trim();
       settings.idEmpleado = $('set-id-empleado').value.trim();
-      saveSettings(); flashSaved(); return;
+      saveSettings(); flashSaved(); refrescarEditorTrasAjuste(); return;
     }
     if (act === 'save-ramas') {
       var arr = $('set-ramas').value.split('\n').map(function (x) { return x.trim(); })
         .filter(Boolean);
       settings.ramas = arr.length ? arr : DEFAULT_RAMAS.slice();
-      saveSettings(); flashSaved(); renderSettings(); return;
+      saveSettings(); flashSaved(); renderSettings(); refrescarEditorTrasAjuste(); return;
     }
     // Editor de comprobaciones (Ajustes) — cada acción guarda en el momento.
     // Cada fila lleva su id estable, así renombrar no descuadra los turnos.
@@ -6278,7 +6287,7 @@
       var cmTmp = cmL[cmi]; cmL[cmi] = cmL[cmj]; cmL[cmj] = cmTmp;
       settings.comprobaciones = cmL;
       saveSettings(); renderSettings();
-      if (lastSetView === 'registro' && editId != null) renderEditor();
+      refrescarEditorTrasAjuste();
       return;
     }
     if (act === 'comprob-del') {
@@ -6292,7 +6301,7 @@
         if (!ok) return;
         settings.comprobaciones = comprobsLista().filter(function (_, j) { return j !== cdi; });
         saveSettings(); renderSettings();
-        if (lastSetView === 'registro' && editId != null) renderEditor();
+        refrescarEditorTrasAjuste();
       });
       return;
     }
@@ -6301,7 +6310,7 @@
       var caL = comprobsLista().slice();
       caL.push({ id: slugComprob('comprob', caL), label: 'Nueva comprobación', oculta: false });
       settings.comprobaciones = caL;
-      saveSettings(); renderSettings();
+      saveSettings(); renderSettings(); refrescarEditorTrasAjuste();
       var caInp = $('ajustes-pane').querySelectorAll('.comprob-label');
       if (caInp.length) { var last = caInp[caInp.length - 1]; last.focus(); last.select(); }
       return;
@@ -6315,7 +6324,7 @@
         if (!ok) return;
         settings.comprobaciones = DEFAULT_COMPROBACIONES.map(function (c) { return { id: c.id, label: c.label }; });
         saveSettings(); flashSaved(); renderSettings();
-        if (lastSetView === 'registro' && editId != null) renderEditor();
+        refrescarEditorTrasAjuste();
       });
       return;
     }
