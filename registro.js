@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v75';
+  var APP_VERSION = 'enruta-v76';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1612,6 +1612,14 @@
       if (s.rSalida == null) s.rSalida = '';
       if (s.rLlegDestino == null) s.rLlegDestino = '';
       if (s.asistentes == null) s.asistentes = '';
+      // Traslado embebido a/desde La Sagrera CTT (opcional): objeto o nada.
+      if (s.sagrera != null && typeof s.sagrera === 'object') {
+        ['hSalida', 'hLlegada', 'num'].forEach(function (k) {
+          if (s.sagrera[k] == null) s.sagrera[k] = '';
+        });
+      } else if (s.sagrera != null) {
+        delete s.sagrera;
+      }
       if (s.horaLTV == null) s.horaLTV = '';
       // Migración LTV global → servicio 0
       if (si === 0 && !s.horaLTV && t.horaLTV) s.horaLTV = t.horaLTV;
@@ -1710,7 +1718,7 @@
   // Google Calendar, que solo pone servicio/origen/destino/horas del Libro).
   function tieneDatosDeUsuario(t) {
     return (t.servicios || []).some(function (s) {
-      return s.n1 || s.via || s.rama || s.observaciones ||
+      return s.n1 || s.via || s.rama || s.observaciones || s.sagrera ||
         (s.pmr || []).length ||
         algunaComprob(s) ||
         (s.incidencias || []).length ||
@@ -1726,7 +1734,7 @@
         s.viajeros || s.asistencias || s.asistentes || s.plazasH || s.observaciones ||
         s.esTraslado || s.servicioManual || s.maniobraNombre ||
         s.origen || s.destino || s.hSalida || s.hDestino ||
-        s.rSalida || s.rLlegDestino || s.horaLTV) return false;
+        s.rSalida || s.rLlegDestino || s.horaLTV || s.sagrera) return false;
     if ((s.pmr || []).length) return false;
     if ((s.paradas || []).some(function (p) {
       return p.nombre || p.hora || p.hLleg || p.rLleg || p.rSal ||
@@ -1818,6 +1826,8 @@
         if (!dp[k] && sp[k]) dp[k] = sp[k];
       });
     });
+    // Traslado a La Sagrera: si aquí no hay y en el origen sí, traerlo.
+    if (!ds.sagrera && ss.sagrera) ds.sagrera = ss.sagrera;
   }
   // Vuelca src dentro de dst (turnos que son el mismo). dst se queda.
   function fusionarTurnoEn(dst, src) {
@@ -2609,6 +2619,11 @@
     } else {
       h += '<span class="st-name">' + esc(cfg.nombre || '—') + pmTags + '</span>';
     }
+    // Botón "taller" (a la izquierda del +) — traslado a/desde La Sagrera CTT.
+    if (cfg.tallerBtn) {
+      h += '<button class="st-taller" data-action="sagrera-toggle" ' +
+        'data-svc="' + si + '" title="Traslado a/desde La Sagrera CTT">🔧</button>';
+    }
     // Mini "+" inserta una parada NUEVA antes de la actual.
     if (cfg.parIdx != null) {
       h += '<button class="st-add" data-action="add-parada-before" ' +
@@ -2642,6 +2657,13 @@
         retInlineHtml(cfg.bindRetLleg, cfg.valRetLleg) + retNowBtnHtml(cfg.bindRetLleg, cfg.horaLlegada)
       ) + '</div>';
     }
+    // Fila extra "H. Salida/Llegada La Sagrera" en la tarjeta de Barcelona-Sants.
+    if (cfg.sagreraRow) {
+      h += '<div class="st-row"><span class="st-lbl">' + esc(cfg.sagreraRow.label) + '</span>' +
+        '<div class="st-time-col"><input type="time" data-bind="' + cfg.sagreraRow.bind +
+        '" value="' + esc(cfg.sagreraRow.val || '') + '"></div>' +
+        horaNowBtnHtml(cfg.sagreraRow.bind) + '</div>';
+    }
     if (cfg.horaSalida || cfg.editSalida) {
       var retSalMin = parseRetraso(cfg.valRetSal);
       var horaRealSal = (cfg.horaSalida && retSalMin) ? addMinutos(cfg.horaSalida, retSalMin) : '';
@@ -2662,6 +2684,35 @@
     h += '</div>';
     if (cfg.pax) h += '<div class="st-pax">' + cfg.pax + '</div>';
     h += '</div></div>';
+    return h;
+  }
+
+  // Tarjeta "LA SAGRERA CTT" — el otro extremo del traslado embebido. dir:
+  //   'destino' → el tren acabó en Barcelona-Sants y va vacío a Sagrera
+  //               (aquí se registra la H. Llegada a Sagrera).
+  //   'origen'  → viene vacío de Sagrera y sale el servicio en Barcelona-Sants
+  //               (aquí se registra la H. Salida de Sagrera).
+  function sagreraCard(s, si, dir) {
+    var sg = s.sagrera || {};
+    var esDest = dir === 'destino';
+    var lbl = esDest ? 'H. Llegada' : 'H. Salida';
+    var bindH = 'srv.' + si + '.sagrera.' + (esDest ? 'hLlegada' : 'hSalida');
+    var valH = esDest ? sg.hLlegada : sg.hSalida;
+    var h = '<div class="station-card sagrera-card">';
+    h += '<div class="st-head">' +
+      '<span class="st-badge">CTT</span>' +
+      '<span class="st-name">La Sagrera CTT</span>' +
+      '<button class="st-del" data-action="sagrera-del" data-svc="' + si +
+      '" title="Quitar traslado">🗑</button>' +
+      '</div>';
+    h += '<div class="st-body"><div class="st-times">' +
+      '<div class="st-row"><span class="st-lbl">' + lbl + '</span>' +
+      '<div class="st-time-col"><input type="time" data-bind="' + bindH +
+      '" value="' + esc(valH || '') + '"></div>' + horaNowBtnHtml(bindH) + '</div>' +
+      '<div class="st-row"><span class="st-lbl">Nº traslado</span>' +
+      '<input type="text" inputmode="numeric" class="svc-man-num" style="flex:0 0 110px" data-bind="srv.' + si +
+      '.sagrera.num" value="' + esc(sg.num || '') + '" placeholder="Número"></div>' +
+      '</div></div></div>';
     return h;
   }
 
@@ -2726,6 +2777,10 @@
     var h = '<div class="stations">';
     var esTraslado = !!s.esTraslado;
     var manual = !!s.servicioManual; // servicio comercial creado a mano
+    var sagDir = sagreraDir(s); // 'origen' | 'destino' | null
+    var sagOn = !!s.sagrera;
+    // Traslado de La Sagrera CTT → Barcelona-Sants: tarjeta ENCIMA del origen.
+    if (sagDir === 'origen' && sagOn) h += sagreraCard(s, si, 'origen');
     // Origen
     h += stationCard('origin', si, {
       nombre: manual ? s.origen : (s.origen || '(origen)'),
@@ -2740,6 +2795,11 @@
       manual: manual,
       bindRetSal: 'srv.' + si + '.rSalida',
       valRetSal: s.rSalida,
+      tallerBtn: sagDir === 'origen' && !sagOn,
+      sagreraRow: (sagDir === 'origen' && sagOn) ? {
+        label: 'H. Llegada La Sagrera', bind: 'srv.' + si + '.sagrera.hLlegada',
+        val: s.sagrera.hLlegada
+      } : null,
       pax: esTraslado ? '' : paxBlockOrigen(s, si)
     });
     // Paradas intermedias
@@ -2782,8 +2842,15 @@
       manual: manual,
       bindRetLleg: 'srv.' + si + '.rLlegDestino',
       valRetLleg: s.rLlegDestino,
+      tallerBtn: sagDir === 'destino' && !sagOn,
+      sagreraRow: (sagDir === 'destino' && sagOn) ? {
+        label: 'H. Salida La Sagrera', bind: 'srv.' + si + '.sagrera.hSalida',
+        val: s.sagrera.hSalida
+      } : null,
       pax: ''
     });
+    // Traslado Barcelona-Sants → La Sagrera CTT: tarjeta DEBAJO del destino.
+    if (sagDir === 'destino' && sagOn) h += sagreraCard(s, si, 'destino');
     h += '</div>';
     return h;
   }
@@ -3263,6 +3330,9 @@
       } else if (p[2] === 'inc') {
         var inc = s.incidencias[+p[3]];
         if (inc) inc[p[4]] = value;
+      } else if (p[2] === 'sagrera') {
+        if (!s.sagrera || typeof s.sagrera !== 'object') s.sagrera = { hSalida: '', hLlegada: '', num: '' };
+        s.sagrera[p[3]] = value;
       } else {
         s[p[2]] = value;
       }
@@ -4219,6 +4289,14 @@
         if (s.esTraslado && s.maniobraNombre) {
           porManiobra[s.maniobraNombre] = (porManiobra[s.maniobraNombre] || 0) + 1;
         }
+        // Traslado a/desde La Sagrera CTT embebido en el servicio: cuenta
+        // como un traslado más (va embebido, no suma en "Servicios").
+        if (s.sagrera) {
+          var sgMan = (sagreraDir(s) === 'origen')
+            ? 'La Sagrera CTT → Barcelona-Sants'
+            : 'Barcelona-Sants → La Sagrera CTT';
+          porManiobra[sgMan] = (porManiobra[sgMan] || 0) + 1;
+        }
         var mLleg = parseRetraso(s.rLlegDestino);
         if (mLleg != null && mLleg > 0 && (!mayorRetraso || mLleg > mayorRetraso.min)) {
           mayorRetraso = { fecha: s.fecha, num: s.servicioComercial || s.maniobraNombre || '—',
@@ -4575,6 +4653,17 @@
     return String(s || '').toUpperCase()
       .normalize('NFD').replace(RE_DIACRITICOS, '')
       .replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  // Traslado a/desde el depósito de La Sagrera CTT, embebido en un servicio
+  // cuyo origen o destino es Barcelona-Sants (ver stationsBlock / sagreraCard).
+  function esBarcelonaSants(nombre) {
+    return /^BARCELONA[ -]?SANTS\b/.test(normalizaEstacion(nombre));
+  }
+  // 'destino' | 'origen' | null  (destino gana si Barcelona-Sants es ambos).
+  function sagreraDir(s) {
+    if (esBarcelonaSants(s && s.destino)) return 'destino';
+    if (esBarcelonaSants(s && s.origen)) return 'origen';
+    return null;
   }
   // Adivina el nº de tren buscando en el Libro de Horarios por
   // origen+destino (primera palabra) + hora de salida aproximada
@@ -5338,6 +5427,15 @@
         (s.rLlegDestino ? '  [ret. ' + s.rLlegDestino + ' min]' : ''),
         { bold: true, size: 10, color: [185, 28, 28] });
 
+      if (s.sagrera) {
+        var sgLn = (sagreraDir(s) === 'origen')
+          ? 'Traslado La Sagrera CTT → ' + (s.origen || 'Barcelona-Sants')
+          : 'Traslado ' + (s.destino || 'Barcelona-Sants') + ' → La Sagrera CTT';
+        sgLn += '   Sal: ' + (s.sagrera.hSalida || '—') + '   Lleg: ' + (s.sagrera.hLlegada || '—');
+        if (s.sagrera.num) sgLn += '   (nº ' + s.sagrera.num + ')';
+        line(sgLn, { bold: true, size: 10, color: [120, 80, 160] });
+      }
+
       var listaChkPdf = comprobsParaServicio(s);
       if (listaChkPdf.length) {
         checkPage();
@@ -5803,6 +5901,17 @@
           (pmrCount ? ' <span style="color:#666;font-size:11px">(' + esc(pmrDestinos) + ')</span>' : '') + '</span>' +
           '</div>';
 
+        if (s.sagrera) {
+          var sgRot = (sagreraDir(s) === 'origen')
+            ? 'La Sagrera CTT → ' + esc(s.origen || 'Barcelona-Sants')
+            : esc(s.destino || 'Barcelona-Sants') + ' → La Sagrera CTT';
+          body += '<div class="fr"><span><b>Traslado</b>' + sgRot + '</span>' +
+            '<span><b>H. Salida</b>' + esc(s.sagrera.hSalida || '—') + '</span>' +
+            '<span><b>H. Llegada</b>' + esc(s.sagrera.hLlegada || '—') + '</span>' +
+            (s.sagrera.num ? '<span><b>Nº traslado</b>' + esc(s.sagrera.num) + '</span>' : '') +
+            '</div>';
+        }
+
         if (s.paradas && s.paradas.length) {
           var colAsist = s.paradas.some(function (p) { return p.asistentes; });
           body += '<table><thead><tr>' +
@@ -6149,6 +6258,30 @@
       var asi = +el.getAttribute('data-svc');
       t.servicios[asi].paradas.push(blankParada());
       autosave(); renderEditor(); return;
+    }
+    if (act === 'sagrera-toggle' && t) {
+      var sgSi = +el.getAttribute('data-svc');
+      var sgS = t.servicios[sgSi];
+      if (sgS && !sgS.sagrera) sgS.sagrera = { hSalida: '', hLlegada: '', num: '' };
+      autosave(); renderEditor(); return;
+    }
+    if (act === 'sagrera-del' && t) {
+      var sdSi = +el.getAttribute('data-svc');
+      var sdS = t.servicios[sdSi];
+      if (!sdS || !sdS.sagrera) return;
+      var sdTiene = sdS.sagrera.hSalida || sdS.sagrera.hLlegada || sdS.sagrera.num;
+      if (!sdTiene) { delete sdS.sagrera; autosave(); renderEditor(); return; }
+      appModal.confirm({
+        title: 'Quitar traslado a La Sagrera',
+        message: '¿Quitar el traslado a/desde La Sagrera CTT de este servicio?',
+        buttons: [
+          { label: 'Cancelar', value: false, kind: 'neutral' },
+          { label: 'Quitar', value: true, kind: 'danger' }
+        ]
+      }).then(function (ok) {
+        if (ok) { delete sdS.sagrera; autosave(); renderEditor(); }
+      });
+      return;
     }
     if (act === 'add-parada-before' && t) {
       var bsi = +el.getAttribute('data-svc');

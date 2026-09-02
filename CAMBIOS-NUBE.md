@@ -38,6 +38,49 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 46: traslado a/desde La Sagrera CTT dentro del servicio (enruta-v76, SIN PUBLICAR)
+
+David: registrar el movimiento en vacío entre Barcelona-Sants y el depósito
+La Sagrera CTT **dentro del mismo servicio** (no como servicio aparte). Plan:
+`C:\Users\david\.claude\plans\compiled-pondering-balloon.md`.
+
+- **Botón "taller" 🔧** en la tarjeta de estación (a la izquierda del `+`),
+  solo cuando `origen` o `destino` del servicio es Barcelona-Sants
+  (`esBarcelonaSants` / `sagreraDir`, junto a `normalizaEstacion`).
+- **Modelo**: `s.sagrera = { hSalida, hLlegada, num }` — objeto opcional,
+  presente solo si activado. La dirección (origen/destino) NO se guarda, se
+  deriva en cada render. `blankServicio` no lo añade; `normTurno` lo sanea o
+  lo borra si no es objeto. En `isEmptyServicio`/`tieneDatosDeUsuario` cuenta
+  como dato; `rellenaHuecosServicio` lo trae del origen si falta.
+- **Caso DESTINO Barcelona-Sants**: 🔧 en la tarjeta destino → fila
+  "H. Salida La Sagrera" (input + ⏱) en la tarjeta de Barcelona-Sants +
+  tarjeta nueva **debajo** "La Sagrera CTT" con "H. Llegada" (+ ⏱) + "Nº
+  traslado" + papelera 🗑.
+- **Caso ORIGEN Barcelona-Sants**: al revés. 🔧 en la tarjeta origen →
+  tarjeta "La Sagrera CTT" **encima** con "H. Salida" (+ ⏱) + "Nº traslado" +
+  🗑; fila "H. Llegada La Sagrera" en la tarjeta de Barcelona-Sants.
+- **Quitar**: papelera 🗑 en la tarjeta "La Sagrera CTT" (confirma si hay
+  datos). Al quitar vuelve a salir el 🔧.
+- `applyBind`: rama nueva `p[2] === 'sagrera'`. Handlers `sagrera-toggle` /
+  `sagrera-del` (no en `ACCIONES_RO` → bloqueados con turno cerrado).
+- **PDF del turno** (`exportPDFMany`, tras "Destino"): línea "Traslado … → La
+  Sagrera CTT  Sal: …  Lleg: …  (nº …)".
+- **Export HTML** (`buildBackupHtml`): fila `<div class="fr">` con Traslado /
+  H. Salida / H. Llegada / Nº.
+- **Estadísticas**: `porManiobra["Barcelona-Sants → La Sagrera CTT"]++`
+  (o al revés) — cuenta en "Traslados por maniobra" (no suma en "Servicios").
+- CSS: `.st-taller`, `.sagrera-card` (borde punteado azul). Reutiliza
+  `.st-row`/`.st-lbl`/`.st-time-col`/`.svc-man-num`/`.ret-now`.
+- **Verificado en preview**: 🔧 solo en Barcelona-Sants; caso destino y caso
+  origen (tarjeta arriba/abajo, dirección auto); ⏱ y campos escriben en
+  `s.sagrera`; persiste al recargar; papelera con confirmación; turno cerrado
+  bloquea botones e inputs; turno viejo (sin campo) abre sin errores;
+  Estadísticas muestra la maniobra. PDF/HTML: código simple con guarda
+  `if (s.sagrera)` (no ejecutable en el sandbox del preview). Sin errores de
+  consola nuevos.
+- Versiones (pendientes de publicar): `enruta-v76` · `registro.js?v=202609062`
+  · `registro.css?v=202609062` · `CACHE enruta-rv-v74`.
+
 ### 2026-09-02 — Paso 45: nuevo formato de Google Calendar (una línea por tramo) (enruta-v75, SIN PUBLICAR)
 
 David: Google Calendar cambia el formato de los turnos. Ahora cada tramo es
