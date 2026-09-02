@@ -38,6 +38,39 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 41: campo "Asistentes" opcional por estación (enruta-v71, SIN PUBLICAR)
+
+David: en las paradas, debajo de PMR, poder añadir (opcionable desde Ajustes)
+un campo "Asistentes" con una celda para una cantidad de personas. Campo
+nuevo aparte, no se confunde con "Asistencias".
+
+- **Schema**: `s.asistentes` / `p.asistentes` (string, ''), añadidos a
+  `blankServicio`, `blankParada` y a los 3 literales de parada que rehacen
+  `s.paradas` (`autofillServicio`, `autofillManiobra`,
+  `aplicarHorarioAServicio`). Guardas en `normTurno()` (`== null → ''`).
+- **isEmpty / merge**: `asistentes` cuenta como dato de usuario en
+  `isEmptyServicio`, `tieneDatosDeUsuario`; y se une en `fusionarTurnoEn`
+  (lista de claves de servicio y de parada).
+- **`settings.regAsistentesOculto`** (bool, default **`true`** — oculto por
+  defecto, campo opcional). En `CONFIG_LWW`.
+- **Ajustes → "Editar el registro"**: tercer interruptor "Asistentes (por
+  estación, debajo de PMR)".
+- **Editor**: helper `asistentesRow(bind, val)` — fila numérica debajo del
+  bloque PMR en `paxBlockOrigen` y `paxBlockParada` (origen + paradas
+  intermedias; el destino no tiene bloque de pasaje). Se pinta si
+  `!regAsistentesOculto || val` (si esa estación ya tiene valor, sale aunque
+  esté oculto).
+- **PDF del turno**: línea "Viajeros / Asist / PMR" del origen y "Viajeros /
+  Asist" de paradas → `+ '  Asistentes N'` solo si hay valor.
+- **Export HTML**: `<span>Asistentes</span>` en la cabecera del servicio si
+  `s.asistentes`; columna "Asistentes" en la tabla de paradas solo si alguna
+  parada tiene valor (`colAsist`).
+- **Estadísticas**: sin cambios — no agrega Viajeros/Asistencias hoy, así que
+  tampoco Asistentes.
+- Sin CSS nuevo (reusa `.pax-row`, `.comprob-row`, `.comprob-vis`).
+- Versiones (pendientes de publicar): `enruta-v71` · `registro.js?v=202609057`
+  · `CACHE enruta-rv-v69`.
+
 ### 2026-09-02 — Paso 40: ocultar secciones del editor desde Ajustes (enruta-v70, SIN PUBLICAR)
 
 David: "que desde ajustes se pueda quitar la hora de la LTV y también la

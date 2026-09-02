@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v70';
+  var APP_VERSION = 'enruta-v71';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1116,6 +1116,8 @@
     // borrar: si un turno ya tiene el dato, la sección sigue saliendo en él).
     if (settings.regLtvOculta == null) settings.regLtvOculta = false;
     if (settings.regHorarioOculto == null) settings.regHorarioOculto = false;
+    // "Asistentes" por estación: oculto por defecto (campo opcional).
+    if (settings.regAsistentesOculto == null) settings.regAsistentesOculto = true;
     if (settings.lastBackup == null) settings.lastBackup = '';
     if (settings.autoDownload == null) settings.autoDownload = false;
     // Modo desarrollador: muestra los botones ETCS/LZB en Registro. Oculto
@@ -1226,7 +1228,7 @@
   var CONFIG_LWW = {
     theme: 1, themeAuto: 1, themeAutoClaro: 1, themeAutoOscuro: 1,
     autoDownload: 1, nubePrivacidadVista: 1, comprobaciones: 1,
-    regLtvOculta: 1, regHorarioOculto: 1
+    regLtvOculta: 1, regHorarioOculto: 1, regAsistentesOculto: 1
   };
   function nubeConfigParaSubir() {
     var out = {};
@@ -1384,7 +1386,7 @@
       hSalida: '', hDestino: '', rSalida: '', rLlegDestino: '',
       esTraslado: false, maniobraNombre: '', servicioManual: false,
       horaLTV: '', paradas: [],
-      n1: '', viajeros: '', asistencias: '', plazasH: '', pmr: [],
+      n1: '', viajeros: '', asistencias: '', asistentes: '', plazasH: '', pmr: [],
       comprobaciones: {},
       observaciones: '', dibujos: [],
       incidencias: [], telefonemas: []
@@ -1407,7 +1409,7 @@
   function blankParada() {
     return {
       nombre: '', hLleg: '', hora: '', tParada: 0, rLleg: '', rSal: '',
-      viajeros: '', asistencias: ''
+      viajeros: '', asistencias: '', asistentes: ''
     };
   }
   function blankTurno(fecha) {
@@ -1439,6 +1441,7 @@
       if (s.servicioManual == null) s.servicioManual = false;
       if (s.rSalida == null) s.rSalida = '';
       if (s.rLlegDestino == null) s.rLlegDestino = '';
+      if (s.asistentes == null) s.asistentes = '';
       if (s.horaLTV == null) s.horaLTV = '';
       // Migración LTV global → servicio 0
       if (si === 0 && !s.horaLTV && t.horaLTV) s.horaLTV = t.horaLTV;
@@ -1462,6 +1465,7 @@
         if (p.rSal == null) p.rSal = '';
         if (p.viajeros == null) p.viajeros = '';
         if (p.asistencias == null) p.asistencias = '';
+        if (p.asistentes == null) p.asistentes = '';
         if (!Array.isArray(p.pmr)) p.pmr = [];
         // Si tParada=0 y la encontramos en el horario con valor mayor → rellenar.
         if (!p.tParada && hr && p.nombre) {
@@ -1541,7 +1545,7 @@
         algunaComprob(s) ||
         (s.incidencias || []).length ||
         (s.paradas || []).some(function (p) {
-          return p.viajeros || p.asistencias || (p.pmr || []).length;
+          return p.viajeros || p.asistencias || p.asistentes || (p.pmr || []).length;
         });
     });
   }
@@ -1549,14 +1553,14 @@
   function isEmptyServicio(s) {
     if (!s) return true;
     if (s.servicioComercial || s.servicioComercial2 || s.via || s.rama || s.n1 ||
-        s.viajeros || s.asistencias || s.plazasH || s.observaciones ||
+        s.viajeros || s.asistencias || s.asistentes || s.plazasH || s.observaciones ||
         s.esTraslado || s.servicioManual || s.maniobraNombre ||
         s.origen || s.destino || s.hSalida || s.hDestino ||
         s.rSalida || s.rLlegDestino || s.horaLTV) return false;
     if ((s.pmr || []).length) return false;
     if ((s.paradas || []).some(function (p) {
       return p.nombre || p.hora || p.hLleg || p.rLleg || p.rSal ||
-             p.viajeros || p.asistencias || (p.pmr || []).length;
+             p.viajeros || p.asistencias || p.asistentes || (p.pmr || []).length;
     })) return false;
     if (algunaComprob(s)) return false;
     if (s.incidencias && s.incidencias.length) return false;
@@ -1606,7 +1610,7 @@
   // en vez de quedarse solo con uno.
   function rellenaHuecosServicio(ds, ss) {
     ['servicioComercial', 'servicioComercial2', 'via', 'rama', 'n1', 'viajeros',
-     'asistencias', 'plazasH', 'hSalida', 'hDestino', 'rSalida', 'rLlegDestino',
+     'asistencias', 'asistentes', 'plazasH', 'hSalida', 'hDestino', 'rSalida', 'rLlegDestino',
      'horaLTV', 'origen', 'destino', 'maniobraNombre'].forEach(function (k) {
       if (!ds[k] && ss[k]) ds[k] = ss[k];
     });
@@ -1640,7 +1644,7 @@
     });
     (ss.paradas || []).forEach(function (sp) {
       var dp = (ds.paradas || []).find(function (p) { return p.nombre === sp.nombre; });
-      if (dp) ['hLleg', 'hora', 'rLleg', 'rSal', 'viajeros', 'asistencias'].forEach(function (k) {
+      if (dp) ['hLleg', 'hora', 'rLleg', 'rSal', 'viajeros', 'asistencias', 'asistentes'].forEach(function (k) {
         if (!dp[k] && sp[k]) dp[k] = sp[k];
       });
     });
@@ -2520,6 +2524,7 @@
       '<input type="number" inputmode="numeric" data-bind="srv.' + si +
       '.asistencias" value="' + esc(s.asistencias) + '"></div>';
     h += pmrListHtml(s, -1, s.pmr, si, 'srv.' + si);
+    h += asistentesRow('srv.' + si + '.asistentes', s.asistentes);
     h += '</div>';
     return h;
   }
@@ -2533,8 +2538,18 @@
       '<input type="number" inputmode="numeric" data-bind="srv.' + si +
       '.par.' + pi + '.asistencias" value="' + esc(p.asistencias) + '"></div>';
     h += pmrListHtml(s, pi, p.pmr, si, 'srv.' + si + '.par.' + pi);
+    h += asistentesRow('srv.' + si + '.par.' + pi + '.asistentes', p.asistentes);
     h += '</div>';
     return h;
+  }
+
+  // Fila "Asistentes" — campo numérico opcional por estación, debajo de PMR.
+  // Se activa en Ajustes; si esta estación ya tiene un valor, sale igual.
+  function asistentesRow(bind, val) {
+    if (settings.regAsistentesOculto && !val) return '';
+    return '<div class="pax-row"><label>Asistentes</label>' +
+      '<input type="number" inputmode="numeric" data-bind="' + bind +
+      '" value="' + esc(val) + '"></div>';
   }
 
   function stationsBlock(s, si) {
@@ -3939,7 +3954,7 @@
         hora: p.hora,
         tParada: tP,
         rLleg: '', rSal: '',
-        viajeros: '', asistencias: ''
+        viajeros: '', asistencias: '', asistentes: ''
       };
     });
     autosave();
@@ -3973,7 +3988,7 @@
     s.paradas = (m.paradas || []).map(function (p) {
       return {
         nombre: p.nombre, hLleg: '', hora: '', tParada: 0,
-        rLleg: '', rSal: '', viajeros: '', asistencias: ''
+        rLleg: '', rSal: '', viajeros: '', asistencias: '', asistentes: ''
       };
     });
     autosave();
@@ -4418,7 +4433,7 @@
         nombre: p.nombre,
         hLleg: tP > 0 ? subMinutos(p.hora, tP) : (p.hLleg || ''),
         hora: p.hora, tParada: tP, rLleg: '', rSal: '',
-        viajeros: '', asistencias: ''
+        viajeros: '', asistencias: '', asistentes: ''
       };
     });
   }
@@ -4904,6 +4919,11 @@
       '<label class="comprob-vis" title="Se muestra en el editor">' +
       '<input type="checkbox" data-reg-vis="horario"' + (settings.regHorarioOculto ? '' : ' checked') + '></label>' +
       '<span class="comprob-label" style="border:0;padding-left:2px">Celda Toma / Descanso / Deje</span>' +
+      '</div>' +
+      '<div class="comprob-row">' +
+      '<label class="comprob-vis" title="Se muestra en el editor">' +
+      '<input type="checkbox" data-reg-vis="asistentes"' + (settings.regAsistentesOculto ? '' : ' checked') + '></label>' +
+      '<span class="comprob-label" style="border:0;padding-left:2px">Asistentes (por estación, debajo de PMR)</span>' +
       '</div></div>';
     h += '<div class="hint" style="font-weight:600;margin:14px 0 0">Comprobaciones ' +
       '<span style="font-weight:400">(' + _cl.length + ')</span></div>' +
@@ -5072,10 +5092,11 @@
       line('Origen ' + (s.origen || '—') + '   Sal: ' + (s.hSalida || '—') +
         (s.rSalida ? '  [ret. ' + s.rSalida + ' min]' : ''),
         { bold: true, size: 10, color: [21, 128, 61] });
-      if (s.viajeros || s.asistencias || (s.pmr && s.pmr.length)) {
+      if (s.viajeros || s.asistencias || s.asistentes || (s.pmr && s.pmr.length)) {
         line('  Viajeros ' + (s.viajeros || '0') +
              '  Asist ' + (s.asistencias || '0') +
-             '  PMR ' + ((s.pmr && s.pmr.length) || '0'),
+             '  PMR ' + ((s.pmr && s.pmr.length) || '0') +
+             (s.asistentes ? '  Asistentes ' + s.asistentes : ''),
           { size: 8, x: M + 3, gap: 1, color: [110, 110, 110] });
       }
       if (s.pmr && s.pmr.length) {
@@ -5094,9 +5115,10 @@
           '   Lleg: ' + hLleg + (p.rLleg ? ' [ret. ' + p.rLleg + ' min]' : '') +
           '   Sal: ' + hSal + (p.rSal ? ' [ret. ' + p.rSal + ' min]' : ''),
           { bold: true, size: 10 });
-        if (p.viajeros || p.asistencias) {
+        if (p.viajeros || p.asistencias || p.asistentes) {
           line('  Viajeros ' + (p.viajeros || '0') +
-               '  Asist ' + (p.asistencias || '0'),
+               '  Asist ' + (p.asistencias || '0') +
+               (p.asistentes ? '  Asistentes ' + p.asistentes : ''),
             { size: 8, x: M + 3, gap: 1, color: [110, 110, 110] });
         }
       });
@@ -5567,14 +5589,16 @@
           '<span><b>N1</b>' + esc(s.n1 || '—') + '</span>' +
           '<span><b>Viajeros</b>' + esc(s.viajeros || '0') + '</span>' +
           '<span><b>Asistencias</b>' + esc(s.asistencias || '0') + '</span>' +
+          (s.asistentes ? '<span><b>Asistentes</b>' + esc(s.asistentes) + '</span>' : '') +
           '<span><b>PMR</b>' + pmrCount +
           (pmrCount ? ' <span style="color:#666;font-size:11px">(' + esc(pmrDestinos) + ')</span>' : '') + '</span>' +
           '</div>';
 
         if (s.paradas && s.paradas.length) {
+          var colAsist = s.paradas.some(function (p) { return p.asistentes; });
           body += '<table><thead><tr>' +
             '<th>Parada</th><th>H. Lleg</th><th>Ret. lleg</th><th>H. Sal</th><th>Ret. sal</th>' +
-            '<th>Viajeros</th><th>Asist.</th>' +
+            '<th>Viajeros</th><th>Asist.</th>' + (colAsist ? '<th>Asistentes</th>' : '') +
             '</tr></thead><tbody>';
           s.paradas.forEach(function (p) {
             var hLleg = (p.tParada > 0 && p.hora) ? subMinutos(p.hora, p.tParada) : '—';
@@ -5586,6 +5610,7 @@
               '<td>' + esc(p.rSal || '—') + '</td>' +
               '<td>' + esc(p.viajeros || '0') + '</td>' +
               '<td>' + esc(p.asistencias || '0') + '</td>' +
+              (colAsist ? '<td>' + esc(p.asistentes || '0') + '</td>' : '') +
               '</tr>';
           });
           body += '</tbody></table>';
@@ -5727,7 +5752,8 @@
     }
     // Ajustes → "Editar el registro": ocultar/mostrar secciones del editor.
     if (el.getAttribute && el.getAttribute('data-reg-vis') != null) {
-      var rvK = el.getAttribute('data-reg-vis') === 'ltv' ? 'regLtvOculta' : 'regHorarioOculto';
+      var rvK = { ltv: 'regLtvOculta', horario: 'regHorarioOculto', asistentes: 'regAsistentesOculto' }[el.getAttribute('data-reg-vis')];
+      if (!rvK) return;
       settings[rvK] = !el.checked;
       saveSettings();
       if (lastSetView === 'registro' && editId != null) renderEditor();
