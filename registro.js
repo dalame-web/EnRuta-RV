@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v73';
+  var APP_VERSION = 'enruta-v74';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1381,65 +1381,40 @@
 
   // Páginas de la guía (se ven enteras el primer arranque y desde el botón de
   // Ajustes). NADA de modo desarrollador aquí.
-  // Ilustraciones (SVG en línea, heredan el tema por las clases de .bienv-fig).
+  // Ilustraciones: piezas REALES de la app (icono, barra de pestañas, celdas
+  // de calendario) reutilizando sus propias clases — no dibujos.
   var BIENV_FIG = {
-    tren:
-      '<svg viewBox="0 0 220 84" width="220" xmlns="http://www.w3.org/2000/svg">' +
-      '<line x1="12" y1="62" x2="208" y2="62" class="il-stroke"/>' +
-      '<circle cx="34" cy="62" r="3" class="il-muted"/><circle cx="110" cy="62" r="3" class="il-muted"/>' +
-      '<circle cx="186" cy="62" r="3" class="il-muted"/>' +
-      '<rect x="66" y="24" width="88" height="28" rx="8" class="il-fill"/>' +
-      '<rect x="66" y="24" width="88" height="28" rx="8" class="il-accent-s"/>' +
-      '<circle cx="84" cy="58" r="4" class="il-stroke"/><circle cx="136" cy="58" r="4" class="il-stroke"/>' +
-      '<path d="M154 30l14 8-14 8z" class="il-accent"/></svg>',
-    tabs:
-      '<svg viewBox="0 0 236 44" width="236" xmlns="http://www.w3.org/2000/svg">' +
-      '<rect x="4" y="12" width="34" height="22" rx="5" class="il-accent"/>' +
-      '<rect x="42" y="12" width="34" height="22" rx="5" class="il-fill"/>' +
-      '<rect x="80" y="12" width="34" height="22" rx="5" class="il-fill"/>' +
-      '<rect x="118" y="12" width="34" height="22" rx="5" class="il-fill"/>' +
-      '<rect x="156" y="12" width="34" height="22" rx="5" class="il-fill"/>' +
-      '<rect x="194" y="12" width="34" height="22" rx="5" class="il-fill"/></svg>',
-    calendario:
-      '<svg viewBox="0 0 176 100" width="176" xmlns="http://www.w3.org/2000/svg">' +
-      '<rect x="6" y="10" width="164" height="84" rx="8" class="il-stroke"/>' +
-      '<line x1="6" y1="28" x2="170" y2="28" class="il-stroke"/>' +
-      '<rect x="18" y="38" width="20" height="16" rx="3" class="il-fill"/>' +
-      '<rect x="46" y="38" width="20" height="16" rx="3" class="il-fill"/>' +
-      '<rect x="74" y="38" width="20" height="16" rx="3" class="il-accent"/>' +
-      '<rect x="102" y="38" width="20" height="16" rx="3" class="il-fill"/>' +
-      '<rect x="130" y="38" width="20" height="16" rx="3" class="il-fill"/>' +
-      '<rect x="18" y="62" width="20" height="16" rx="3" class="il-fill"/>' +
-      '<rect x="46" y="62" width="20" height="16" rx="3" class="il-fill"/>' +
-      '<rect x="74" y="62" width="20" height="16" rx="3" class="il-fill"/>' +
-      '<circle cx="150" cy="78" r="12" class="il-accent"/>' +
-      '<path d="M150 72v12M144 78h12" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
-    datos:
-      '<svg viewBox="0 0 220 96" width="220" xmlns="http://www.w3.org/2000/svg">' +
-      '<rect x="10" y="30" width="46" height="60" rx="6" class="il-stroke"/>' +
-      '<circle cx="33" cy="82" r="2.5" class="il-muted"/>' +
-      '<rect x="164" y="44" width="34" height="46" rx="6" class="il-stroke"/>' +
-      '<circle cx="181" cy="84" r="2" class="il-muted"/>' +
-      '<path d="M92 40c-9 0-16 7-16 15 0 1 0 2 .3 3C70 59 66 63 66 69c0 7 6 12 13 12h40c8 0 15-6 15-14 0-7-5-13-12-14 0-11-9-19-20-19-4 0-8 1-10 3z" class="il-fill"/>' +
-      '<path d="M92 40c-9 0-16 7-16 15 0 1 0 2 .3 3C70 59 66 63 66 69c0 7 6 12 13 12h40c8 0 15-6 15-14 0-7-5-13-12-14 0-11-9-19-20-19-4 0-8 1-10 3z" class="il-accent-s"/>' +
-      '<path d="M56 60h8M60 56l-4 4 4 4" class="il-accent-s"/>' +
-      '<path d="M156 66h-8M152 62l4 4-4 4" class="il-accent-s"/></svg>',
-    novedades:
-      '<svg viewBox="0 0 200 92" width="200" xmlns="http://www.w3.org/2000/svg">' +
-      '<circle cx="18" cy="20" r="9" class="il-ok"/><path d="M14 20l3 3 6-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<rect x="36" y="16" width="150" height="8" rx="4" class="il-fill"/>' +
-      '<circle cx="18" cy="46" r="9" class="il-ok"/><path d="M14 46l3 3 6-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<rect x="36" y="42" width="130" height="8" rx="4" class="il-fill"/>' +
-      '<circle cx="18" cy="72" r="9" class="il-ok"/><path d="M14 72l3 3 6-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<rect x="36" y="68" width="145" height="8" rx="4" class="il-fill"/></svg>'
+    icono:
+      '<img src="icon-192.png" alt="EnRuta-RV" width="96" height="96" ' +
+      'style="border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.3)">',
+    // Barra de pestañas: los mismos <button class="tab"> que la app.
+    tabs: (function () {
+      var t = [['📅', 'Calendario', ' active'], ['📋', 'Registro', ''],
+        ['📞', 'Telefonemas', ''], ['📄', 'Informe', ''],
+        ['📊', 'Estadísticas', ''], ['⚙', 'Ajustes', '']];
+      return '<div class="bienv-tabs">' + t.map(function (x) {
+        return '<span class="tab' + x[2] + '">' + x[0] + ' ' + x[1] + '</span>';
+      }).join('') + '</div>';
+    })(),
+    // Mini calendario con las celdas reales (.cal-day), una en curso.
+    calendario: (function () {
+      var h = '<div class="bienv-cal"><div class="cal-grid">';
+      for (var d = 2; d <= 15; d++) {
+        var cls = 'cal-day';
+        var extra = '';
+        if (d === 9) { cls += ' today en-curso'; extra = '<span class="dot en_curso"></span>'; }
+        h += '<div class="' + cls + '"><span class="dnum">' + d + '</span>' + extra + '</div>';
+      }
+      return h + '</div></div>';
+    })()
   };
 
   var BIENVENIDA_PAGINAS = [
     {
       titulo: 'Bienvenido a EnRuta-RV',
-      fig: BIENV_FIG.tren,
+      fig: BIENV_FIG.icono,
       puntos: [
-        'App para maquinistas de Iryo: lleva el registro de tus viajes, turno a turno.',
+        'App para maquinistas: lleva el registro de tus viajes, turno a turno.',
         'Anota servicios, paradas, viajeros, PMR, comprobaciones, telefonemas e informes de incidencia.',
         'Funciona sin conexión. Todo se guarda en tu dispositivo al momento.'
       ]
@@ -1450,10 +1425,10 @@
       puntos: [
         'Calendario — tus turnos por día. Toca un día para ver o crear el turno.',
         'Registro — el editor del turno: servicios, paradas, observaciones.',
-        'Telefonemas — catálogo de telefonemas (Anexo I) para consulta.',
-        'Informe — genera el PDF del informe de incidencia.',
+        'Telefonemas — todos los telefonemas para consulta.',
+        'Informe — genera el PDF del informe de incidencia con los datos del servicio donde ocurrió la incidencia.',
         'Estadísticas — servicios, horas y retrasos en el rango que elijas.',
-        'Ajustes — tus datos, ramas, tema, comprobaciones y la copia en la nube.'
+        'Ajustes — tus datos, ramas, tema, edita las opciones del registro de servicios y la gestión en la nube.'
       ]
     },
     {
@@ -1469,12 +1444,11 @@
     },
     {
       titulo: 'Dónde están tus datos',
-      fig: BIENV_FIG.datos,
+      fig: null,
       puntos: [
         'Todo se guarda en este dispositivo. Nadie más lo ve.',
         'Puedes activar la copia en la nube (Ajustes): guarda una copia en tu OneDrive y mantiene los mismos turnos en el móvil y la tablet.',
-        'Cada maquinista gestiona solo sus datos y puede borrarlos cuando quiera.',
-        'También hay «Exportar copia» manual en Ajustes.'
+        'Cada maquinista gestiona solo sus datos y puede borrarlos cuando quiera.'
       ]
     }
   ];
@@ -1483,7 +1457,7 @@
   // nueva, y como última página del carrusel el primer arranque.
   var BIENVENIDA_NOVEDADES = {
     titulo: 'Novedades',
-    fig: BIENV_FIG.novedades,
+    fig: null,
     puntos: [
       'Comprobaciones editables (Ajustes → «Editar el registro»): renómbralas, ocúltalas o añade las tuyas.',
       'Oculta lo que no uses: la hora de LTV, la celda de Toma / Descanso / Deje.',
@@ -1525,8 +1499,9 @@
           var h = bienvPageHtml(paginas[i]);
           h += '<div class="bienv-nav">';
           if (total > 1) {
-            h += '<button type="button" class="modal-btn neutral bienv-prev"' +
-              (i === 0 ? ' disabled' : '') + '>‹ Atrás</button>';
+            h += i > 0
+              ? '<button type="button" class="modal-btn neutral bienv-prev">‹ Atrás</button>'
+              : '<span></span>';
             h += '<span class="bienv-dots">';
             for (var d = 0; d < total; d++) h += '<span class="bienv-dot' + (d === i ? ' on' : '') + '"></span>';
             h += '</span>';

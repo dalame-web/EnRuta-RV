@@ -1123,9 +1123,32 @@ input[type=number]::-webkit-inner-spin-button{
 .bienv-fig{
   display:flex;align-items:center;justify-content:center;
   background:var(--panel-2,#1f242c);border:1px solid var(--border,#30363d);
-  border-radius:10px;padding:14px;margin:0 0 14px;min-height:104px;
+  border-radius:10px;padding:14px;margin:0 0 14px;overflow:hidden;
 }
+.bienv-fig img{display:block}
 .bienv-fig svg{max-width:100%;height:auto;display:block}
+
+/* Barra de pestañas real dentro de la guía (mismos .tab que la app) */
+.bienv-tabs{
+  display:flex;align-items:stretch;width:100%;
+  background:var(--panel,#161b22);border-radius:8px;
+  overflow-x:auto;scrollbar-width:none;
+}
+.bienv-tabs::-webkit-scrollbar{display:none}
+.bienv-tabs .tab{
+  pointer-events:none;white-space:nowrap;padding:10px 14px;font-size:12.5px;
+}
+.bienv-tabs .tab:hover{background:transparent}
+
+/* Mini calendario con celdas reales (.cal-day) */
+.bienv-cal{width:100%}
+.bienv-cal .cal-grid{gap:4px}
+.bienv-cal .cal-day{
+  min-height:36px;padding:4px;pointer-events:none;position:relative;
+}
+.bienv-cal .cal-day .dnum{font-size:12px}
+.bienv-cal .cal-day .dot{position:absolute;left:5px;bottom:5px}
+
 .bienv-list{margin:0;padding-left:20px;font-size:14px;line-height:1.55}
 .bienv-list li{margin:0 0 7px}
 .bienv-nav{
@@ -1149,11 +1172,3 @@ input[type=number]::-webkit-inner-spin-button{
   .bienv-nav .modal-btn{flex:1 1 100%}
   .bienv-dots{order:-1;width:100%;justify-content:center;margin-bottom:6px}
 }
-
-/* Ilustraciones del carrusel — heredan el tema por currentColor / vars */
-.bienv-fig .il-stroke{stroke:var(--fg,#e6edf3);fill:none;stroke-width:1.6}
-.bienv-fig .il-fill{fill:var(--fg,#e6edf3);opacity:.14}
-.bienv-fig .il-accent{fill:var(--accent,#58a6ff)}
-.bienv-fig .il-accent-s{stroke:var(--accent,#58a6ff);fill:none;stroke-width:1.6}
-.bienv-fig .il-ok{fill:var(--ok,#3fb950)}
-.bienv-fig .il-muted{fill:var(--fg,#e6edf3);opacity:.55}

@@ -38,6 +38,30 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 44: ventana de inicio — piezas reales + retoques de texto (enruta-v74, SIN PUBLICAR)
+
+David: los dibujos SVG estaban mal; que las imágenes usen las piezas reales
+de la app. Y varios cambios de texto.
+
+- **Ilustraciones = componentes reales**, no dibujos:
+  - Pág. 1: el icono real de la app (`icon-192.png`).
+  - Pág. 2: la barra de pestañas real (los mismos `<span class="tab">` con
+    su CSS, «Calendario» con el subrayado rojo activo). Scroll horizontal
+    interno en móvil.
+  - Pág. 3: mini calendario con celdas `.cal-day` reales, una `today
+    en-curso` con su punto ámbar.
+  - Págs. 4 y 5: sin ilustración.
+- Fuera todo el SVG dibujado y las clases `.il-*` (CSS muerto).
+- **Textos**: «App para maquinistas» (sin «de Iryo»); «Telefonemas — todos
+  los telefonemas para consulta»; «Informe — … con los datos del servicio
+  donde ocurrió la incidencia»; «Ajustes — … edita las opciones del registro
+  de servicios y la gestión en la nube»; quitado «También hay Exportar copia…».
+- El botón «‹ Atrás» ya no sale (deshabilitado) en la primera página.
+- Verificado en preview: las 5 páginas, pieza real en 1-3, flujos de
+  persistencia, móvil 375 px sin scroll de página, sin errores de consola.
+- Versiones (pendientes de publicar): `enruta-v74` · `registro.js?v=202609060`
+  · `registro.css?v=202609060` · `CACHE enruta-rv-v72`.
+
 ### 2026-09-02 — Paso 43: ventana de inicio (carrusel de bienvenida + novedades) (enruta-v73, SIN PUBLICAR)
 
 David: pantalla de bienvenida/ayuda al arrancar con "no volver a mostrar",
