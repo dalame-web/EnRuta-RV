@@ -84,6 +84,12 @@ editor y en el PDF del turno; **nunca** en el informe de incidencia.
   `comprobsLista()` y las marcas por clave.
 - **Informe de incidencia: sin tocar** (grep confirmado, no referencia
   `comprobaciones`).
+- **Editor (pestana Registro)**: la seccion "Comprobaciones" no aparece si no
+  queda ninguna visible y el servicio no tiene ninguna marcada
+  (`comprobsParaServicio(s).length` — mismo criterio en PDF y export HTML).
+  Boton "i" (`.chk-info`, `comprobs-info`) junto al titulo: abre un
+  `appModal.alert` que remite a Ajustes -> "Editar las comprobaciones".
+  Funciona tambien con el turno cerrado (`ACCIONES_RO`).
 - Verificado en preview: migracion posicional->clave OK; editor pinta las
   comprobaciones visibles con marcas correctas; toggle en turno abierto
   anade/borra claves y persiste; turno cerrado sigue de solo lectura;
@@ -91,9 +97,9 @@ editor y en el PDF del turno; **nunca** en el informe de incidencia.
   turno la tiene marcada; ordenar / anadir / borrar / restaurar OK; PDF del
   turno se genera sin error. Sin errores nuevos en consola (solo 404
   `_vercel/*`).
-- Versiones (pendientes de publicar): `enruta-v69` · `registro.js?v=202609054`
-  · `registro.css?v=202609054` · `telefonemas-listado.js?v=202609054`
-  · `nube.js?v=202609054` · `CACHE enruta-rv-v66`.
+- Versiones (pendientes de publicar): `enruta-v69` · `registro.js?v=202609055`
+  · `registro.css?v=202609055` · `telefonemas-listado.js?v=202609055`
+  · `nube.js?v=202609055` · `CACHE enruta-rv-v67`.
 
 ---
 

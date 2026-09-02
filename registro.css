@@ -35,6 +35,15 @@ h3{font-family:Poppins,sans-serif; font-size:15px; margin:18px 0 8px;
 }
 .section-toggle:hover{opacity:.85}
 .section-toggle .chev{font-size:14px; color:var(--fg-dim)}
+.section-toggle-row{display:flex; align-items:center; gap:8px; margin:18px 0 8px}
+.section-toggle-row .section-toggle{width:auto; margin:0}
+.chk-info{
+  flex:0 0 auto; width:26px; height:26px; padding:0; line-height:24px;
+  text-align:center; font-family:Georgia,serif; font-style:italic; font-weight:700;
+  font-size:15px; border-radius:50%; border:1px solid var(--border);
+  background:transparent; color:var(--fg-dim); cursor:pointer;
+}
+.chk-info:hover{border-color:var(--accent); color:var(--accent)}
 
 /* ---- Botones ---- */
 button.btn{

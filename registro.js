@@ -2692,19 +2692,27 @@
     // cuanto hay hora de salida real; el toggle manual manda siempre que
     // se haya tocado). Estilo plano, mismo patrón que el título del
     // servicio (title-toggle + chev), sin tarjeta ni color propio.
-    var chkAbierto = comprobacionesOpen(si, s);
-    h += '<button type="button" class="section-toggle" data-action="comprobaciones-toggle" ' +
-      'data-svc="' + si + '">Comprobaciones<span class="chev">' + (chkAbierto ? '▴' : '▾') + '</span></button>';
-    if (chkAbierto) {
-      var scMarcas = marcasComprob(s);
-      h += '<div class="checks">';
-      comprobsParaServicio(s).forEach(function (c) {
-        h += '<label class="check-item">' +
-          '<input type="checkbox" data-bind="srv.' + si + '.chk.' + c.id + '"' +
-          (scMarcas[c.id] ? ' checked' : '') + '>' +
-          '<span>' + esc(c.label) + '</span></label>';
-      });
-      h += '</div>';
+    // Si no queda ninguna comprobación visible (todas ocultas / borradas en
+    // Ajustes) y este servicio no tiene ninguna marcada, la sección no sale.
+    var listaChk = comprobsParaServicio(s);
+    if (listaChk.length) {
+      var chkAbierto = comprobacionesOpen(si, s);
+      h += '<div class="section-toggle-row">' +
+        '<button type="button" class="section-toggle" data-action="comprobaciones-toggle" ' +
+        'data-svc="' + si + '">Comprobaciones<span class="chev">' + (chkAbierto ? '▴' : '▾') + '</span></button>' +
+        '<button type="button" class="chk-info" data-action="comprobs-info" aria-label="Información">i</button>' +
+        '</div>';
+      if (chkAbierto) {
+        var scMarcas = marcasComprob(s);
+        h += '<div class="checks">';
+        listaChk.forEach(function (c) {
+          h += '<label class="check-item">' +
+            '<input type="checkbox" data-bind="srv.' + si + '.chk.' + c.id + '"' +
+            (scMarcas[c.id] ? ' checked' : '') + '>' +
+            '<span>' + esc(c.label) + '</span></label>';
+        });
+        h += '</div>';
+      }
     }
 
     // Observaciones a ancho completo; telefonemas ya recibidos en este
@@ -5073,14 +5081,17 @@
         (s.rLlegDestino ? '  [ret. ' + s.rLlegDestino + ' min]' : ''),
         { bold: true, size: 10, color: [185, 28, 28] });
 
-      checkPage();
-      line('Comprobaciones:', { bold: true, size: 10 });
-      var scPdf = marcasComprob(s);
-      comprobsParaServicio(s).forEach(function (c) {
+      var listaChkPdf = comprobsParaServicio(s);
+      if (listaChkPdf.length) {
         checkPage();
-        line((scPdf[c.id] ? '[X] ' : '[  ] ') + c.label, { size: 9, x: M + 3, gap: 1 });
-      });
-      state.y += 1.5;
+        line('Comprobaciones:', { bold: true, size: 10 });
+        var scPdf = marcasComprob(s);
+        listaChkPdf.forEach(function (c) {
+          checkPage();
+          line((scPdf[c.id] ? '[X] ' : '[  ] ') + c.label, { size: 9, x: M + 3, gap: 1 });
+        });
+        state.y += 1.5;
+      }
       checkPage();
       line('Observaciones durante el trayecto:', { bold: true, size: 10 });
       line(s.observaciones || '—', { size: 9, gap: 3 });
@@ -5554,14 +5565,17 @@
           body += '</tbody></table>';
         }
 
-        body += '<div class="chk">';
         var scHtml = marcasComprob(s);
-        comprobsParaServicio(s).forEach(function (c) {
-          var ok = scHtml[c.id];
-          body += '<span class="' + (ok ? 'ok' : 'no') + '">' +
-            (ok ? '✓ ' : '☐ ') + esc(c.label) + '</span>';
-        });
-        body += '</div>';
+        var listaChkHtml = comprobsParaServicio(s);
+        if (listaChkHtml.length) {
+          body += '<div class="chk">';
+          listaChkHtml.forEach(function (c) {
+            var ok = scHtml[c.id];
+            body += '<span class="' + (ok ? 'ok' : 'no') + '">' +
+              (ok ? '✓ ' : '☐ ') + esc(c.label) + '</span>';
+          });
+          body += '</div>';
+        }
 
         if (s.observaciones) {
           body += '<div class="obs"><b>Observaciones:</b> ' + esc(s.observaciones) + '</div>';
@@ -5743,7 +5757,7 @@
     var t = editId != null ? getTurno(editId) : null;
     return !!(t && t.estado === 'cerrado');
   }
-  var ACCIONES_RO = /^(volver|reabrir|borrar|svc-toggle|cuadrante-toggle|comprobaciones-toggle|nube-icono|nube-privacidad|telefonema-abrir)$/;
+  var ACCIONES_RO = /^(volver|reabrir|borrar|svc-toggle|cuadrante-toggle|comprobaciones-toggle|comprobs-info|nube-icono|nube-privacidad|telefonema-abrir)$/;
 
   function onClick(e) {
     var el = e.target.closest('[data-action]');
@@ -6040,6 +6054,15 @@
       if (!svcChk) return;
       comprobacionesAbierta[siChk] = !comprobacionesOpen(siChk, svcChk);
       refreshServicioCard(siChk);
+      return;
+    }
+    if (act === 'comprobs-info') {
+      appModal.alert({
+        title: 'Comprobaciones',
+        message: 'Esta lista se edita desde Ajustes → «Editar las comprobaciones»: ' +
+          'puedes añadir, quitar, ocultar o reordenar. Si ocultas o quitas todas, ' +
+          'esta sección no aparece.'
+      });
       return;
     }
     if (act === 'incidencia' && t) {
