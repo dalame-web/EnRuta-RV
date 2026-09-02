@@ -38,6 +38,38 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 40: ocultar secciones del editor desde Ajustes (enruta-v70, SIN PUBLICAR)
+
+David: "que desde ajustes se pueda quitar la hora de la LTV y también la
+celda de toma, descanso y deje. Que se puedan ocultar." Mismo patrón que las
+comprobaciones (ocultar ≠ borrar).
+
+- **`settings.regLtvOculta` y `settings.regHorarioOculto`** (bool, default
+  `false`). Saneados en `loadAll()` con `== null → false`. Añadidos a
+  `CONFIG_LWW` (preferencia pura, gana el más nuevo entre dispositivos).
+- **Ajustes → la tarjeta "Editar las comprobaciones" pasa a "Editar el
+  registro".** Al abrir, encima del editor de comprobaciones, dos
+  interruptores mostrar/ocultar (checkbox `checked` = visible, estilo
+  `.comprob-row`/`.comprob-vis`): "Hora LTV en cada servicio" y "Celda Toma /
+  Descanso / Deje". Debajo, subtítulo "Comprobaciones (N)" + su editor de
+  siempre. Texto de ayuda general reescrito.
+- Handler `data-reg-vis` en `onChange` (junto a `data-comprob-vis`): fija el
+  flag, `saveSettings()`, `renderEditor()` si hay turno abierto. No
+  `renderSettings()` (el checkbox es nativo, evita perder foco).
+- **Editor (`servicioInner`)**: `.ltv-inline` (Hora LTV, cabecera del
+  servicio) se pinta solo si `!settings.regLtvOculta || s.horaLTV` — si ese
+  servicio ya tiene hora LTV, sigue saliendo.
+- **Editor (`renderEditor`)**: la card `.turno-horario-card` (Toma/Descanso/
+  Deje) se pinta solo si `!settings.regHorarioOculto || t.toma || t.deje ||
+  t.descanso`.
+- **PDF del turno y export HTML: sin cambios.** Ya imprimían la LTV solo con
+  `s.horaLTV ? … : ''` (líneas ~5037 y ~5531) — es exactamente el criterio
+  pedido. Toma/Descanso/Deje no salen en PDF ni HTML.
+- Sin CSS nuevo (reusa `.comprob-row`, `.comprob-vis`, `.comprob-label`).
+- Versiones (pendientes de publicar): `enruta-v70` · `registro.js?v=202609056`
+  · `CACHE enruta-rv-v68`. (`registro.css`, `nube.js`,
+  `telefonemas-listado.js` sin tocar → sin bump.)
+
 ### 2026-09-02 — Paso 39: comprobaciones editables desde Ajustes (enruta-v69, SIN PUBLICAR)
 
 David: "que desde ajustes pueda poner lo que salga en el registro o quitar

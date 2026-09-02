@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v69';
+  var APP_VERSION = 'enruta-v70';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1112,6 +1112,10 @@
           return { id: id, label: label, oculta: !!(c && c.oculta) };
         });
     }
+    // Secciones del editor que se pueden ocultar desde Ajustes (ocultar ≠
+    // borrar: si un turno ya tiene el dato, la sección sigue saliendo en él).
+    if (settings.regLtvOculta == null) settings.regLtvOculta = false;
+    if (settings.regHorarioOculto == null) settings.regHorarioOculto = false;
     if (settings.lastBackup == null) settings.lastBackup = '';
     if (settings.autoDownload == null) settings.autoDownload = false;
     // Modo desarrollador: muestra los botones ETCS/LZB en Registro. Oculto
@@ -1221,7 +1225,8 @@
   // (nombre, ramas, Client ID de Google...) solo se rellena si aquí falta.
   var CONFIG_LWW = {
     theme: 1, themeAuto: 1, themeAutoClaro: 1, themeAutoOscuro: 1,
-    autoDownload: 1, nubePrivacidadVista: 1, comprobaciones: 1
+    autoDownload: 1, nubePrivacidadVista: 1, comprobaciones: 1,
+    regLtvOculta: 1, regHorarioOculto: 1
   };
   function nubeConfigParaSubir() {
     var out = {};
@@ -2617,11 +2622,15 @@
     if (svcConInformeGenerado(s)) {
       h += '<span class="inc-badge" title="Informe de incidencia generado">📋</span>';
     }
-    h += '<div class="ltv-inline">' +
-      '<label>Hora LTV</label>' +
-      '<select data-bind="srv.' + si + '.horaLTV">' +
-      horaLtvOptions(s.horaLTV) + '</select>' +
-      '</div>';
+    // Hora LTV: se puede ocultar desde Ajustes. Si este servicio ya la tiene
+    // puesta, sigue saliendo para no perderla de vista.
+    if (!settings.regLtvOculta || s.horaLTV) {
+      h += '<div class="ltv-inline">' +
+        '<label>Hora LTV</label>' +
+        '<select data-bind="srv.' + si + '.horaLTV">' +
+        horaLtvOptions(s.horaLTV) + '</select>' +
+        '</div>';
+    }
     h += '</div>';
 
     // Toma/Deje/Descanso ya NO van aquí — están en su propia card al principio
@@ -2935,13 +2944,16 @@
     h += renderCuadranteCell(t);
 
     // Toma / Deje / Descanso — card propia, un solo dato para todo el turno,
-    // entre la barra de arriba y los servicios. Siempre visible.
-    h += '<div class="card turno-horario-card">' +
-      '<div class="field-grid" style="grid-template-columns:repeat(3,1fr);margin:0">' +
-      '<div class="field"><label>Toma</label><input type="time" data-bind="toma" value="' + esc(t.toma) + '"></div>' +
-      '<div class="field"><label>Descanso</label><input type="time" data-bind="descanso" value="' + esc(t.descanso) + '"></div>' +
-      '<div class="field"><label>Deje</label><input type="time" data-bind="deje" value="' + esc(t.deje) + '"></div>' +
-      '</div></div>';
+    // entre la barra de arriba y los servicios. Se puede ocultar desde Ajustes;
+    // si este turno ya tiene alguno puesto, la card sigue saliendo.
+    if (!settings.regHorarioOculto || t.toma || t.deje || t.descanso) {
+      h += '<div class="card turno-horario-card">' +
+        '<div class="field-grid" style="grid-template-columns:repeat(3,1fr);margin:0">' +
+        '<div class="field"><label>Toma</label><input type="time" data-bind="toma" value="' + esc(t.toma) + '"></div>' +
+        '<div class="field"><label>Descanso</label><input type="time" data-bind="descanso" value="' + esc(t.descanso) + '"></div>' +
+        '<div class="field"><label>Deje</label><input type="time" data-bind="deje" value="' + esc(t.deje) + '"></div>' +
+        '</div></div>';
+    }
 
     // Servicios — acordeón: solo expandedSvc abierto.
     if (expandedSvc >= t.servicios.length) expandedSvc = 0;
@@ -4873,16 +4885,30 @@
       esc(settings.ramas.join('\n')) + '</textarea></div>' +
       '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-ramas">Guardar ramas</button></div></div>';
 
-    // 3b. Comprobaciones — plegable (cerrado por defecto, ocupa mucho abierto).
+    // 3b. Editar el registro — plegable (cerrado por defecto, ocupa mucho
+    // abierto). Qué secciones se ven en el editor del turno + comprobaciones.
     var _cl = comprobsLista();
     h += '<div class="card"><button type="button" class="section-toggle" style="margin:0" ' +
-      'data-action="set-comprobs-toggle">Editar las comprobaciones ' +
-      '<span class="hint" style="font-weight:400;margin:0">(' + _cl.length + ')</span>' +
+      'data-action="set-comprobs-toggle">Editar el registro ' +
       '<span class="chev">' + (setComprobsOpen ? '▴' : '▾') + '</span></button>' +
-      '<div class="hint" style="margin:8px 0 0">Lo que sale como checklist en el editor del turno. ' +
-      'Apaga el interruptor para ocultar una sin borrarla; las marcas de los turnos guardados no se tocan. ' +
-      'Las de fábrica solo se pueden ocultar.</div>';
+      '<div class="hint" style="margin:8px 0 0">Qué se ve en el editor del turno. ' +
+      'Ocultar no borra nada: si un turno ya tiene el dato, la sección sigue saliendo en él.</div>';
     if (setComprobsOpen) {
+    h += '<div class="comprob-editor" style="margin-top:10px">' +
+      '<div class="comprob-row">' +
+      '<label class="comprob-vis" title="Se muestra en el editor">' +
+      '<input type="checkbox" data-reg-vis="ltv"' + (settings.regLtvOculta ? '' : ' checked') + '></label>' +
+      '<span class="comprob-label" style="border:0;padding-left:2px">Hora LTV en cada servicio</span>' +
+      '</div>' +
+      '<div class="comprob-row">' +
+      '<label class="comprob-vis" title="Se muestra en el editor">' +
+      '<input type="checkbox" data-reg-vis="horario"' + (settings.regHorarioOculto ? '' : ' checked') + '></label>' +
+      '<span class="comprob-label" style="border:0;padding-left:2px">Celda Toma / Descanso / Deje</span>' +
+      '</div></div>';
+    h += '<div class="hint" style="font-weight:600;margin:14px 0 0">Comprobaciones ' +
+      '<span style="font-weight:400">(' + _cl.length + ')</span></div>' +
+      '<div class="hint" style="margin:4px 0 0">La checklist del editor. Apaga el interruptor para ocultar ' +
+      'una sin borrarla; las de fábrica solo se pueden ocultar.</div>';
     h += '<div class="comprob-editor" style="margin-top:10px">';
     _cl.forEach(function (c, i) {
       var fab = esComprobFabrica(c.id);
@@ -5696,6 +5722,14 @@
       cvL[cvi].oculta = !el.checked;
       settings.comprobaciones = cvL;
       saveSettings(); renderSettings();
+      if (lastSetView === 'registro' && editId != null) renderEditor();
+      return;
+    }
+    // Ajustes → "Editar el registro": ocultar/mostrar secciones del editor.
+    if (el.getAttribute && el.getAttribute('data-reg-vis') != null) {
+      var rvK = el.getAttribute('data-reg-vis') === 'ltv' ? 'regLtvOculta' : 'regHorarioOculto';
+      settings[rvK] = !el.checked;
+      saveSettings();
       if (lastSetView === 'registro' && editId != null) renderEditor();
       return;
     }
