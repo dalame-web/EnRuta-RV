@@ -65,6 +65,20 @@
     if (Array.isArray(c)) return c.some(function (x) { return x; });
     return Object.keys(c).some(function (k) { return c[k]; });
   }
+  function esComprobFabrica(id) {
+    return DEFAULT_COMPROBACIONES.some(function (d) { return d.id === id; });
+  }
+  // Marcas por clave de un servicio (objeto disperso), tolerante al formato viejo.
+  function marcasComprob(s) {
+    return (s && s.comprobaciones && typeof s.comprobaciones === 'object' && !Array.isArray(s.comprobaciones))
+      ? s.comprobaciones : {};
+  }
+  // Lo que se pinta en el editor / PDF de UN servicio: las visibles, más
+  // cualquiera oculta que ese servicio tenga marcada (para no perderla de vista).
+  function comprobsParaServicio(s) {
+    var m = marcasComprob(s);
+    return comprobsLista().filter(function (c) { return !c.oculta || m[c.id]; });
+  }
 
   var DEFAULT_RAMAS = [];
   for (var r = 1; r <= 23; r++) DEFAULT_RAMAS.push(r < 10 ? '0' + r : '' + r);
@@ -1094,7 +1108,7 @@
           var id = (c && c.id) || slugComprob(label, Object.keys(vistos).map(function (k) { return { id: k }; }));
           while (vistos[id]) id = id + '-2';
           vistos[id] = 1;
-          return { id: id, label: label };
+          return { id: id, label: label, oculta: !!(c && c.oculta) };
         });
     }
     if (settings.lastBackup == null) settings.lastBackup = '';
@@ -2681,9 +2695,9 @@
     h += '<button type="button" class="section-toggle" data-action="comprobaciones-toggle" ' +
       'data-svc="' + si + '">Comprobaciones<span class="chev">' + (chkAbierto ? '▴' : '▾') + '</span></button>';
     if (chkAbierto) {
-      var scMarcas = (s.comprobaciones && typeof s.comprobaciones === 'object' && !Array.isArray(s.comprobaciones)) ? s.comprobaciones : {};
+      var scMarcas = marcasComprob(s);
       h += '<div class="checks">';
-      comprobsLista().forEach(function (c) {
+      comprobsParaServicio(s).forEach(function (c) {
         h += '<label class="check-item">' +
           '<input type="checkbox" data-bind="srv.' + si + '.chk.' + c.id + '"' +
           (scMarcas[c.id] ? ' checked' : '') + '>' +
@@ -4850,14 +4864,32 @@
       esc(settings.ramas.join('\n')) + '</textarea></div>' +
       '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-ramas">Guardar ramas</button></div></div>';
 
-    // 3b. Comprobaciones
+    // 3b. Comprobaciones — editor fila a fila, guardado en vivo.
+    var _cl = comprobsLista();
     h += '<div class="card"><div class="card-title">Comprobaciones</div>' +
-      '<div class="field"><label>Una por línea (checklist del editor). Puedes borrar, añadir o reordenar; ' +
-      'las marcas de los turnos ya guardados no se pierden. Si quieres renombrar una, ' +
-      'hazlo en un guardado aparte de las altas y bajas.</label>' +
-      '<textarea id="set-comprobs" style="min-height:200px">' +
-      esc(comprobsLista().map(function (c) { return c.label; }).join('\n')) + '</textarea></div>' +
-      '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-comprobs">Guardar</button>' +
+      '<div class="hint" style="margin:0 0 10px">Lo que sale como checklist en el editor del turno. ' +
+      'Apaga el interruptor para ocultar una sin borrarla; las marcas de los turnos guardados no se tocan. ' +
+      'Las de fábrica solo se pueden ocultar.</div>' +
+      '<div class="comprob-editor">';
+    _cl.forEach(function (c, i) {
+      var fab = esComprobFabrica(c.id);
+      h += '<div class="comprob-row' + (c.oculta ? ' oculta' : '') + '">' +
+        '<label class="comprob-vis" title="' + (c.oculta ? 'Oculta' : 'Se muestra en el editor') + '">' +
+        '<input type="checkbox" data-comprob-vis data-i="' + i + '"' + (c.oculta ? '' : ' checked') + '></label>' +
+        '<input type="text" class="comprob-label" data-comprob-label data-i="' + i +
+        '" value="' + esc(c.label) + '" placeholder="Nombre de la comprobación">' +
+        '<button class="comprob-mv" data-action="comprob-mov" data-i="' + i + '" data-d="-1" ' +
+        'aria-label="Subir"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+        '<button class="comprob-mv" data-action="comprob-mov" data-i="' + i + '" data-d="1" ' +
+        'aria-label="Bajar"' + (i === _cl.length - 1 ? ' disabled' : '') + '>▼</button>' +
+        (fab
+          ? '<span class="comprob-mv comprob-slot" aria-hidden="true"></span>'
+          : '<button class="comprob-mv comprob-del" data-action="comprob-del" data-i="' + i + '" aria-label="Borrar">✕</button>') +
+        '</div>';
+    });
+    h += '</div>' +
+      '<div class="btn-row" style="margin-top:10px">' +
+      '<button class="btn" data-action="comprob-add">+ Añadir comprobación</button>' +
       '<button class="btn ghost" data-action="reset-comprobs">Restaurar de fábrica</button></div></div>';
 
     // 6. Exportar a PDF (multi-select)
@@ -5036,8 +5068,8 @@
 
       checkPage();
       line('Comprobaciones:', { bold: true, size: 10 });
-      var scPdf = (s.comprobaciones && typeof s.comprobaciones === 'object' && !Array.isArray(s.comprobaciones)) ? s.comprobaciones : {};
-      comprobsLista().forEach(function (c) {
+      var scPdf = marcasComprob(s);
+      comprobsParaServicio(s).forEach(function (c) {
         checkPage();
         line((scPdf[c.id] ? '[X] ' : '[  ] ') + c.label, { size: 9, x: M + 3, gap: 1 });
       });
@@ -5516,8 +5548,8 @@
         }
 
         body += '<div class="chk">';
-        var scHtml = (s.comprobaciones && typeof s.comprobaciones === 'object' && !Array.isArray(s.comprobaciones)) ? s.comprobaciones : {};
-        comprobsLista().forEach(function (c) {
+        var scHtml = marcasComprob(s);
+        comprobsParaServicio(s).forEach(function (c) {
           var ok = scHtml[c.id];
           body += '<span class="' + (ok ? 'ok' : 'no') + '">' +
             (ok ? '✓ ' : '☐ ') + esc(c.label) + '</span>';
@@ -5625,6 +5657,27 @@
   function onChange(e) {
     var el = e.target;
     if (editorBloqueado() && el.closest && el.closest('#registro-pane')) return;
+    // Ajustes → editor de comprobaciones: renombrar / ocultar, guardado en vivo.
+    if (el.getAttribute && el.getAttribute('data-comprob-label') != null) {
+      var clL = comprobsLista(), cli = +el.getAttribute('data-i');
+      if (!clL[cli]) return;
+      var nv = el.value.trim();
+      if (!nv) { renderSettings(); return; }   // vacío: se descarta el cambio
+      clL[cli].label = nv;
+      settings.comprobaciones = clL;
+      saveSettings();
+      if (lastSetView === 'registro' && editId != null) renderEditor();
+      return;
+    }
+    if (el.getAttribute && el.getAttribute('data-comprob-vis') != null) {
+      var cvL = comprobsLista(), cvi = +el.getAttribute('data-i');
+      if (!cvL[cvi]) return;
+      cvL[cvi].oculta = !el.checked;
+      settings.comprobaciones = cvL;
+      saveSettings(); renderSettings();
+      if (lastSetView === 'registro' && editId != null) renderEditor();
+      return;
+    }
     if (el.classList && el.classList.contains('srv-sel')) {
       var si = +el.getAttribute('data-svc');
       var opt = el.selectedOptions && el.selectedOptions[0];
@@ -6126,27 +6179,40 @@
       settings.ramas = arr.length ? arr : DEFAULT_RAMAS.slice();
       saveSettings(); flashSaved(); renderSettings(); return;
     }
-    if (act === 'save-comprobs') {
-      var lineas = $('set-comprobs').value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
-      if (!lineas.length) { appModal.alert({ title: 'Vacío', message: 'Deja al menos una comprobación.' }); return; }
-      var viejas = comprobsLista();
-      var porLabel = {}; viejas.forEach(function (c) { porLabel[c.label.toLowerCase()] = c.id; });
-      var nuevasLabels = {}; lineas.forEach(function (l) { nuevasLabels[l.toLowerCase()] = 1; });
-      // Solo fiarse de la posición para detectar renombrados si no hubo altas
-      // ni bajas — si la lista cambió de tamaño, la posición i ya no significa
-      // nada y arrastraría el id viejo a una comprobación nueva.
-      var soloRenombres = viejas.length === lineas.length;
-      var nuevas = [];
-      lineas.forEach(function (label, i) {
-        var lk = label.toLowerCase(), id;
-        if (porLabel[lk]) id = porLabel[lk];                                        // igual / reordenada
-        else if (soloRenombres && viejas[i] && !nuevasLabels[viejas[i].label.toLowerCase()]) id = viejas[i].id; // renombrada en el sitio
-        else id = slugComprob(label, nuevas);                                       // nueva
-        nuevas.push({ id: id, label: label });
-      });
-      settings.comprobaciones = nuevas;
-      saveSettings(); flashSaved(); renderSettings();
+    // Editor de comprobaciones (Ajustes) — cada acción guarda en el momento.
+    // Cada fila lleva su id estable, así renombrar no descuadra los turnos.
+    if (act === 'comprob-mov') {
+      var cmL = comprobsLista().slice();
+      var cmi = +el.getAttribute('data-i'), cmj = cmi + (+el.getAttribute('data-d'));
+      if (cmj < 0 || cmj >= cmL.length) return;
+      var cmTmp = cmL[cmi]; cmL[cmi] = cmL[cmj]; cmL[cmj] = cmTmp;
+      settings.comprobaciones = cmL;
+      saveSettings(); renderSettings();
       if (lastSetView === 'registro' && editId != null) renderEditor();
+      return;
+    }
+    if (act === 'comprob-del') {
+      var cdL = comprobsLista(), cdi = +el.getAttribute('data-i'), victim = cdL[cdi];
+      if (!victim || esComprobFabrica(victim.id)) return;
+      appModal.confirm({
+        title: 'Borrar comprobación',
+        message: '¿Quitar «' + victim.label + '» de la lista? Las marcas que ya tengan los turnos guardados no se borran.',
+        buttons: [{ label: 'Cancelar', value: false, kind: 'neutral' }, { label: 'Borrar', value: true, kind: 'danger' }]
+      }).then(function (ok) {
+        if (!ok) return;
+        settings.comprobaciones = comprobsLista().filter(function (_, j) { return j !== cdi; });
+        saveSettings(); renderSettings();
+        if (lastSetView === 'registro' && editId != null) renderEditor();
+      });
+      return;
+    }
+    if (act === 'comprob-add') {
+      var caL = comprobsLista().slice();
+      caL.push({ id: slugComprob('comprob', caL), label: 'Nueva comprobación', oculta: false });
+      settings.comprobaciones = caL;
+      saveSettings(); renderSettings();
+      var caInp = $('ajustes-pane').querySelectorAll('.comprob-label');
+      if (caInp.length) { var last = caInp[caInp.length - 1]; last.focus(); last.select(); }
       return;
     }
     if (act === 'reset-comprobs') {

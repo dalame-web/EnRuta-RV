@@ -968,6 +968,22 @@ input[type=number]::-webkit-inner-spin-button{
 .check-item input{width:22px; height:22px; min-height:0; flex:0 0 auto}
 .check-item span{font-size:14px}
 
+/* Editor de comprobaciones (Ajustes) — fila a fila */
+.comprob-editor{display:flex; flex-direction:column; gap:6px}
+.comprob-row{display:flex; align-items:center; gap:6px}
+.comprob-vis{display:flex; align-items:center; flex:0 0 auto; margin:0; cursor:pointer}
+.comprob-vis input{width:20px; height:20px; min-height:0; margin:0; flex:0 0 auto}
+.comprob-label{flex:1; min-width:0}
+.comprob-row.oculta .comprob-label{opacity:.5; text-decoration:line-through}
+.comprob-mv{
+  flex:0 0 auto; width:38px; min-height:38px; padding:0; text-align:center;
+  font-size:13px; border-radius:8px; border:1px solid var(--border);
+  background:var(--panel-2); color:var(--fg); cursor:pointer;
+}
+.comprob-mv:disabled{opacity:.3; cursor:default}
+.comprob-del{color:var(--iryo)}
+.comprob-slot{border-color:transparent; background:transparent; cursor:default}
+
 /* Servicios — acordeón vertical */
 .servicios{display:flex; flex-direction:column; gap:10px}
 

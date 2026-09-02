@@ -53,13 +53,27 @@ editor y en el PDF del turno; **nunca** en el informe de incidencia.
   carga hasta el primer guardado). Helper `algunaComprob(s)` soporta los dos
   formatos (usado en `tieneDatosDeUsuario`, `isEmptyServicio`).
 - **`fusionarTurnoEn`**: OR por clave, soporta origen en formato viejo.
-- **Ajustes -> tarjeta "Comprobaciones"**: textarea (una por linea, como
-  Ramas). Al guardar, cada linea conserva su `id` si el label coincide
-  (igual o reordenada); si cambio de sitio con la lista del mismo tamano se
-  trata como renombrado y hereda el `id`; si no, `id` nuevo (slug). Aviso en
-  la tarjeta: renombrar en un guardado aparte de altas/bajas.
-- **`reset-comprobs`**: vuelve a la lista de fabrica (13). Las marcas de los
-  turnos guardados no se tocan.
+- **Ajustes -> tarjeta "Comprobaciones"**: editor fila a fila, guardado en
+  vivo (nada de textarea ni boton Guardar). Cada fila:
+  - interruptor "se ve en el editor" (checkbox). Apagarlo pone `oculta:true`
+    -> no sale en el turno pero **no se borra**.
+  - campo de texto para el nombre (renombrar en el sitio, `change`/blur).
+    Como cada fila lleva su `id` estable, renombrar no descuadra nada.
+  - flechas arriba/abajo para ordenar.
+  - las de fabrica (`esComprobFabrica`) NO tienen papelera, solo se ocultan;
+    las anadidas por el usuario si (`comprob-del`, con confirmacion).
+  - "+ Anadir comprobacion" y "Restaurar de fabrica".
+- Helpers nuevos: `esComprobFabrica(id)`, `marcasComprob(s)`,
+  `comprobsParaServicio(s)` (visibles + cualquiera oculta que ESE servicio
+  tenga marcada, para no perderla de vista en editor/PDF).
+- Handlers en `onClick` (`comprob-mov`, `comprob-del`, `comprob-add`,
+  `reset-comprobs`) y en `onChange` (`data-comprob-label`, `data-comprob-vis`).
+- **`reset-comprobs`**: vuelve a la lista de fabrica (13), sin ocultas. Las
+  marcas de los turnos guardados no se tocan.
+- `oculta` se conserva en el saneado de `loadAll()`.
+- CSS nuevo en `registro.css`: `.comprob-editor`, `.comprob-row`,
+  `.comprob-vis`, `.comprob-label`, `.comprob-mv`, `.comprob-del`,
+  `.comprob-slot`.
 - `settings.comprobaciones` en `CONFIG_LWW` (last-write-wins entre
   dispositivos). Saneado en `loadAll()`.
 - Editor (`servicioInner`), `applyBind` (`srv.N.chk.<slug>`), PDF del turno
@@ -67,15 +81,16 @@ editor y en el PDF del turno; **nunca** en el informe de incidencia.
   `comprobsLista()` y las marcas por clave.
 - **Informe de incidencia: sin tocar** (grep confirmado, no referencia
   `comprobaciones`).
-- Verificado en preview: migracion posicional->clave OK; editor pinta 13
-  checks editables con marcas correctas; toggle en turno abierto anade/borra
-  claves y persiste; turno cerrado sigue de solo lectura; renombrar (mismo
-  numero) conserva marcas; alta/baja no arrastra marcas ajenas; PDF del
+- Verificado en preview: migracion posicional->clave OK; editor pinta las
+  comprobaciones visibles con marcas correctas; toggle en turno abierto
+  anade/borra claves y persiste; turno cerrado sigue de solo lectura;
+  renombrar conserva `id` y marcas; ocultar quita del editor salvo si ese
+  turno la tiene marcada; ordenar / anadir / borrar / restaurar OK; PDF del
   turno se genera sin error. Sin errores nuevos en consola (solo 404
   `_vercel/*`).
-- Versiones (pendientes de publicar): `enruta-v69` · `registro.js?v=202609053`
-  · `registro.css?v=202609053` · `telefonemas-listado.js?v=202609053`
-  · `nube.js?v=202609053` · `CACHE enruta-rv-v65`.
+- Versiones (pendientes de publicar): `enruta-v69` · `registro.js?v=202609054`
+  · `registro.css?v=202609054` · `telefonemas-listado.js?v=202609054`
+  · `nube.js?v=202609054` · `CACHE enruta-rv-v66`.
 
 ---
 
