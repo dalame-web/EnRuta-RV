@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v74';
+  var APP_VERSION = 'enruta-v75';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -3065,16 +3065,16 @@
         h += '<div class="cuad-noche">— noche —</div>';
       }
       prevMin = curMin;
-      var ruta = tr.origen ? (esc(tr.origen) + ' → ' + esc(tr.destino)) : esc(tr.lugar || '');
-      var extra = '';
-      if (tr.k === 'descanso' || tr.k === 'pausa') {
-        var sig = full.tramos[idx + 1];
-        var dm = sig ? durMin(tr.hora, sig.hora) : null;
-        if (dm != null) extra = ' <span class="cuad-dur">≈ ' + fmtDur(dm) + '</span>';
-      }
+      var horas = esc(tr.hora) + (tr.horaFin ? '–' + esc(tr.horaFin) : '') +
+        (tr.dur ? ' (' + esc(tr.dur) + ')' : '');
+      var det;
+      if (tr.origen) det = ' · ' + esc(tr.origen) + ' → ' + esc(tr.destino);
+      else if (tr.destino) det = ' → ' + esc(tr.destino);
+      else if (tr.lugar) det = ' · ' + esc(tr.lugar);
+      else det = '';
       h += '<div class="cuad-row t-' + tr.k + '">' +
-        '<span class="cuad-h">' + esc(tr.hora) + '</span>' +
-        '<span class="cuad-t"><b>' + esc(tr.et) + '</b>' + (ruta ? ' · ' + ruta : '') + extra + '</span>' +
+        '<span class="cuad-h">' + horas + '</span>' +
+        '<span class="cuad-t"><b>' + esc(tr.et) + '</b>' + det + '</span>' +
         '</div>';
     });
     h += '</div>';
@@ -4416,13 +4416,15 @@
   function parseEventoTurno(fechaInicioISO, fechaFinISO, descripcion) {
     var lineas = String(descripcion || '').split('\n')
       .map(function (l) { return l.trim(); }).filter(Boolean);
-    var tipoRe = /^(\d{1,2}:\d{2})\D*\b(Toma|Deje|Break|Duty interruption|Train|Travel time|Passage connection|Preparation)\b/i;
-    var tramos = [];
+    var tramos = [], enServ = false;
     for (var i = 0; i < lineas.length; i++) {
-      var m = lineas[i].match(tipoRe);
-      if (!m) continue;
-      var loc = (lineas[i + 1] && !tipoRe.test(lineas[i + 1])) ? lineas[i + 1] : '';
-      tramos.push({ hora: m[1], tipo: m[2].toLowerCase().replace(/\s+/g, ''), loc: loc });
+      if (/^SERVICIOS:?\s*$/i.test(lineas[i])) { enServ = true; continue; }
+      if (/CAMBIO DE TURNO|NOTAS PERSONALES/i.test(lineas[i])) { enServ = false; continue; }
+      if (!enServ) continue;
+      var p = parseTramoCal(lineas[i]);
+      if (!p) continue;
+      tramos.push({ hora: p.hora, horaFin: p.horaFin, tipo: p.tipo, k: tramoEsp(p.tipo).k,
+        lugar: p.lugar, destino: p.destino });
     }
     // Reparte cada tramo en su día real: empieza en fechaInicio, salta al
     // día siguiente cada vez que la hora "retrocede" respecto al tramo
@@ -4437,22 +4439,25 @@
     });
     var toma = '', deje = '', descansoMin = 0, servicios = [];
     tramos.forEach(function (tr, j) {
-      var sig = tramos[j + 1];
-      if (tr.tipo === 'toma' && !toma) toma = tr.hora;
-      if (tr.tipo === 'deje') deje = tr.hora; // se queda con el último
-      // "Break" (parada corta) y "Duty interruption" (descanso de dormida
-      // en el hotel) cuentan igual como descanso.
-      if ((tr.tipo === 'break' || tr.tipo === 'dutyinterruption') && sig) {
-        var dm = durMin(tr.hora, sig.hora);
+      if (tr.k === 'toma' && !toma) toma = tr.hora;
+      if (tr.k === 'deje') deje = tr.hora; // se queda con el último
+      // Pausa (Break) y descanso de dormida (Duty interruption) → descanso.
+      // Ahora la duración va en el propio tramo (rango de horas).
+      if (tr.k === 'pausa' || tr.k === 'descanso') {
+        var dm = durMin(tr.hora, tr.horaFin);
         if (dm != null) descansoMin += dm;
       }
-      if (tr.tipo === 'train') {
-        var partes = tr.loc.split('→').map(function (x) { return x.trim(); });
-        servicios.push({ fecha: tr.fecha, origen: partes[0] || '', destino: partes[1] || '',
-          hSalida: tr.hora, hDestino: sig ? sig.hora : '' });
+      // Conducción (Train): origen = lugar/destino del tramo anterior,
+      // destino del "→", horas del propio rango. "Condotta" (retraso de
+      // conducción) NO genera servicio aunque tramoEsp lo marque 'conduce'.
+      if (tr.k === 'conduce' && /^(train|conducc)/i.test(tr.tipo)) {
+        var prev = tramos[j - 1];
+        servicios.push({ fecha: tr.fecha,
+          origen: prev ? (prev.lugar || prev.destino || '') : '',
+          destino: tr.destino || '',
+          hSalida: tr.hora, hDestino: tr.horaFin });
       }
-      // 'traveltime'/'passageconnection'/'preparation' se descartan a
-      // propósito — traslados o preparación tipo pasajero, no servicio.
+      // 'viaje'/'enlace'/'prep'/'limpieza' se descartan (no generan servicio).
     });
     // "Horario: HH:MM - HH:MM" de la cabecera SIEMPRE está presente (a
     // diferencia de las líneas sueltas "Toma"/"Deje", que en turnos de
@@ -4467,6 +4472,31 @@
   // Para la celda "Turno" del editor: saca TODO tal cual (cabecera, cada
   // tramo de SERVICIOS, historial de cambios y notas personales), sin
   // descartar nada. Nombres de tramo en inglés → español.
+
+  // Una línea de tramo del formato de Google Calendar:
+  //   "14:42-18:13 (3h31) 🚄 Train → Barcelona-Sants"
+  //   "14:22-14:42 (20') 🔑 Toma · Madrid Puerta de Atocha"
+  //   "00:44-10:45 (10h01) 🏨 Duty interruption"
+  // → { hora, horaFin, dur, tipo, lugar, destino }  ·  null si no encaja.
+  var RE_TRAMO_CAL = /^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\s*\(([^)]*)\)\s*(.+)$/;
+  function parseTramoCal(ln) {
+    var m = String(ln || '').trim().match(RE_TRAMO_CAL);
+    if (!m) return null;
+    // m[4] = "<icono> <Tipo> [· lugar] [→ destino]" — quitar el icono inicial.
+    var resto = m[4].replace(/^[^A-Za-zÀ-ÿ0-9]+/, '').trim();
+    var lugar = '', destino = '';
+    var iFlecha = resto.search(/→|->/);
+    var iPunto = resto.indexOf('·');
+    if (iFlecha !== -1) {
+      destino = resto.slice(iFlecha).replace(/^(?:→|->)\s*/, '').trim();
+      resto = resto.slice(0, iFlecha).trim();
+    } else if (iPunto !== -1) {
+      lugar = resto.slice(iPunto + 1).trim();
+      resto = resto.slice(0, iPunto).trim();
+    }
+    return { hora: m[1], horaFin: m[2], dur: m[3].trim(), tipo: resto, lugar: lugar, destino: destino };
+  }
+
   function tramoEsp(txtIngles) {
     var t = String(txtIngles || '').toLowerCase();
     if (/^toma/.test(t)) return { et: 'Toma', k: 'toma' };
@@ -4486,54 +4516,51 @@
     var lineas = String(desc || '').split('\n');
     var out = { turno: '', horario: '', totalWT: '', tramos: [], historial: [], notas: [], extra: [] };
     var sec = 'cab';           // cab | serv | hist | notas
-    var pend = null;           // tramo esperando su línea de ubicación
     var histAct = null;
     for (var i = 0; i < lineas.length; i++) {
       var ln = lineas[i].trim();
       if (!ln) continue;
-      if (/^[─—–_=-]{4,}$/.test(ln)) { pend = null; continue; }
-      if (/CAMBIO DE TURNO/i.test(ln)) { sec = 'hist'; pend = null; continue; }
-      if (/NOTAS PERSONALES/i.test(ln)) { sec = 'notas'; pend = null; continue; }
-      if (/^SERVICIOS:?\s*$/i.test(ln)) { sec = 'serv'; pend = null; continue; }
-      if (/^===.*===\s*$/.test(ln)) { pend = null; continue; }
+      if (/^[─—–_=-]{4,}$/.test(ln)) continue;
+      if (/CAMBIO DE TURNO/i.test(ln)) { sec = 'hist'; continue; }
+      if (/NOTAS PERSONALES/i.test(ln)) { sec = 'notas'; continue; }
+      if (/^SERVICIOS:?\s*$/i.test(ln)) { sec = 'serv'; continue; }
+      if (/^===.*===\s*$/.test(ln)) continue;
       var m;
       if ((m = ln.match(/^Turno:\s*(.+)$/i))) {
         if (sec === 'hist' && histAct) histAct.codigo = m[1].trim();
         else out.turno = m[1].trim();
-        pend = null; continue;
+        continue;
       }
       if ((m = ln.match(/^Anterior:\s*(.+)$/i))) {
         histAct = { codigo: m[1].trim(), horario: '', totalWT: '' };
-        out.historial.push(histAct); pend = null; continue;
+        out.historial.push(histAct); continue;
       }
       if ((m = ln.match(/^Horario:\s*(.+)$/i))) {
         if (sec === 'hist' && histAct) histAct.horario = m[1].trim();
         else if (!out.horario) out.horario = m[1].trim();
-        pend = null; continue;
+        continue;
       }
       if ((m = ln.match(/^Total\s*WT:\s*(.+)$/i))) {
         if (sec === 'hist' && histAct) histAct.totalWT = m[1].trim();
         else if (!out.totalWT) out.totalWT = m[1].trim();
-        pend = null; continue;
+        continue;
       }
       if (sec === 'notas') { out.notas.push(ln); continue; }
       if (sec === 'hist') { continue; }
-      // Sección de servicios: "HH:MM <emoji> <Tipo>" o su línea de ubicación
-      var mt = ln.match(/^(\d{1,2}:\d{2})\s+(.+)$/);
-      if (mt) {
-        var tipoRaw = mt[2].replace(/^[^A-Za-zÀ-ÿ0-9]+/, '').trim();
-        var esp = tramoEsp(tipoRaw);
-        var tr = { hora: mt[1], et: esp.et, k: esp.k, lugar: '', origen: '', destino: '' };
-        out.tramos.push(tr); pend = tr; continue;
-      }
-      if (pend) {
-        if (ln.indexOf('→') !== -1 || ln.indexOf('->') !== -1) {
-          var pr = ln.split(/→|->/);
-          pend.origen = (pr[0] || '').trim(); pend.destino = (pr[1] || '').trim();
-        } else {
-          pend.lugar = ln;
+      // Sección de servicios: una línea por tramo (nuevo formato de Calendar):
+      //   "14:42-18:13 (3h31) 🚄 Train → Barcelona-Sants"
+      if (sec === 'serv') {
+        var p = parseTramoCal(ln);
+        if (p) {
+          var esp = tramoEsp(p.tipo);
+          var tr = { hora: p.hora, horaFin: p.horaFin, dur: p.dur, et: esp.et, k: esp.k,
+            lugar: p.lugar, origen: '', destino: p.destino };
+          if (tr.destino) {
+            var prevT = out.tramos[out.tramos.length - 1];
+            tr.origen = prevT ? (prevT.lugar || prevT.destino || '') : '';
+          }
+          out.tramos.push(tr); continue;
         }
-        pend = null; continue;
       }
       // Línea suelta que no encaja: se guarda para no perder información.
       if (sec === 'cab' || sec === 'serv') out.extra.push(ln);

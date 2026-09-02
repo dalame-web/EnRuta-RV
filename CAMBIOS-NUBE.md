@@ -38,6 +38,46 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 45: nuevo formato de Google Calendar (una línea por tramo) (enruta-v75, SIN PUBLICAR)
+
+David: Google Calendar cambia el formato de los turnos. Ahora cada tramo es
+UNA línea: `HH:MM-HH:MM (DUR) <icono> <Tipo> [· lugar | → destino]`. La
+cabecera (`Turno:`, `Horario: HH:MM - HH:MM`, `Total WT:`) y las secciones
+`CAMBIO DE TURNO (Historial)` y `NOTAS PERSONALES` **no cambian**. El formato
+nuevo sustituye al viejo del todo (no hay doble parser).
+
+Ejemplo:
+```
+SERVICIOS:
+14:22-14:42 (20') 🔑 Toma · Madrid Puerta de Atocha
+14:42-18:13 (3h31) 🚄 Train → Barcelona-Sants
+18:13-18:28 (15') 🚩 Deje · Barcelona-Sants
+00:44-10:45 (10h01) 🏨 Duty interruption
+```
+
+- **`parseTramoCal(línea)`** — helper nuevo: parsea una línea de tramo →
+  `{ hora, horaFin, dur, tipo, lugar, destino }`. Quita el emoji inicial,
+  separa `·` (lugar) y `→` (destino).
+- **`parseEventoTurno`** (sincronización) reescrito con el helper. Toma/Deje
+  de la cabecera `Horario:` (igual que antes). Descanso = duración (del
+  rango de horas) de los tramos Break + Duty interruption. Conducción
+  (`Train`): origen = lugar/destino del tramo ANTERIOR, destino del `→`,
+  horas del propio rango. `Condotta` (retraso) no genera servicio.
+- **`parseCalendarCompleto`** (celda "Turno") reescrito: usa el helper, fuera
+  la lógica de "línea de ubicación siguiente" (`pend`) — ya no existe.
+- **`renderCuadranteDetalle`**: cada tramo muestra `HH:MM–HH:MM (dur) Tipo ·
+  lugar/ruta` en texto plano, sin iconos (David). `.cuad-row` pasa de grid a
+  bloque fluido.
+- `tramoEsp` sin cambios (ya traducía Train/Travel time/Break/Duty
+  interruption/Limpieza).
+- **Verificado** con los dos ejemplos reales de David (turno normal BC009-D +
+  dormida SURP4-D) en un script Node — 22/22 asserts OK: toma/deje, descanso
+  (15 min y 601 min), servicios con origen del tramo anterior, cruce de
+  medianoche en la dormida (servicio 2 al día siguiente), Travel time y
+  Limpieza descartados. Celda "Turno" verificada en el preview.
+- Versiones (pendientes de publicar): `enruta-v75` · `registro.js?v=202609061`
+  · `registro.css?v=202609061` · `CACHE enruta-rv-v73`.
+
 ### 2026-09-02 — Paso 44: ventana de inicio — piezas reales + retoques de texto (enruta-v74, SIN PUBLICAR)
 
 David: los dibujos SVG estaban mal; que las imágenes usen las piezas reales
