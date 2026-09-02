@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v72';
+  var APP_VERSION = 'enruta-v73';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1131,6 +1131,10 @@
     // Copia en la nube (OneDrive) — aviso de primer arranque (una vez).
     if (settings.nubeAvisoContador == null) settings.nubeAvisoContador = 0;
     if (settings.nubePrivacidadVista == null) settings.nubePrivacidadVista = false;
+    // Ventana de inicio (carrusel de bienvenida + novedades). Estado por
+    // aparato — una tablet nueva vuelve a ver la guía.
+    if (settings.bienvenidaVista == null) settings.bienvenidaVista = false;
+    if (settings.bienvenidaVersion == null) settings.bienvenidaVersion = '';
   }
   function saveSettings() { save(K_SETTINGS, settings); }
 
@@ -1221,7 +1225,8 @@
   // TODO del que ya lo tenía, no solo los registros.
   // NO se sincroniza: calView (lista/mes es preferencia por aparato) y los
   // contadores locales (aviso de nube, última copia).
-  var CONFIG_NO_SYNC = { calView: 1, nubeAvisoContador: 1, lastBackup: 1 };
+  var CONFIG_NO_SYNC = { calView: 1, nubeAvisoContador: 1, lastBackup: 1,
+    bienvenidaVista: 1, bienvenidaVersion: 1 };
   // Ajustes de bajo riesgo (no hay nada que "perder"): siempre gana la última
   // escritura, así un cambio de tema propaga a los dos aparatos. El resto
   // (nombre, ramas, Client ID de Google...) solo se rellena si aquí falta.
@@ -1352,6 +1357,7 @@
   // que se ha quitado el guardado local en archivos). Se muestra la 1ª vez y,
   // si el usuario no vincula, se repite cada 8 aperturas hasta que lo haga.
   function maybeFirstRunNubePrompt() {
+    if (bienvenidaMostradaEsteArranque) return; // no apilar dos modales el primer día
     if (!window.NUBE || !window.NUBE.disponible()) return;
     if (window.NUBE.estaVinculada()) return;
     var n = (settings.nubeAvisoContador || 0) + 1;
@@ -1368,6 +1374,195 @@
         { label: 'Vincular con Microsoft', value: true, kind: 'primary' }
       ]
     }).then(function (ok) { if (ok && window.NUBE) window.NUBE.vincular(); });
+  }
+
+  // ===== Ventana de inicio (carrusel de bienvenida + novedades) =====
+  var bienvenidaMostradaEsteArranque = false;
+
+  // Páginas de la guía (se ven enteras el primer arranque y desde el botón de
+  // Ajustes). NADA de modo desarrollador aquí.
+  // Ilustraciones (SVG en línea, heredan el tema por las clases de .bienv-fig).
+  var BIENV_FIG = {
+    tren:
+      '<svg viewBox="0 0 220 84" width="220" xmlns="http://www.w3.org/2000/svg">' +
+      '<line x1="12" y1="62" x2="208" y2="62" class="il-stroke"/>' +
+      '<circle cx="34" cy="62" r="3" class="il-muted"/><circle cx="110" cy="62" r="3" class="il-muted"/>' +
+      '<circle cx="186" cy="62" r="3" class="il-muted"/>' +
+      '<rect x="66" y="24" width="88" height="28" rx="8" class="il-fill"/>' +
+      '<rect x="66" y="24" width="88" height="28" rx="8" class="il-accent-s"/>' +
+      '<circle cx="84" cy="58" r="4" class="il-stroke"/><circle cx="136" cy="58" r="4" class="il-stroke"/>' +
+      '<path d="M154 30l14 8-14 8z" class="il-accent"/></svg>',
+    tabs:
+      '<svg viewBox="0 0 236 44" width="236" xmlns="http://www.w3.org/2000/svg">' +
+      '<rect x="4" y="12" width="34" height="22" rx="5" class="il-accent"/>' +
+      '<rect x="42" y="12" width="34" height="22" rx="5" class="il-fill"/>' +
+      '<rect x="80" y="12" width="34" height="22" rx="5" class="il-fill"/>' +
+      '<rect x="118" y="12" width="34" height="22" rx="5" class="il-fill"/>' +
+      '<rect x="156" y="12" width="34" height="22" rx="5" class="il-fill"/>' +
+      '<rect x="194" y="12" width="34" height="22" rx="5" class="il-fill"/></svg>',
+    calendario:
+      '<svg viewBox="0 0 176 100" width="176" xmlns="http://www.w3.org/2000/svg">' +
+      '<rect x="6" y="10" width="164" height="84" rx="8" class="il-stroke"/>' +
+      '<line x1="6" y1="28" x2="170" y2="28" class="il-stroke"/>' +
+      '<rect x="18" y="38" width="20" height="16" rx="3" class="il-fill"/>' +
+      '<rect x="46" y="38" width="20" height="16" rx="3" class="il-fill"/>' +
+      '<rect x="74" y="38" width="20" height="16" rx="3" class="il-accent"/>' +
+      '<rect x="102" y="38" width="20" height="16" rx="3" class="il-fill"/>' +
+      '<rect x="130" y="38" width="20" height="16" rx="3" class="il-fill"/>' +
+      '<rect x="18" y="62" width="20" height="16" rx="3" class="il-fill"/>' +
+      '<rect x="46" y="62" width="20" height="16" rx="3" class="il-fill"/>' +
+      '<rect x="74" y="62" width="20" height="16" rx="3" class="il-fill"/>' +
+      '<circle cx="150" cy="78" r="12" class="il-accent"/>' +
+      '<path d="M150 72v12M144 78h12" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
+    datos:
+      '<svg viewBox="0 0 220 96" width="220" xmlns="http://www.w3.org/2000/svg">' +
+      '<rect x="10" y="30" width="46" height="60" rx="6" class="il-stroke"/>' +
+      '<circle cx="33" cy="82" r="2.5" class="il-muted"/>' +
+      '<rect x="164" y="44" width="34" height="46" rx="6" class="il-stroke"/>' +
+      '<circle cx="181" cy="84" r="2" class="il-muted"/>' +
+      '<path d="M92 40c-9 0-16 7-16 15 0 1 0 2 .3 3C70 59 66 63 66 69c0 7 6 12 13 12h40c8 0 15-6 15-14 0-7-5-13-12-14 0-11-9-19-20-19-4 0-8 1-10 3z" class="il-fill"/>' +
+      '<path d="M92 40c-9 0-16 7-16 15 0 1 0 2 .3 3C70 59 66 63 66 69c0 7 6 12 13 12h40c8 0 15-6 15-14 0-7-5-13-12-14 0-11-9-19-20-19-4 0-8 1-10 3z" class="il-accent-s"/>' +
+      '<path d="M56 60h8M60 56l-4 4 4 4" class="il-accent-s"/>' +
+      '<path d="M156 66h-8M152 62l4 4-4 4" class="il-accent-s"/></svg>',
+    novedades:
+      '<svg viewBox="0 0 200 92" width="200" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="18" cy="20" r="9" class="il-ok"/><path d="M14 20l3 3 6-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<rect x="36" y="16" width="150" height="8" rx="4" class="il-fill"/>' +
+      '<circle cx="18" cy="46" r="9" class="il-ok"/><path d="M14 46l3 3 6-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<rect x="36" y="42" width="130" height="8" rx="4" class="il-fill"/>' +
+      '<circle cx="18" cy="72" r="9" class="il-ok"/><path d="M14 72l3 3 6-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<rect x="36" y="68" width="145" height="8" rx="4" class="il-fill"/></svg>'
+  };
+
+  var BIENVENIDA_PAGINAS = [
+    {
+      titulo: 'Bienvenido a EnRuta-RV',
+      fig: BIENV_FIG.tren,
+      puntos: [
+        'App para maquinistas de Iryo: lleva el registro de tus viajes, turno a turno.',
+        'Anota servicios, paradas, viajeros, PMR, comprobaciones, telefonemas e informes de incidencia.',
+        'Funciona sin conexión. Todo se guarda en tu dispositivo al momento.'
+      ]
+    },
+    {
+      titulo: 'Cómo se organiza',
+      fig: BIENV_FIG.tabs,
+      puntos: [
+        'Calendario — tus turnos por día. Toca un día para ver o crear el turno.',
+        'Registro — el editor del turno: servicios, paradas, observaciones.',
+        'Telefonemas — catálogo de telefonemas (Anexo I) para consulta.',
+        'Informe — genera el PDF del informe de incidencia.',
+        'Estadísticas — servicios, horas y retrasos en el rango que elijas.',
+        'Ajustes — tus datos, ramas, tema, comprobaciones y la copia en la nube.'
+      ]
+    },
+    {
+      titulo: 'Empezar un turno',
+      fig: BIENV_FIG.calendario,
+      puntos: [
+        'En Calendario, toca el día y crea el turno.',
+        'Elige el Servicio Comercial: se rellenan origen, destino y paradas del Libro de Horarios.',
+        'Completa vía, rama, viajeros, PMR, comprobaciones y observaciones. Se guarda solo.',
+        'Al acabar, «Cerrar turno» — queda en solo lectura (puedes reabrirlo).',
+        '¿Dormida? El turno abarca los dos días automáticamente.'
+      ]
+    },
+    {
+      titulo: 'Dónde están tus datos',
+      fig: BIENV_FIG.datos,
+      puntos: [
+        'Todo se guarda en este dispositivo. Nadie más lo ve.',
+        'Puedes activar la copia en la nube (Ajustes): guarda una copia en tu OneDrive y mantiene los mismos turnos en el móvil y la tablet.',
+        'Cada maquinista gestiona solo sus datos y puede borrarlos cuando quiera.',
+        'También hay «Exportar copia» manual en Ajustes.'
+      ]
+    }
+  ];
+
+  // Novedades de la actualización. Se ve sola al actualizar a una versión
+  // nueva, y como última página del carrusel el primer arranque.
+  var BIENVENIDA_NOVEDADES = {
+    titulo: 'Novedades',
+    fig: BIENV_FIG.novedades,
+    puntos: [
+      'Comprobaciones editables (Ajustes → «Editar el registro»): renómbralas, ocúltalas o añade las tuyas.',
+      'Oculta lo que no uses: la hora de LTV, la celda de Toma / Descanso / Deje.',
+      'Nuevo campo «Asistentes» por estación (se activa en Ajustes).',
+      'Servicio comercial manual cuando no está en el Libro de Horarios.',
+      'PMR con dirección y cantidad (♿↑ suben / ♿↓ bajan) en cada estación.',
+      'Observaciones con viñetas y atajos (LTV, «detenido ante…», Vmáx…).',
+      'Telefonemas rediseñados: selectores de un toque, sin desplegables.',
+      'Copia en la nube (OneDrive) más robusta: sincroniza sola, aguanta mala cobertura y los borrados se propagan entre dispositivos.',
+      'Calendario en el móvil arreglado.',
+      'Los cambios de Ajustes se ven al instante en el editor, sin reabrir el turno.'
+    ]
+  };
+
+  function bienvPageHtml(pag) {
+    var h = '<div class="bienv-page">';
+    h += '<div class="modal-title">' + esc(pag.titulo) + '</div>';
+    if (pag.fig) h += '<div class="bienv-fig">' + pag.fig + '</div>';
+    h += '<ul class="bienv-list">';
+    pag.puntos.forEach(function (p) { h += '<li>' + esc(p) + '</li>'; });
+    h += '</ul></div>';
+    return h;
+  }
+
+  // soloNovedades: al actualizar → una sola página, botón «Entendido».
+  // desdeAjustes: no persiste flags (es la guía a demanda).
+  function mostrarBienvenida(soloNovedades, desdeAjustes) {
+    var paginas = soloNovedades ? [BIENVENIDA_NOVEDADES]
+      : BIENVENIDA_PAGINAS.concat([BIENVENIDA_NOVEDADES]);
+    var total = paginas.length;
+    var i = 0;
+
+    appModal.custom({
+      className: 'wide bienv-modal',
+      backdropClose: false,
+      render: function (box, resolveWith) {
+        function pintar() {
+          var ultima = i === total - 1;
+          var h = bienvPageHtml(paginas[i]);
+          h += '<div class="bienv-nav">';
+          if (total > 1) {
+            h += '<button type="button" class="modal-btn neutral bienv-prev"' +
+              (i === 0 ? ' disabled' : '') + '>‹ Atrás</button>';
+            h += '<span class="bienv-dots">';
+            for (var d = 0; d < total; d++) h += '<span class="bienv-dot' + (d === i ? ' on' : '') + '"></span>';
+            h += '</span>';
+          } else {
+            h += '<span></span>';
+          }
+          if (ultima) {
+            h += '<button type="button" class="modal-btn primary bienv-fin">' +
+              (soloNovedades ? 'Entendido' : 'Empezar') + '</button>';
+          } else {
+            h += '<button type="button" class="modal-btn primary bienv-next">Siguiente ›</button>';
+          }
+          h += '</div>';
+          if (ultima && !soloNovedades) {
+            h += '<label class="bienv-nomas"><input type="checkbox" class="bienv-nomas-cb"' +
+              (settings.bienvenidaVista ? ' checked' : '') + '> No volver a mostrar esta guía</label>';
+          }
+          box.innerHTML = h;
+          var prev = box.querySelector('.bienv-prev');
+          var next = box.querySelector('.bienv-next');
+          var fin = box.querySelector('.bienv-fin');
+          if (prev) prev.addEventListener('click', function () { if (i > 0) { i--; pintar(); } });
+          if (next) next.addEventListener('click', function () { if (i < total - 1) { i++; pintar(); } });
+          if (fin) fin.addEventListener('click', function () {
+            var cb = box.querySelector('.bienv-nomas-cb');
+            if (!desdeAjustes) {
+              if (!soloNovedades && cb) settings.bienvenidaVista = cb.checked;
+              settings.bienvenidaVersion = APP_VERSION;
+              saveSettings();
+            }
+            resolveWith(true);
+          });
+        }
+        pintar();
+      }
+    });
   }
 
   function loadHorarios() {
@@ -5037,6 +5232,9 @@
       '<button class="btn" data-action="export-backup">Exportar copia ahora</button>' +
       '</div>' +
       '<div class="hint" style="margin-top:6px">Si hay versión nueva en el servidor, la app se recarga sola.</div>' +
+      '<div class="btn-row" style="margin-top:8px">' +
+      '<button class="btn ghost" data-action="ver-guia">Ver la guía de inicio</button>' +
+      '</div>' +
       '</div>';
 
     // 9. Borrar todo
@@ -6198,6 +6396,7 @@
     }
 
     // Ajustes
+    if (act === 'ver-guia') { mostrarBienvenida(false, true); return; }
     if (act === 'check-update') {
       if (!('serviceWorker' in navigator)) {
         appModal.alert({ title: 'No compatible', message: 'Tu navegador no soporta actualizaciones automáticas.' });
@@ -6624,6 +6823,17 @@
     // Limpieza: se quitó el guardado local en archivos (File System Access).
     // Borrar su IndexedDB huérfana de quien ya tenía la app.
     try { if (window.indexedDB) indexedDB.deleteDatabase('rviryo_folder_v1'); } catch (e) {}
+
+    // Ventana de inicio: carrusel completo el primer arranque (hasta marcar
+    // «no volver a mostrar»); solo la página de novedades al actualizar a una
+    // versión nueva. Va antes del aviso de la nube (que se salta si esto sale).
+    if (!settings.bienvenidaVista) {
+      bienvenidaMostradaEsteArranque = true;
+      setTimeout(function () { mostrarBienvenida(false, false); }, 500);
+    } else if (settings.bienvenidaVersion !== APP_VERSION) {
+      bienvenidaMostradaEsteArranque = true;
+      setTimeout(function () { mostrarBienvenida(true, false); }, 500);
+    }
 
     // Copia en la nube (OneDrive): arranca MSAL, procesa la vuelta del login
     // por redirect y, si ya hay sesión, sincroniza. Si no está configurada

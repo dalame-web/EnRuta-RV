@@ -38,6 +38,40 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 43: ventana de inicio (carrusel de bienvenida + novedades) (enruta-v73, SIN PUBLICAR)
+
+David: pantalla de bienvenida/ayuda al arrancar con "no volver a mostrar",
+carrusel de varias páginas, con ilustraciones. En cada versión nueva, enseñar
+las novedades. NADA de modo desarrollador en el texto.
+
+- **`settings.bienvenidaVista`** (bool, default false) y
+  **`settings.bienvenidaVersion`** (string, default ''). En `CONFIG_NO_SYNC`
+  (estado por aparato — tablet nueva vuelve a ver la guía).
+- **`mostrarBienvenida(soloNovedades, desdeAjustes)`** — usa
+  `appModal.custom({className:'wide bienv-modal'})`. Carrusel con ‹/›, puntos,
+  y en la última página casilla "No volver a mostrar" + botón "Empezar".
+  - `BIENVENIDA_PAGINAS` (4): Bienvenida · Cómo se organiza (las 6 pestañas) ·
+    Empezar un turno · Dónde están tus datos. `BIENVENIDA_NOVEDADES` (1).
+  - Cada página con ilustración SVG en línea (`BIENV_FIG`: tren, tabs,
+    calendario, datos, checklist) que hereda el tema por clases de
+    `.bienv-fig` (currentColor / vars).
+- **Disparo en `init()`**: `!bienvenidaVista` → carrusel completo (5 págs);
+  `bienvenidaVersion !== APP_VERSION` → solo la página Novedades ("Entendido").
+  Va antes del aviso de la nube (`maybeFirstRunNubePrompt` se salta si el
+  carrusel salió este arranque — `bienvenidaMostradaEsteArranque`).
+- Al cerrar: si marcó la casilla → `bienvenidaVista=true`; siempre
+  `bienvenidaVersion=APP_VERSION`. Cerrar sin marcar → reaparece la próxima
+  vez. `desdeAjustes` no persiste nada.
+- **Ajustes → Aplicación**: botón "Ver la guía de inicio" (`ver-guia`) → abre
+  el carrusel completo sin tocar flags.
+- CSS nuevo en `registro.css` (`.bienv-*`, ilustraciones). Responsive a
+  375 px (botones a ancho completo, puntos arriba).
+- Verificado en preview: carrusel 5 págs con SVG; casilla marca/no marca →
+  persiste/reaparece; simulando actualización sale solo Novedades; botón de
+  Ajustes abre sin tocar flags; tema claro y móvil OK; sin errores de consola.
+- Versiones (pendientes de publicar): `enruta-v73` · `registro.js?v=202609059`
+  · `registro.css?v=202609059` · `CACHE enruta-rv-v71`.
+
 ### 2026-09-02 — Paso 42: los ajustes del editor se reflejan al instante en Registro (enruta-v72, SIN PUBLICAR)
 
 David: "cada vez que se active/desactive algo en Ajustes se tiene que ver YA
