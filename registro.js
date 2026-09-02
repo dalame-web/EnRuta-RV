@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v76';
+  var APP_VERSION = 'enruta-v77';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -2619,10 +2619,11 @@
     } else {
       h += '<span class="st-name">' + esc(cfg.nombre || '—') + pmTags + '</span>';
     }
-    // Botón "taller" (a la izquierda del +) — traslado a/desde La Sagrera CTT.
+    // Botón apartadero (a la izquierda del +) — traslado a/desde La Sagrera
+    // CTT, que es donde se apartan los trenes.
     if (cfg.tallerBtn) {
       h += '<button class="st-taller" data-action="sagrera-toggle" ' +
-        'data-svc="' + si + '" title="Traslado a/desde La Sagrera CTT">🔧</button>';
+        'data-svc="' + si + '" title="Traslado a/desde La Sagrera CTT (apartadero)">🅿️</button>';
     }
     // Mini "+" inserta una parada NUEVA antes de la actual.
     if (cfg.parIdx != null) {

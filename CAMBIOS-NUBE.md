@@ -38,6 +38,15 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 47: icono del botón de La Sagrera → 🅿️ (apartadero) (enruta-v77, SIN PUBLICAR)
+
+David: la llave 🔧 no identifica lo que es. La Sagrera es para apartar
+trenes (apartadero). Cambiado a **🅿️** ("apartar"). Título del botón:
+"Traslado a/desde La Sagrera CTT (apartadero)".
+
+- Versiones (pendientes de publicar): `enruta-v77` · `registro.js?v=202609063`
+  · `CACHE enruta-rv-v75`. (`registro.css` sin tocar.)
+
 ### 2026-09-02 — Paso 46: traslado a/desde La Sagrera CTT dentro del servicio (enruta-v76, SIN PUBLICAR)
 
 David: registrar el movimiento en vacío entre Barcelona-Sants y el depósito
