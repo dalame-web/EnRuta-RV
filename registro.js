@@ -20,14 +20,51 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v68';
+  var APP_VERSION = 'enruta-v69';
 
-  var COMPROBACIONES = [
-    'Arranque rama', 'Estado Pantógrafo', 'DAT/DHLTV', 'ASFA', 'ETCS/LZB',
-    'Datos Tren', 'Prueba estanqueidad', 'Prueba de freno (Básica/Instrumental)',
-    'Prueba HM', 'Enclavamientos', 'Luces gran intensidad / limpia',
-    'Registro GSM-R', 'Puertas'
+  // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
+  // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
+  // ({asfa:true, ...}), no por posición — así añadir/quitar/mover no descuadra
+  // los turnos ya guardados.
+  var DEFAULT_COMPROBACIONES = [
+    { id: 'arranque-rama', label: 'Arranque rama' },
+    { id: 'estado-pantografo', label: 'Estado Pantógrafo' },
+    { id: 'dat-dhltv', label: 'DAT/DHLTV' },
+    { id: 'asfa', label: 'ASFA' },
+    { id: 'etcs-lzb', label: 'ETCS/LZB' },
+    { id: 'datos-tren', label: 'Datos Tren' },
+    { id: 'prueba-estanqueidad', label: 'Prueba estanqueidad' },
+    { id: 'prueba-freno', label: 'Prueba de freno (Básica/Instrumental)' },
+    { id: 'prueba-hm', label: 'Prueba HM' },
+    { id: 'enclavamientos', label: 'Enclavamientos' },
+    { id: 'luces', label: 'Luces gran intensidad / limpia' },
+    { id: 'registro-gsmr', label: 'Registro GSM-R' },
+    { id: 'puertas', label: 'Puertas' }
   ];
+  function comprobsLista() {
+    var l = settings && settings.comprobaciones;
+    if (!Array.isArray(l)) return DEFAULT_COMPROBACIONES;
+    var f = l.filter(function (c) { return c && c.id && c.label; });
+    return f.length ? f : DEFAULT_COMPROBACIONES;
+  }
+  function slugComprob(label, existentes) {
+    var base = String(label || '').toLowerCase();
+    try { base = base.normalize('NFD').replace(/[̀-ͯ]/g, ''); } catch (e) {}
+    base = base.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'comprob';
+    var used = {};
+    (existentes || comprobsLista()).forEach(function (c) { used[c.id] = 1; });
+    var id = base, n = 2;
+    while (used[id]) id = base + '-' + (n++);
+    return id;
+  }
+  // ¿El servicio tiene alguna comprobación marcada? (soporta el formato viejo
+  // por posición y el nuevo por clave)
+  function algunaComprob(s) {
+    var c = s && s.comprobaciones;
+    if (!c) return false;
+    if (Array.isArray(c)) return c.some(function (x) { return x; });
+    return Object.keys(c).some(function (k) { return c[k]; });
+  }
 
   var DEFAULT_RAMAS = [];
   for (var r = 1; r <= 23; r++) DEFAULT_RAMAS.push(r < 10 ? '0' + r : '' + r);
@@ -1044,6 +1081,22 @@
     if (settings.themeAutoClaro == null) settings.themeAutoClaro = '08:00';
     if (settings.themeAutoOscuro == null) settings.themeAutoOscuro = '20:00';
     if (settings.calView !== 'list') settings.calView = 'grid';
+    // Comprobaciones editables. Por defecto, las de fábrica. Se sanean a
+    // {id,label} y se les pone clave si falta (listas de versiones antiguas).
+    if (!Array.isArray(settings.comprobaciones) || !settings.comprobaciones.length) {
+      settings.comprobaciones = DEFAULT_COMPROBACIONES.map(function (c) { return { id: c.id, label: c.label }; });
+    } else {
+      var vistos = {};
+      settings.comprobaciones = settings.comprobaciones
+        .filter(function (c) { return c && (c.label || typeof c === 'string'); })
+        .map(function (c) {
+          var label = typeof c === 'string' ? c : String(c.label);
+          var id = (c && c.id) || slugComprob(label, Object.keys(vistos).map(function (k) { return { id: k }; }));
+          while (vistos[id]) id = id + '-2';
+          vistos[id] = 1;
+          return { id: id, label: label };
+        });
+    }
     if (settings.lastBackup == null) settings.lastBackup = '';
     if (settings.autoDownload == null) settings.autoDownload = false;
     // Modo desarrollador: muestra los botones ETCS/LZB en Registro. Oculto
@@ -1153,7 +1206,7 @@
   // (nombre, ramas, Client ID de Google...) solo se rellena si aquí falta.
   var CONFIG_LWW = {
     theme: 1, themeAuto: 1, themeAutoClaro: 1, themeAutoOscuro: 1,
-    autoDownload: 1, nubePrivacidadVista: 1
+    autoDownload: 1, nubePrivacidadVista: 1, comprobaciones: 1
   };
   function nubeConfigParaSubir() {
     var out = {};
@@ -1312,7 +1365,7 @@
       esTraslado: false, maniobraNombre: '', servicioManual: false,
       horaLTV: '', paradas: [],
       n1: '', viajeros: '', asistencias: '', plazasH: '', pmr: [],
-      comprobaciones: COMPROBACIONES.map(function () { return false; }),
+      comprobaciones: {},
       observaciones: '', dibujos: [],
       incidencias: [], telefonemas: []
     };
@@ -1405,9 +1458,15 @@
           for (var k = 0; k < n; k++) s.pmr.push({ baja: '' });
         }
       }
-      if (!s.comprobaciones || s.comprobaciones.length !== COMPROBACIONES.length) {
-        var old = s.comprobaciones || [];
-        s.comprobaciones = COMPROBACIONES.map(function (_, i) { return !!old[i]; });
+      // Comprobaciones: del formato viejo por posición al nuevo por clave.
+      // Las marcas del array viejo se asignan a las claves de fábrica por
+      // posición (una sola vez). Solo se guardan las marcadas (true).
+      if (Array.isArray(s.comprobaciones)) {
+        var arr = s.comprobaciones, oc = {};
+        DEFAULT_COMPROBACIONES.forEach(function (c, i) { if (arr[i]) oc[c.id] = true; });
+        s.comprobaciones = oc;
+      } else if (!s.comprobaciones || typeof s.comprobaciones !== 'object') {
+        s.comprobaciones = {};
       }
       // Migración: versión anterior guardaba una sola incidencia en campos
       // planos (s.incHora, s.incLinea...) — se convierte a incidencias[0].
@@ -1459,7 +1518,7 @@
     return (t.servicios || []).some(function (s) {
       return s.n1 || s.via || s.rama || s.observaciones ||
         (s.pmr || []).length ||
-        (s.comprobaciones || []).some(function (c) { return c; }) ||
+        algunaComprob(s) ||
         (s.incidencias || []).length ||
         (s.paradas || []).some(function (p) {
           return p.viajeros || p.asistencias || (p.pmr || []).length;
@@ -1479,7 +1538,7 @@
       return p.nombre || p.hora || p.hLleg || p.rLleg || p.rSal ||
              p.viajeros || p.asistencias || (p.pmr || []).length;
     })) return false;
-    if ((s.comprobaciones || []).some(function (c) { return c; })) return false;
+    if (algunaComprob(s)) return false;
     if (s.incidencias && s.incidencias.length) return false;
     return true;
   }
@@ -1540,9 +1599,13 @@
       ds.observaciones = lns.filter(function (x) { return x !== '' || lns.length === 1; }).join('\n');
     }
     if ((ss.pmr || []).length > (ds.pmr || []).length) ds.pmr = ss.pmr;
-    (ss.comprobaciones || []).forEach(function (c, i) {
-      if (c) { ds.comprobaciones = ds.comprobaciones || []; ds.comprobaciones[i] = true; }
-    });
+    // Comprobaciones: OR por clave (soporta el formato viejo por posición).
+    var scc = ss.comprobaciones;
+    if (scc) {
+      if (typeof ds.comprobaciones !== 'object' || Array.isArray(ds.comprobaciones)) ds.comprobaciones = {};
+      if (Array.isArray(scc)) DEFAULT_COMPROBACIONES.forEach(function (c, i) { if (scc[i]) ds.comprobaciones[c.id] = true; });
+      else Object.keys(scc).forEach(function (k) { if (scc[k]) ds.comprobaciones[k] = true; });
+    }
     // Incidencias: añadir las que no estén ya (por contenido), no descartar.
     (ss.incidencias || []).forEach(function (inc) {
       var js = JSON.stringify(inc);
@@ -2618,12 +2681,13 @@
     h += '<button type="button" class="section-toggle" data-action="comprobaciones-toggle" ' +
       'data-svc="' + si + '">Comprobaciones<span class="chev">' + (chkAbierto ? '▴' : '▾') + '</span></button>';
     if (chkAbierto) {
+      var scMarcas = (s.comprobaciones && typeof s.comprobaciones === 'object' && !Array.isArray(s.comprobaciones)) ? s.comprobaciones : {};
       h += '<div class="checks">';
-      COMPROBACIONES.forEach(function (c, ci) {
+      comprobsLista().forEach(function (c) {
         h += '<label class="check-item">' +
-          '<input type="checkbox" data-bind="srv.' + si + '.chk.' + ci + '"' +
-          (s.comprobaciones[ci] ? ' checked' : '') + '>' +
-          '<span>' + esc(c) + '</span></label>';
+          '<input type="checkbox" data-bind="srv.' + si + '.chk.' + c.id + '"' +
+          (scMarcas[c.id] ? ' checked' : '') + '>' +
+          '<span>' + esc(c.label) + '</span></label>';
       });
       h += '</div>';
     }
@@ -2961,7 +3025,9 @@
           }
         }
       } else if (p[2] === 'chk') {
-        s.comprobaciones[+p[3]] = value;
+        if (typeof s.comprobaciones !== 'object' || Array.isArray(s.comprobaciones)) s.comprobaciones = {};
+        if (value) s.comprobaciones[p[3]] = true;
+        else delete s.comprobaciones[p[3]];
       } else if (p[2] === 'pmr') {
         var pm = s.pmr[+p[3]];
         if (pm) pm[p[4]] = value;
@@ -4784,6 +4850,16 @@
       esc(settings.ramas.join('\n')) + '</textarea></div>' +
       '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-ramas">Guardar ramas</button></div></div>';
 
+    // 3b. Comprobaciones
+    h += '<div class="card"><div class="card-title">Comprobaciones</div>' +
+      '<div class="field"><label>Una por línea (checklist del editor). Puedes borrar, añadir o reordenar; ' +
+      'las marcas de los turnos ya guardados no se pierden. Si quieres renombrar una, ' +
+      'hazlo en un guardado aparte de las altas y bajas.</label>' +
+      '<textarea id="set-comprobs" style="min-height:200px">' +
+      esc(comprobsLista().map(function (c) { return c.label; }).join('\n')) + '</textarea></div>' +
+      '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-comprobs">Guardar</button>' +
+      '<button class="btn ghost" data-action="reset-comprobs">Restaurar de fábrica</button></div></div>';
+
     // 6. Exportar a PDF (multi-select)
     var sortedT = turnos.slice().sort(function (a, b) {
       var fa = (a.servicios[0] && a.servicios[0].fecha) || '';
@@ -4960,9 +5036,10 @@
 
       checkPage();
       line('Comprobaciones:', { bold: true, size: 10 });
-      COMPROBACIONES.forEach(function (c, ci) {
+      var scPdf = (s.comprobaciones && typeof s.comprobaciones === 'object' && !Array.isArray(s.comprobaciones)) ? s.comprobaciones : {};
+      comprobsLista().forEach(function (c) {
         checkPage();
-        line((s.comprobaciones[ci] ? '[X] ' : '[  ] ') + c, { size: 9, x: M + 3, gap: 1 });
+        line((scPdf[c.id] ? '[X] ' : '[  ] ') + c.label, { size: 9, x: M + 3, gap: 1 });
       });
       state.y += 1.5;
       checkPage();
@@ -5439,10 +5516,11 @@
         }
 
         body += '<div class="chk">';
-        COMPROBACIONES.forEach(function (lab, ci) {
-          var ok = s.comprobaciones && s.comprobaciones[ci];
+        var scHtml = (s.comprobaciones && typeof s.comprobaciones === 'object' && !Array.isArray(s.comprobaciones)) ? s.comprobaciones : {};
+        comprobsLista().forEach(function (c) {
+          var ok = scHtml[c.id];
           body += '<span class="' + (ok ? 'ok' : 'no') + '">' +
-            (ok ? '✓ ' : '☐ ') + esc(lab) + '</span>';
+            (ok ? '✓ ' : '☐ ') + esc(c.label) + '</span>';
         });
         body += '</div>';
 
@@ -6047,6 +6125,42 @@
         .filter(Boolean);
       settings.ramas = arr.length ? arr : DEFAULT_RAMAS.slice();
       saveSettings(); flashSaved(); renderSettings(); return;
+    }
+    if (act === 'save-comprobs') {
+      var lineas = $('set-comprobs').value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+      if (!lineas.length) { appModal.alert({ title: 'Vacío', message: 'Deja al menos una comprobación.' }); return; }
+      var viejas = comprobsLista();
+      var porLabel = {}; viejas.forEach(function (c) { porLabel[c.label.toLowerCase()] = c.id; });
+      var nuevasLabels = {}; lineas.forEach(function (l) { nuevasLabels[l.toLowerCase()] = 1; });
+      // Solo fiarse de la posición para detectar renombrados si no hubo altas
+      // ni bajas — si la lista cambió de tamaño, la posición i ya no significa
+      // nada y arrastraría el id viejo a una comprobación nueva.
+      var soloRenombres = viejas.length === lineas.length;
+      var nuevas = [];
+      lineas.forEach(function (label, i) {
+        var lk = label.toLowerCase(), id;
+        if (porLabel[lk]) id = porLabel[lk];                                        // igual / reordenada
+        else if (soloRenombres && viejas[i] && !nuevasLabels[viejas[i].label.toLowerCase()]) id = viejas[i].id; // renombrada en el sitio
+        else id = slugComprob(label, nuevas);                                       // nueva
+        nuevas.push({ id: id, label: label });
+      });
+      settings.comprobaciones = nuevas;
+      saveSettings(); flashSaved(); renderSettings();
+      if (lastSetView === 'registro' && editId != null) renderEditor();
+      return;
+    }
+    if (act === 'reset-comprobs') {
+      appModal.confirm({
+        title: 'Restaurar comprobaciones',
+        message: 'Vuelve a la lista de fábrica (13). Las marcas de los turnos ya guardados no se tocan.',
+        buttons: [{ label: 'Cancelar', value: false, kind: 'neutral' }, { label: 'Restaurar', value: true, kind: 'primary' }]
+      }).then(function (ok) {
+        if (!ok) return;
+        settings.comprobaciones = DEFAULT_COMPROBACIONES.map(function (c) { return { id: c.id, label: c.label }; });
+        saveSettings(); flashSaved(); renderSettings();
+        if (lastSetView === 'registro' && editId != null) renderEditor();
+      });
+      return;
     }
     if (act === 'gcal-sync-cal') {
       gcalLoadScript();

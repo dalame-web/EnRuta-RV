@@ -38,6 +38,47 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 39: comprobaciones editables desde Ajustes (enruta-v69, SIN PUBLICAR)
+
+David: "que desde ajustes pueda poner lo que salga en el registro o quitar
+las comprobaciones o anadir alguna mas." Las comprobaciones siguen en el
+editor y en el PDF del turno; **nunca** en el informe de incidencia.
+
+- **Almacenamiento por servicio: de array posicional a objeto por CLAVE**
+  (`s.comprobaciones = { 'asfa': true, ... }`, disperso, solo las marcadas).
+  Antes era `[true,false,...]` y anadir/reordenar en Ajustes descuadraba
+  todos los turnos.
+- **Migracion en `normTurno()`**: array viejo -> objeto usando los slugs de
+  `DEFAULT_COMPROBACIONES` por posicion. Idempotente (se re-migra en cada
+  carga hasta el primer guardado). Helper `algunaComprob(s)` soporta los dos
+  formatos (usado en `tieneDatosDeUsuario`, `isEmptyServicio`).
+- **`fusionarTurnoEn`**: OR por clave, soporta origen en formato viejo.
+- **Ajustes -> tarjeta "Comprobaciones"**: textarea (una por linea, como
+  Ramas). Al guardar, cada linea conserva su `id` si el label coincide
+  (igual o reordenada); si cambio de sitio con la lista del mismo tamano se
+  trata como renombrado y hereda el `id`; si no, `id` nuevo (slug). Aviso en
+  la tarjeta: renombrar en un guardado aparte de altas/bajas.
+- **`reset-comprobs`**: vuelve a la lista de fabrica (13). Las marcas de los
+  turnos guardados no se tocan.
+- `settings.comprobaciones` en `CONFIG_LWW` (last-write-wins entre
+  dispositivos). Saneado en `loadAll()`.
+- Editor (`servicioInner`), `applyBind` (`srv.N.chk.<slug>`), PDF del turno
+  (`pintarTurnoEnDoc`) y export HTML completo: leen la lista viva de
+  `comprobsLista()` y las marcas por clave.
+- **Informe de incidencia: sin tocar** (grep confirmado, no referencia
+  `comprobaciones`).
+- Verificado en preview: migracion posicional->clave OK; editor pinta 13
+  checks editables con marcas correctas; toggle en turno abierto anade/borra
+  claves y persiste; turno cerrado sigue de solo lectura; renombrar (mismo
+  numero) conserva marcas; alta/baja no arrastra marcas ajenas; PDF del
+  turno se genera sin error. Sin errores nuevos en consola (solo 404
+  `_vercel/*`).
+- Versiones (pendientes de publicar): `enruta-v69` · `registro.js?v=202609053`
+  · `registro.css?v=202609053` · `telefonemas-listado.js?v=202609053`
+  · `nube.js?v=202609053` · `CACHE enruta-rv-v65`.
+
+---
+
 ### 2026-09-01 — Paso 38: campoOpcional del telefonema: pastilla O hueco (enruta-v68, SIN PUBLICAR)
 
 David: en "en via/s" quiere lo mismo que en "Supone un CSV" — una pastilla
