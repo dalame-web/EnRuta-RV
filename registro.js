@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v77';
+  var APP_VERSION = 'enruta-v78';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -4484,6 +4484,11 @@
     var m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim());
     return m ? (+m[1] * 60 + +m[2]) : null;
   }
+  // "8:38" y "08:38" son la misma hora; '' distinto de cualquier hora.
+  function mismaHoraHHMM(a, b) {
+    var x = hhmmToMin(a), y = hhmmToMin(b);
+    return x != null && y != null && x === y;
+  }
   function siguienteDia(fechaISO) {
     var p = fechaISO.split('-');
     var d = new Date(+p[0], +p[1] - 1, +p[2]);
@@ -4896,13 +4901,22 @@
         toma: parsed.toma, deje: parsed.deje, descansoMin: parsed.descansoMin,
         servicios: parsed.servicios, existente: existente, cambioHorario: null
       };
-      if (existente.turnoHorarioActivo && (existente.toma || existente.deje || existente.descanso)) {
-        var distinto = existente.toma !== parsed.toma || existente.deje !== parsed.deje ||
-          String(existente.descanso || '') !== descansoTxt(parsed.descansoMin);
-        if (distinto) {
+      // Cambio de horario del cuadrante (Toma/Deje/Descanso) frente a lo ya
+      // guardado. Calendar es la fuente oficial de la empresa → la revisión
+      // lo aplica POR DEFECTO, incluso con el turno cerrado. Comparación en
+      // minutos: "8:38" y "08:38" no cuentan como cambio. Solo se marca un
+      // campo si Calendar trae un valor nuevo (nunca se vacía por un fallo
+      // de parseo).
+      if (existente.toma || existente.deje || existente.descanso) {
+        var difToma = parsed.toma && !mismaHoraHHMM(parsed.toma, existente.toma);
+        var difDeje = parsed.deje && !mismaHoraHHMM(parsed.deje, existente.deje);
+        var difDesc = parsed.descansoMin &&
+          descansoTxt(parsed.descansoMin) !== String(existente.descanso || '');
+        if (difToma || difDeje || difDesc) {
           prop.cambioHorario = {
             tomaGuardado: existente.toma, dejeGuardado: existente.deje, descansoGuardado: existente.descanso,
-            tomaNuevo: parsed.toma, dejeNuevo: parsed.deje, descansoNuevoMin: parsed.descansoMin
+            tomaNuevo: difToma ? parsed.toma : '', dejeNuevo: difDeje ? parsed.deje : '',
+            descansoNuevoMin: difDesc ? parsed.descansoMin : 0
           };
         }
       }
@@ -4964,9 +4978,13 @@
     var cambios = 0;
     gcalPropuestas.forEach(function (prop, gi) {
       var incluirEl = document.querySelector('[data-gcal-incluir][data-gi="' + gi + '"]');
-      if (!incluirEl || !incluirEl.checked) return;
       var actualizarEl = document.querySelector('[data-gcal-actualizar][data-gi="' + gi + '"]');
       var actualizarCambio = !!(actualizarEl && actualizarEl.checked);
+      var incluir = !!(incluirEl && incluirEl.checked);
+      // La actualización de horario (Calendar = lo real) es independiente de
+      // "Completar huecos": si la fila SOLO tiene un cambio de horario y ese
+      // interruptor está marcado, se aplica aunque no se completen huecos.
+      if (!incluir && !(actualizarCambio && prop.cambioHorario)) return;
       var numeros = Array.prototype.map.call(
         document.querySelectorAll('.gcal-num[data-gi="' + gi + '"]'),
         function (el) { return el.value.trim(); }
@@ -4981,6 +4999,7 @@
       // discardEmptyEdit lo borraría igualmente al salir del editor.
       t._deCache = false;
       var huboCambio = false;
+      if (incluir) {
       if (!t.toma && prop.toma) { t.toma = prop.toma; huboCambio = true; }
       if (!t.deje && prop.deje) { t.deje = prop.deje; huboCambio = true; }
       if (!t.descanso && prop.descansoMin) { t.descanso = minToHHMM(prop.descansoMin); huboCambio = true; }
@@ -5017,16 +5036,24 @@
           huboCambio = true;
         }
       });
+      } // fin if (incluir)
+      // Calendar = las horas de verdad: se pisan Toma/Deje/Descanso que
+      // cambiaron, aunque el turno esté cerrado.
       if (actualizarCambio && prop.cambioHorario) {
-        t.toma = prop.cambioHorario.tomaNuevo;
-        t.deje = prop.cambioHorario.dejeNuevo;
-        t.descanso = descansoTxt(prop.cambioHorario.descansoNuevoMin);
-        huboCambio = true;
+        var ch = prop.cambioHorario;
+        if (ch.tomaNuevo) { t.toma = ch.tomaNuevo; huboCambio = true; }
+        if (ch.dejeNuevo) { t.deje = ch.dejeNuevo; huboCambio = true; }
+        if (ch.descansoNuevoMin) { t.descanso = descansoTxt(ch.descansoNuevoMin); huboCambio = true; }
+        if (huboCambio) t.turnoHorarioActivo = true;
       }
       if (huboCambio) cambios++;
     });
     gcalPropuestas = null;
-    if (cambios) { save(K_TURNOS, turnos); renderCalendar(); }
+    if (cambios) {
+      save(K_TURNOS, turnos);
+      renderCalendar();
+      if (editId != null && getTurno(editId)) renderEditor();
+    }
     renderSettings();
     if (gcalModalResolve) { gcalModalResolve(null); gcalModalResolve = null; }
     appModal.alert({ title: 'Sincronización aplicada', message: cambios + ' turno(s) actualizados.' });
@@ -5066,12 +5093,17 @@
           '</div>';
       });
       if (prop.cambioHorario) {
-        h += '<div class="hint" style="color:var(--warn);margin-top:6px">⚠ Cambió en Google Calendar — Toma ' +
-          esc(prop.cambioHorario.tomaGuardado || '—') + ' → ' + esc(prop.cambioHorario.tomaNuevo || '—') + ', Deje ' +
-          esc(prop.cambioHorario.dejeGuardado || '—') + ' → ' + esc(prop.cambioHorario.dejeNuevo || '—') + ', Descanso ' +
-          esc(prop.cambioHorario.descansoGuardado || '—') + ' → ' + fmtDescansoMin(prop.cambioHorario.descansoNuevoMin) + '</div>';
+        var ch = prop.cambioHorario;
+        var lineas = [];
+        if (ch.tomaNuevo) lineas.push('Toma ' + esc(ch.tomaGuardado || '—') + ' → ' + esc(ch.tomaNuevo));
+        if (ch.dejeNuevo) lineas.push('Deje ' + esc(ch.dejeGuardado || '—') + ' → ' + esc(ch.dejeNuevo));
+        if (ch.descansoNuevoMin) lineas.push('Descanso ' + esc(ch.descansoGuardado || '—') + ' → ' + fmtDescansoMin(ch.descansoNuevoMin));
+        h += '<div class="hint" style="color:var(--warn);margin-top:6px">⚠ Cambió en Google Calendar (lo real de la empresa) — ' +
+          lineas.join(', ') + '</div>';
         h += '<label class="gcal-check-sm" style="margin-top:4px">' +
-          '<input type="checkbox" data-gcal-actualizar data-gi="' + gi + '"> Actualizar estos 3 campos</label>';
+          '<input type="checkbox" data-gcal-actualizar data-gi="' + gi + '" checked> ' +
+          'Actualizar en el turno' + (prop.existente && prop.existente.estado === 'cerrado' ? ' (aunque esté cerrado)' : '') +
+          '</label>';
       }
       h += '</div>';
     });

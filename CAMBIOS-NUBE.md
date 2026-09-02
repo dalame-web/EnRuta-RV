@@ -38,6 +38,42 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-02 — Paso 48: Calendar manda en Toma/Deje/Descanso (aunque el turno esté cerrado) (enruta-v78, SIN PUBLICAR)
+
+David: cuando la Toma o el Deje difieren entre Google Calendar y la app, no
+se actualizaban. Calendar es la fuente oficial de la empresa — "la app bebe
+de Calendar". Si cambia una de las dos, tiene que cambiar en el turno,
+**aunque esté cerrado**.
+
+**Causas:**
+1. La casilla "Actualizar estos 3 campos" de la revisión salía **desmarcada**
+   → si el usuario pulsaba "Aplicar" sin marcarla, el cambio de horario no se
+   aplicaba.
+2. La detección exigía `existente.turnoHorarioActivo` (flag de UY poco
+   fiable en turnos viejos / venidos de la nube).
+3. El cambio de horario iba encadenado a "Completar huecos": si esa casilla
+   estaba desmarcada, tampoco se aplicaba el horario.
+
+**Cambios (`gcalProcesarEventos` / `gcalAplicarPropuestas` /
+`renderGcalPropuestasHtml`):**
+- Detección: se marca `cambioHorario` si el turno tiene Toma **o** Deje **o**
+  Descanso y Calendar trae un valor distinto. Comparación **en minutos**
+  (`mismaHoraHHMM`, helper nuevo): "8:38" y "08:38" no cuentan como cambio.
+  Solo se marca el campo concreto que cambió, y **nunca** con valor vacío
+  (si el parseo de Calendar falla en un campo, ese no se toca).
+- Revisión: casilla **marcada por defecto**, texto "Actualizar en el turno
+  (aunque esté cerrado)", y solo lista los campos que de verdad cambiaron.
+- Aplicación: **independiente** de "Completar huecos". Pisa solo Toma/Deje/
+  Descanso que cambiaron. **No comprueba `t.estado`** → funciona con el turno
+  cerrado. Si el turno afectado está abierto en el editor, se repinta.
+- Verificado con test Node (`scratchpad/test-cambiohorario.js`, 8/8):
+  detección por campo, "8:38"=="08:38", parseo fallido no borra, turno vacío
+  va por "faltan". App carga sin errores.
+- Alcance: **solo Toma/Deje/Descanso del turno**. Las horas de cada servicio
+  siguen viniendo del Libro de Horarios (por nº de tren), como hasta ahora.
+- Versiones (pendientes de publicar): `enruta-v78` · `registro.js?v=202609064`
+  · `CACHE enruta-rv-v76`.
+
 ### 2026-09-02 — Paso 47: icono del botón de La Sagrera → 🅿️ (apartadero) (enruta-v77, SIN PUBLICAR)
 
 David: la llave 🔧 no identifica lo que es. La Sagrera es para apartar
