@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v80';
+  var APP_VERSION = 'enruta-v81';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -5463,6 +5463,9 @@
   function applyTheme() {
     var t = settings.themeAuto ? temaSegunHora() : settings.theme;
     document.body.classList.toggle('light', t === 'light');
+    // La barra de estado de Android sigue el tema (misma --bg de index.html).
+    var mt = document.querySelector('meta[name="theme-color"]');
+    if (mt) mt.setAttribute('content', t === 'light' ? '#ffffff' : '#0d1117');
   }
 
   // ===== Exportación PDF =====
@@ -6955,6 +6958,10 @@
   // ===== Inicio =====
   function init() {
     loadAll();
+    // Aplicar el tema YA (sobre todo el automático por hora): antes solo se
+    // recalculaba en el intervalo de 60 s, así que al abrir la app a la hora
+    // del cambio tardaba hasta un minuto en pasar a claro/oscuro.
+    applyTheme();
     loadHorarios();
     turnos.forEach(normTurno);
     // Juntar turnos duplicados del mismo día (creados a la vez en dos

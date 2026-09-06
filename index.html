@@ -104,7 +104,19 @@ body.tab-calendario #app-version-badge{display:block}
 (function(){
   try{
     var s = JSON.parse(localStorage.getItem('rviryo_settings_v1') || '{}');
-    if(s.theme === 'light') document.body.classList.add('light');
+    var claro = s.theme === 'light';
+    if(s.themeAuto){
+      var toMin = function(x){ var p=/^(\d{1,2}):(\d{2})$/.exec(x||''); return p? +p[1]*60+ +p[2] : null; };
+      var m = new Date().getHours()*60 + new Date().getMinutes();
+      var c = toMin(s.themeAutoClaro); if(c==null) c=480;
+      var o = toMin(s.themeAutoOscuro); if(o==null) o=1200;
+      claro = c < o ? (m>=c && m<o) : (m>=c || m<o);
+    }
+    if(claro) document.body.classList.add('light');
+    // Barra de estado de Android acorde al tema desde el primer pintado.
+    // registro.js lo reajusta en applyTheme() (misma lógica).
+    var mt = document.querySelector('meta[name="theme-color"]');
+    if(mt) mt.setAttribute('content', claro ? '#ffffff' : '#0d1117');
   }catch(e){}
 })();
 </script>
@@ -173,7 +185,7 @@ body.tab-calendario #app-version-badge{display:block}
 <script src="data.js?v=202609013"></script>
 <script src="msal-browser.min.js"></script>
 <script src="nube.js?v=202609055"></script>
-<script src="registro.js?v=202609066"></script>
+<script src="registro.js?v=202609067"></script>
 <script src="telefonemas-listado.js?v=202609055"></script>
 <script>
 (function(){

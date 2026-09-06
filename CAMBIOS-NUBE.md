@@ -38,6 +38,23 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-06 — Paso 51 (Ronda B): tema — barra de estado + aplicar al abrir (enruta-v81, SIN PUBLICAR)
+
+- **Punto 1**: la barra de estado de Android sigue el tema. `applyTheme()`
+  actualiza `<meta name="theme-color">` (`#ffffff` claro / `#0d1117` oscuro,
+  las `--bg` de `index.html`). El script inline de `index.html` lo pone también
+  desde el primer pintado (y ya calcula `themeAuto`, no solo `s.theme`).
+- **Punto 2 (era un bug real, no solo throttling)**: `init()` **no llamaba a
+  `applyTheme()`** — al abrir la app, el tema lo ponía solo el script inline
+  (que ignoraba `themeAuto`), y el modo automático no se aplicaba hasta el
+  primer tick del `setInterval` de 60 s. De ahí el "tarda bastante". Ahora
+  `init()` llama a `applyTheme()` justo después de `loadAll()`.
+- Verificado en preview: `themeAuto` con umbrales que dan luz/oscuro → al
+  recargar sale ya en el tema correcto (sin esperar 60 s); `meta[theme-color]`
+  cambia con el toggle manual y con el automático. Sin errores consola.
+- Versiones (pendientes de publicar): `enruta-v81` · `registro.js?v=202609067`
+  · `CACHE enruta-rv-v79`.
+
 ### 2026-09-06 — Paso 50 (Ronda A del lote de 14): Ajustes plegables + Asistentes por defecto + URL (enruta-v80, SIN PUBLICAR)
 
 Plan: `C:\Users\david\.claude\plans\moonlit-doodling-chipmunk.md`.
