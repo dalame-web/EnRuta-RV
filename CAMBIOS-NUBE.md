@@ -38,6 +38,20 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-06 — Paso 54 (Ronda E): carrusel de bienvenida — datos personales + Novedades a 4 (enruta-v84, SIN PUBLICAR)
+
+- **Punto 4**: página nueva "Antes de empezar" en el carrusel (tras "Cómo se
+  organiza") — invita a rellenar teléfono/nombre/apellidos/ID en Ajustes,
+  explica dónde salen esos datos, y que solo hay que hacerlo una vez.
+- **Punto 7**: `BIENVENIDA_NOVEDADES.puntos` recortado de 8 a **4**, solo
+  funcionalidades de peso (La Sagrera CTT, Estadísticas nuevas, Ajustes
+  plegables, barra de estado con el tema). Comentario en el código fijando la
+  norma (máx. 4, funcionalidades, se rotan).
+- Verificado en preview: primer arranque → carrusel de 6 páginas con la nueva;
+  simular actualización → solo la página Novedades con 4 puntos. Sin errores.
+- Versiones (pendientes de publicar): `enruta-v84` · `registro.js?v=202609070`
+  · `CACHE enruta-rv-v82`.
+
 ### 2026-09-06 — Paso 53 (Ronda D): Estadísticas — retraso solo llegada, turnos >8h, puntualidad, clic para abrir (enruta-v83, SIN PUBLICAR)
 
 - **Punto 9**: "Retraso acumulado" pasa a contar **solo** el retraso de llegada

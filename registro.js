@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v83';
+  var APP_VERSION = 'enruta-v84';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1451,6 +1451,15 @@
       ]
     },
     {
+      titulo: 'Antes de empezar',
+      fig: null,
+      puntos: [
+        'Ve a Ajustes → «Teléfono y datos personales» y rellena tu teléfono, nombre, apellidos e ID de empleado.',
+        'Esos datos salen en el informe de incidencia y en el PDF del turno.',
+        'Solo hay que hacerlo una vez. Después, usa la app con normalidad.'
+      ]
+    },
+    {
       titulo: 'Empezar un turno',
       fig: BIENV_FIG.calendario,
       puntos: [
@@ -1474,18 +1483,17 @@
 
   // Novedades de la actualización. Se ve sola al actualizar a una versión
   // nueva, y como última página del carrusel el primer arranque.
+  // NORMA: MÁX. 4 puntos, SOLO funcionalidades nuevas de peso (nada de
+  // retoques menores). Al añadir novedades de un lote nuevo, se retiran las
+  // anteriores.
   var BIENVENIDA_NOVEDADES = {
     titulo: 'Novedades',
     fig: null,
     puntos: [
       'Traslado a/desde La Sagrera CTT dentro del servicio: en Barcelona-Sants, el botón 🅿️ añade el traslado de apartadero con su hora y su nº.',
-      '«Exportar a PDF» en Ajustes ahora se pliega (cerrado por defecto).',
-      'Comprobaciones editables (Ajustes → «Editar el registro»): renómbralas, ocúltalas o añade las tuyas.',
-      'Oculta lo que no uses: la hora de LTV, la celda de Toma / Descanso / Deje.',
-      'Campo «Asistentes» por estación (se activa en Ajustes).',
-      'PMR con dirección y cantidad (♿↑ suben / ♿↓ bajan) en cada estación.',
-      'Servicio comercial manual cuando no está en el Libro de Horarios.',
-      'Los cambios de Ajustes se ven al instante en el editor, sin reabrir el turno.'
+      'Estadísticas: nuevos recuadros de «Turnos de más de 8 h» y «Puntualidad»; toca cualquier servicio de la lista para abrir su turno.',
+      'Ajustes: cada sección se pliega para que la pantalla no sea tan larga.',
+      'La barra de estado de Android ahora sigue el tema claro / oscuro de la app.'
     ]
   };
 
