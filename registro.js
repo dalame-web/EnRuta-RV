@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v79';
+  var APP_VERSION = 'enruta-v80';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -867,9 +867,10 @@
   var editId = null;
   var expandedSvc = 0;
   var cuadranteAbierto = false; // celda "Turno" (datos de Calendar) plegada/desplegada
-  var setComprobsOpen = false; // tarjeta "Comprobaciones" de Ajustes, plegada por defecto
-  var setPdfOpen = false;      // tarjeta "Exportar a PDF" de Ajustes, plegada por defecto
-  var setGcalOpen = false;     // tarjeta "Sincronizar Google Calendar", plegada por defecto
+  // Estado plegado/desplegado de cada tarjeta de Ajustes (por sesión, no se
+  // persiste). Clave = id de la tarjeta. undefined = cerrada, salvo 'datos'
+  // que arranca abierta si faltan datos personales (ver renderSettings).
+  var setOpen = {};
   var incidenciaAbierta = {}; // svc index -> bool. Estado de UI, no se persiste.
   // Comprobaciones: svc index -> bool, solo cuando el usuario ha tocado el
   // toggle a mano (si no está la clave, el estado se deriva de si ya hay
@@ -1080,6 +1081,22 @@
     f.classList.add('show');
     setTimeout(function () { f.classList.remove('show'); }, 1100);
   }
+  // Copiar texto al portapapeles sin la API asíncrona (navegadores viejos /
+  // contextos sin permiso): un <input> temporal + execCommand('copy').
+  function copiarFallback(txt) {
+    try {
+      var inp = document.createElement('input');
+      inp.value = txt;
+      inp.style.position = 'fixed'; inp.style.opacity = '0';
+      document.body.appendChild(inp);
+      inp.select();
+      document.execCommand('copy');
+      document.body.removeChild(inp);
+      flashSaved();
+    } catch (e) {
+      appModal.alert({ title: 'Copiar', message: txt });
+    }
+  }
 
   function loadAll() {
     turnos = load(K_TURNOS, []);
@@ -1118,8 +1135,8 @@
     // borrar: si un turno ya tiene el dato, la sección sigue saliendo en él).
     if (settings.regLtvOculta == null) settings.regLtvOculta = false;
     if (settings.regHorarioOculto == null) settings.regHorarioOculto = false;
-    // "Asistentes" por estación: oculto por defecto (campo opcional).
-    if (settings.regAsistentesOculto == null) settings.regAsistentesOculto = true;
+    // "Asistentes" por estación: visible por defecto en instalación nueva.
+    if (settings.regAsistentesOculto == null) settings.regAsistentesOculto = false;
     if (settings.lastBackup == null) settings.lastBackup = '';
     if (settings.autoDownload == null) settings.autoDownload = false;
     // Modo desarrollador: muestra los botones ETCS/LZB en Registro. Oculto
@@ -5168,7 +5185,9 @@
   }
   function renderNubeCard() {
     if (!window.NUBE || !window.NUBE.disponible()) return '';
-    var h = '<div class="card"><div class="card-title">Copia en la nube (OneDrive)</div>';
+    var h = '<div class="card">' + cardToggleHead('nube', 'Copia en la nube (OneDrive)');
+    if (!setOpen.nube) { h += '</div>'; return h; }
+    h += '<div style="margin-top:10px"></div>';
     if (!window.NUBE.estaVinculada()) {
       h += '<div class="hint">Guarda una copia de tus turnos en tu OneDrive y ten los mismos datos en el móvil y la tablet. Solo la primera vez hay que dar permiso.</div>' +
         '<div class="btn-row"><button class="btn primary" data-action="nube-vincular">Vincular con Microsoft</button></div>';
@@ -5198,10 +5217,8 @@
   }
 
   function renderGcalCard() {
-    var h = '<div class="card"><button type="button" class="section-toggle" style="margin:0" ' +
-      'data-action="set-gcal-toggle">Sincronizar Google Calendar ' +
-      '<span class="chev">' + (setGcalOpen ? '▴' : '▾') + '</span></button>';
-    if (!setGcalOpen) { h += '</div>'; return h; }
+    var h = '<div class="card">' + cardToggleHead('gcal', 'Sincronizar Google Calendar');
+    if (!setOpen.gcal) { h += '</div>'; return h; }
     h += '<div class="hint" style="margin:10px 0 8px">Experimental — si el día ya tiene turno creado, propone completar huecos aquí (nunca sobrescribe). Si no lo tiene, solo se guarda para cuando lo crees en Calendario (botón 🔄).</div>';
     h += '<div class="field"><label>Client ID de Google</label>' +
       '<input type="text" id="set-gcal-client" value="' + esc(settings.gcalClientId) + '" placeholder="xxxx.apps.googleusercontent.com"></div>';
@@ -5228,12 +5245,26 @@
   }
 
   // ===== Ajustes =====
+  // Cabecera plegable de una tarjeta de Ajustes. El contenido va detrás en un
+  // `if (setOpen[id])`. Estado en `setOpen` (por sesión).
+  function cardToggleHead(id, titulo) {
+    return '<button type="button" class="section-toggle" style="margin:0" ' +
+      'data-action="set-toggle" data-set="' + id + '">' + esc(titulo) +
+      '<span class="chev">' + (setOpen[id] ? '▴' : '▾') + '</span></button>';
+  }
   function renderSettings() {
     var pane = $('ajustes-pane');
     var h = '<h2>Ajustes</h2>';
+    // Datos personales: abierta mientras falte algún dato.
+    if (setOpen.datos === undefined) {
+      setOpen.datos = !(settings.telefono && settings.nombre &&
+        settings.apellidos && settings.idEmpleado);
+    }
 
     // 2. Teléfono de referencia + datos personales (informe de incidencia)
-    h += '<div class="card"><div class="card-title">Teléfono de referencia y datos personales</div>' +
+    h += '<div class="card">' + cardToggleHead('datos', 'Teléfono y datos personales');
+    if (setOpen.datos) {
+    h += '<div style="margin-top:10px"></div>' +
       '<div class="field"><label>Teléfono de referencia</label>' +
       '<input type="text" id="set-tel" value="' + esc(settings.telefono) +
       '" placeholder="Ej. 651 450 000"></div>' +
@@ -5245,24 +5276,27 @@
       '</div>' +
       '<div class="field"><label>ID de empleado</label>' +
       '<input type="text" id="set-id-empleado" value="' + esc(settings.idEmpleado) + '"></div>' +
-      '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-datos-personales">Guardar datos</button></div></div>';
+      '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-datos-personales">Guardar datos</button></div>';
+    }
+    h += '</div>';
 
     // 3. Ramas
-    h += '<div class="card"><div class="card-title">Ramas</div>' +
-      '<div class="field"><label>Una rama por línea (desplegable del editor)</label>' +
+    h += '<div class="card">' + cardToggleHead('ramas', 'Ramas');
+    if (setOpen.ramas) {
+    h += '<div class="field" style="margin-top:10px"><label>Una rama por línea (desplegable del editor)</label>' +
       '<textarea id="set-ramas" style="min-height:120px">' +
       esc(settings.ramas.join('\n')) + '</textarea></div>' +
-      '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-ramas">Guardar ramas</button></div></div>';
+      '<div class="btn-row" style="margin:0"><button class="btn primary" data-action="save-ramas">Guardar ramas</button></div>';
+    }
+    h += '</div>';
 
     // 3b. Editar el registro — plegable (cerrado por defecto, ocupa mucho
     // abierto). Qué secciones se ven en el editor del turno + comprobaciones.
     var _cl = comprobsLista();
-    h += '<div class="card"><button type="button" class="section-toggle" style="margin:0" ' +
-      'data-action="set-comprobs-toggle">Editar el registro ' +
-      '<span class="chev">' + (setComprobsOpen ? '▴' : '▾') + '</span></button>' +
-      '<div class="hint" style="margin:8px 0 0">Qué se ve en el editor del turno. ' +
+    h += '<div class="card">' + cardToggleHead('comprobs', 'Editar el registro');
+    if (setOpen.comprobs) {
+    h += '<div class="hint" style="margin:8px 0 0">Qué se ve en el editor del turno. ' +
       'Ocultar no borra nada: si un turno ya tiene el dato, la sección sigue saliendo en él.</div>';
-    if (setComprobsOpen) {
     h += '<div class="comprob-editor" style="margin-top:10px">' +
       '<div class="comprob-row">' +
       '<label class="comprob-vis" title="Se muestra en el editor">' +
@@ -5313,10 +5347,8 @@
       var fb = (b.servicios[0] && b.servicios[0].fecha) || '';
       return fb.localeCompare(fa);
     });
-    h += '<div class="card"><button type="button" class="section-toggle" style="margin:0" ' +
-      'data-action="set-pdf-toggle">Exportar a PDF ' +
-      '<span class="chev">' + (setPdfOpen ? '▴' : '▾') + '</span></button>';
-    if (setPdfOpen) {
+    h += '<div class="card">' + cardToggleHead('pdf', 'Exportar a PDF');
+    if (setOpen.pdf) {
     if (!sortedT.length) {
       h += '<div class="hint" style="margin-top:10px">Aún no hay turnos para exportar.</div>';
     } else {
@@ -5338,16 +5370,18 @@
         '<button class="btn primary" data-action="pdf-export" style="margin-left:auto">Exportar seleccionados</button>' +
         '</div>';
     }
-    } // fin if (setPdfOpen)
+    } // fin if (setOpen.pdf)
     h += '</div>';
 
     // 7. Copia de seguridad
-    h += '<div class="card"><div class="card-title">Copia de seguridad</div>' +
-      '<div class="hint">' + turnos.length + ' turnos guardados.</div>' +
+    h += '<div class="card">' + cardToggleHead('backup', 'Copia de seguridad');
+    if (setOpen.backup) {
+    h += '<div class="hint" style="margin-top:10px">' + turnos.length + ' turnos guardados.</div>' +
       '<div class="btn-row"><button class="btn primary" data-action="export-backup">Exportar copia</button>' +
       '<button class="btn" data-action="import-backup">Importar copia</button></div>' +
-      '<input type="file" id="file-backup" accept=".json,application/json" style="display:none">' +
-      '</div>';
+      '<input type="file" id="file-backup" accept=".json,application/json" style="display:none">';
+    }
+    h += '</div>';
 
     // 7b. Copia en la nube (OneDrive) — para todos los usuarios
     h += renderNubeCard();
@@ -5356,7 +5390,9 @@
     if (settings.telDevMode) h += renderGcalCard();
 
     // 7d. Tema (claro / oscuro / automático por hora)
-    h += '<div class="card"><div class="card-title">Tema</div>' +
+    h += '<div class="card">' + cardToggleHead('tema', 'Tema');
+    if (setOpen.tema) {
+    h += '<div style="margin-top:10px"></div>' +
       '<label class="check-item" style="margin-bottom:8px">' +
       '<input type="checkbox" data-action="theme-auto-toggle"' + (settings.themeAuto ? ' checked' : '') + '>' +
       '<span>Cambio automático claro / oscuro por hora</span></label>';
@@ -5373,11 +5409,14 @@
       h += '<div class="hint">Manual — usa el botón 🌙/☀️ de la barra superior. ' +
         'Recomendado para el automático: claro 08:00, oscuro 20:00.</div>';
     }
+    } // fin if (setOpen.tema)
     h += '</div>';
 
     // 8. Aplicación
-    h += '<div class="card"><div class="card-title">Aplicación</div>' +
-      '<div class="hint" data-action="app-version-tap" style="cursor:default; user-select:none">' +
+    h += '<div class="card">' + cardToggleHead('app', 'Aplicación');
+    if (setOpen.app) {
+    var appUrl = location.origin + location.pathname;
+    h += '<div class="hint" data-action="app-version-tap" style="cursor:default; user-select:none;margin-top:10px">' +
       'Versión instalada: <b>' + esc(APP_VERSION) + '</b>' +
       (settings.telDevMode ? ' · <span style="color:var(--ok)">modo desarrollador activo</span>' : '') +
       '</div>' +
@@ -5386,14 +5425,25 @@
       '<button class="btn" data-action="export-backup">Exportar copia ahora</button>' +
       '</div>' +
       '<div class="hint" style="margin-top:6px">Si hay versión nueva en el servidor, la app se recarga sola.</div>' +
+      '<div class="field" style="margin-top:10px"><label>Dirección de la app</label>' +
+      '<input type="text" id="set-app-url" readonly value="' + esc(appUrl) + '" ' +
+      'style="font-size:12px" onclick="this.select()"></div>' +
+      '<div class="btn-row" style="margin:0">' +
+      '<button class="btn" data-action="copiar-url">Copiar dirección</button>' +
+      '<button class="btn ghost" data-action="abrir-navegador">Abrir en el navegador</button>' +
+      '</div>' +
       '<div class="btn-row" style="margin-top:8px">' +
       '<button class="btn ghost" data-action="ver-guia">Ver la guía de inicio</button>' +
-      '</div>' +
       '</div>';
+    }
+    h += '</div>';
 
     // 9. Borrar todo
-    h += '<div class="card"><div class="card-title">Borrar todo</div>' +
-      '<div class="btn-row" style="margin:0"><button class="btn danger" data-action="wipe">Borrar todos los datos</button></div></div>';
+    h += '<div class="card">' + cardToggleHead('wipe', 'Borrar todo');
+    if (setOpen.wipe) {
+    h += '<div class="btn-row" style="margin-top:10px"><button class="btn danger" data-action="wipe">Borrar todos los datos</button></div>';
+    }
+    h += '</div>';
 
     h += '<div class="hint" style="text-align:center;margin-top:8px">Datos guardados solo en esta tablet</div>';
     pane.innerHTML = h;
@@ -6667,7 +6717,12 @@
       settings.nombre = $('set-nombre').value.trim();
       settings.apellidos = $('set-apellidos').value.trim();
       settings.idEmpleado = $('set-id-empleado').value.trim();
-      saveSettings(); flashSaved(); refrescarEditorTrasAjuste(); return;
+      saveSettings(); flashSaved(); refrescarEditorTrasAjuste();
+      // Completos → se pliega sola; incompletos → se queda abierta.
+      var completos = settings.telefono && settings.nombre &&
+        settings.apellidos && settings.idEmpleado;
+      if (completos && setOpen.datos) { setOpen.datos = false; renderSettings(); }
+      return;
     }
     if (act === 'save-ramas') {
       var arr = $('set-ramas').value.split('\n').map(function (x) { return x.trim(); })
@@ -6702,9 +6757,24 @@
       });
       return;
     }
-    if (act === 'set-comprobs-toggle') { setComprobsOpen = !setComprobsOpen; renderSettings(); return; }
-    if (act === 'set-pdf-toggle') { setPdfOpen = !setPdfOpen; renderSettings(); return; }
-    if (act === 'set-gcal-toggle') { setGcalOpen = !setGcalOpen; renderSettings(); return; }
+    if (act === 'set-toggle') {
+      var sid = el.getAttribute('data-set');
+      setOpen[sid] = !setOpen[sid];
+      renderSettings();
+      return;
+    }
+    if (act === 'copiar-url') {
+      var u = location.origin + location.pathname;
+      var ok = function () { flashSaved(); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(u).then(ok, function () { copiarFallback(u); });
+      } else { copiarFallback(u); }
+      return;
+    }
+    if (act === 'abrir-navegador') {
+      window.open(location.origin + location.pathname, '_blank');
+      return;
+    }
     if (act === 'comprob-add') {
       var caL = comprobsLista().slice();
       caL.push({ id: slugComprob('comprob', caL), label: 'Nueva comprobación', oculta: false });

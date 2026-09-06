@@ -38,6 +38,35 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-06 — Paso 50 (Ronda A del lote de 14): Ajustes plegables + Asistentes por defecto + URL (enruta-v80, SIN PUBLICAR)
+
+Plan: `C:\Users\david\.claude\plans\moonlit-doodling-chipmunk.md`.
+
+- **Todas las tarjetas de Ajustes son plegables** (punto 5). Helper
+  `cardToggleHead(id, titulo)` + mapa `setOpen` (por sesión, no se persiste) +
+  handler único `set-toggle`. Se retiran `setComprobsOpen`/`setPdfOpen`/
+  `setGcalOpen` y sus 3 handlers. Convertidas: Teléfono/datos personales,
+  Ramas, Copia de seguridad, Copia en la nube (`renderNubeCard`), Tema,
+  Aplicación, Borrar todo. Todas cerradas por defecto.
+- **Datos personales: abierta si falta algún dato, cerrada si están todos**
+  (punto 3). `setOpen.datos` se calcula si `undefined`; al guardar con los 4
+  campos rellenos se pliega sola.
+- **"Asistentes" visible por defecto** en instalación de cero (punto 6):
+  `settings.regAsistentesOculto` default `false` (antes `true`). No afecta a
+  quien ya tenga el flag guardado.
+- **URL de la app en "Aplicación"** (punto 14): campo de solo lectura con la
+  dirección + "Copiar dirección" (`navigator.clipboard` con fallback
+  `execCommand`) + "Abrir en el navegador". `manifest.webmanifest`
+  `short_name` "RV" → "EnRuta".
+- Helper nuevo `copiarFallback(txt)`.
+- Verificado en preview: 9/10 tarjetas con chevron, abren/cierran y mantienen
+  estado al re-render; datos personales abierta con campos vacíos y se pliega
+  al rellenarla; URL correcta; instalación nueva → Asistentes activo; blob de
+  ajustes viejo (sin `regAsistentesOculto`) carga sin errores; tarjeta de
+  Google Calendar (modo desarrollador) también plegable. Sin errores consola.
+- Versiones (pendientes de publicar): `enruta-v80` · `registro.js?v=202609066`
+  · `CACHE enruta-rv-v78` · `manifest short_name`.
+
 ### 2026-09-02 — Paso 49: lote de retoques (celda "Turno", Ajustes plegables, novedades) (enruta-v79, SIN PUBLICAR)
 
 David, bloque de 8:

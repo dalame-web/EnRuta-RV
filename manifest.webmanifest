@@ -1,6 +1,6 @@
 {
   "name": "EnRuta RV — Registro de Viajes",
-  "short_name": "RV",
+  "short_name": "EnRuta",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
