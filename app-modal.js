@@ -140,6 +140,15 @@
     //   .modal-btn para heredar el estilo) y llamar a resolveWith(valor) cuando
     //   el usuario termine — null/undefined para "cancelado". El overlay, la cola,
     //   ESC y el cierre por backdrop los sigue gestionando este módulo.
-    custom: function (opts) { return openCustom(opts); }
+    custom: function (opts) { return openCustom(opts); },
+    // ¿Hay un modal abierto ahora mismo?
+    abierto: function () { return !!current; },
+    // Cierra el modal actual como si se pulsara ESC (con su dismissValue).
+    // Devuelve true si había uno abierto. Lo usa el botón "atrás" de Android.
+    dismiss: function () {
+      if (!current) return false;
+      resolveWith(current.dismissValue);
+      return true;
+    }
   };
 })();

@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v84';
+  var APP_VERSION = 'enruta-v85';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1955,6 +1955,28 @@
   // ===== Navegación / vistas =====
   var lastSetView = '';
   var viewScroll = {};
+  // Botón "atrás" de Android — historial mínimo de 2 niveles:
+  //   base = 'calendario' (home) · 1 entrada más = lo que estás mirando ahora
+  //   (otra pestaña o un turno abierto). Cambiar de pestaña SUSTITUYE esa
+  //   entrada (no la apila), así el atrás siempre lleva a Calendario en un
+  //   toque, y desde Calendario sale de la app. `navBack` = estamos respondiendo
+  //   a un popstate, no hay que volver a tocar el historial.
+  var navBack = false;
+  function histNav(v) {
+    if (navBack || !window.history || !window.history.pushState) return;
+    var cur = history.state && history.state.v;
+    var st = { v: v, editId: (v === 'registro' ? editId : null) };
+    try {
+      if (v === 'calendario') {
+        if (cur && cur !== 'calendario') { navBack = true; history.back(); navBack = false; }
+        else history.replaceState(st, '');
+      } else if (cur === 'calendario' || cur == null) {
+        history.pushState(st, '');
+      } else {
+        history.replaceState(st, '');
+      }
+    } catch (e) {}
+  }
   function setView(v) {
     // Si salimos del editor de Registro hacia otra vista RV, descartar
     // turno blank si quedó vacío. Esto cubre TODOS los flujos de salida
@@ -1975,6 +1997,7 @@
     });
     window.scrollTo(0, viewScroll[v] || 0);
     try { window.dispatchEvent(new CustomEvent('iryo:setView', { detail: { view: v } })); } catch (e) {}
+    histNav(v);
   }
 
   // ===== Calendario =====
@@ -7063,6 +7086,34 @@
     window.addEventListener('beforeunload', flushAutosave);
     // Modo tema automático: revisar la hora cada minuto.
     setInterval(function () { if (settings.themeAuto) applyTheme(); }, 60000);
+
+    // Botón/gesto "atrás" de Android. Entrada base = Calendario.
+    if (window.history && window.history.replaceState) {
+      try { history.replaceState({ v: 'calendario' }, ''); } catch (e) {}
+    }
+    window.addEventListener('popstate', function (e) {
+      // 1. Hay un modal abierto → el atrás lo cierra, no cambia de vista.
+      //    Se repone la entrada que el navegador acaba de consumir.
+      if (window.appModal && appModal.dismiss && appModal.dismiss()) {
+        try { history.pushState(e.state || { v: lastSetView || 'calendario' }, ''); } catch (er) {}
+        return;
+      }
+      // 2. Reconstruir la vista guardada SIN volver a tocar el historial.
+      var v = (e.state && e.state.v) || 'calendario';
+      var eid = e.state && e.state.editId;
+      if (v === lastSetView && !(v === 'registro' && eid != null && eid !== editId)) return;
+      navBack = true;
+      try {
+        if (v === 'registro' && eid != null && getTurno(eid)) {
+          editId = eid;
+          renderEditor();
+          setView('registro');
+        } else if (window.REGISTRO) {
+          window.REGISTRO.switchTo(v);
+        }
+      } catch (er) {}
+      navBack = false;
+    });
 
     // Editor inline de retraso: Enter o blur guardan; Escape cancela.
     function commitRet(inp) {

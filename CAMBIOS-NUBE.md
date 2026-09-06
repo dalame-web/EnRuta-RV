@@ -38,6 +38,38 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-06 — Paso 55 (Ronda F): botón "atrás" de Android (enruta-v85, SIN PUBLICAR — PROBAR EN TABLET)
+
+- **Punto 11**: el botón/gesto "atrás" de Android ahora navega dentro de la
+  app en vez de salir. Historial **mínimo de 2 niveles**:
+  - Base = **Calendario** (home). `init()` hace `history.replaceState({v:'calendario'})`.
+  - Cambiar de pestaña o abrir un turno = **1 entrada más**. Cambiar de una
+    pestaña a otra **SUSTITUYE** esa entrada (no la apila) → el atrás siempre
+    lleva a Calendario en un toque, y desde Calendario sale de la app.
+  - Abrir un turno desde el calendario **apila** una entrada → atrás cierra el
+    turno y vuelve al calendario.
+- `histNav(v)` al final de `setView(v)` (único punto por el que pasan todas
+  las transiciones). Flag `navBack` para no tocar el historial al responder a
+  un `popstate`. El botón "‹ Calendario" del editor hace lo mismo que el atrás
+  físico (ambos pasan por `setView('calendario')` → `history.back()`).
+- Listener `popstate` en `init()`: si hay un **modal abierto** lo cierra y
+  repone la entrada (el atrás no cambia la vista de debajo); si no, reconstruye
+  la vista desde `e.state.v` (serializable, sobrevive a recargas del SW y a la
+  vuelta del login de Microsoft).
+- `app-modal.js`: API nueva `appModal.abierto()` y `appModal.dismiss()`
+  (cierra el modal actual como un ESC). `?v=` nuevo en `index.html`.
+- Verificado en preview (simulando `history.back()`): pestaña→atrás→Calendario;
+  abrir turno→atrás→Calendario (turno con datos conservado); abrir turno→otra
+  pestaña→atrás→Calendario (el turno no se reabre); modal + atrás → cierra el
+  modal sin cambiar de vista; recarga a mitad → reconstruye sin errores; la
+  barra de pestañas se sincroniza. Sin errores de consola.
+- **PENDIENTE**: David lo prueba en la tablet (PWA instalada) — el gesto atrás
+  se comporta distinto que `history.back()` en una pestaña de Chrome. Casos a
+  mirar: atrás desde Calendario sale de la app; atrás con un diálogo de
+  confirmación abierto; vuelta del login de OneDrive.
+- Versiones (pendientes de publicar): `enruta-v85` · `registro.js?v=202609071`
+  · `app-modal.js?v=202609071` · `CACHE enruta-rv-v83`.
+
 ### 2026-09-06 — Paso 54 (Ronda E): carrusel de bienvenida — datos personales + Novedades a 4 (enruta-v84, SIN PUBLICAR)
 
 - **Punto 4**: página nueva "Antes de empezar" en el carrusel (tras "Cómo se
