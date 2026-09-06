@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v81';
+  var APP_VERSION = 'enruta-v82';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1731,11 +1731,16 @@
       return t.servicios.some(function (s) { return s.fecha === d; });
     });
   }
+  // ¿Las observaciones tienen texto real? "• " (viñeta que se siembra al
+  // enfocar el campo vacío) o solo viñetas/espacios → cuenta como vacío.
+  function obsConTexto(txt) {
+    return /[^•·\s]/.test(String(txt || ''));
+  }
   // Datos que SOLO introduce el usuario a mano (nunca el autorrelleno de
   // Google Calendar, que solo pone servicio/origen/destino/horas del Libro).
   function tieneDatosDeUsuario(t) {
     return (t.servicios || []).some(function (s) {
-      return s.n1 || s.via || s.rama || s.observaciones || s.sagrera ||
+      return s.n1 || s.via || s.rama || obsConTexto(s.observaciones) || s.sagrera ||
         (s.pmr || []).length ||
         algunaComprob(s) ||
         (s.incidencias || []).length ||
@@ -1748,7 +1753,7 @@
   function isEmptyServicio(s) {
     if (!s) return true;
     if (s.servicioComercial || s.servicioComercial2 || s.via || s.rama || s.n1 ||
-        s.viajeros || s.asistencias || s.asistentes || s.plazasH || s.observaciones ||
+        s.viajeros || s.asistencias || s.asistentes || s.plazasH || obsConTexto(s.observaciones) ||
         s.esTraslado || s.servicioManual || s.maniobraNombre ||
         s.origen || s.destino || s.hSalida || s.hDestino ||
         s.rSalida || s.rLlegDestino || s.horaLTV || s.sagrera) return false;
@@ -3153,7 +3158,7 @@
     full.tramos.forEach(function (tr, idx) {
       var curMin = hhmmToMin(tr.hora);
       if (prevMin != null && curMin != null && curMin < prevMin) {
-        h += '<div class="cuad-noche">— noche —</div>';
+        h += '<div class="cuad-noche">noche</div>';
       }
       prevMin = curMin;
       var horas = esc(tr.hora) + (tr.horaFin ? '–' + esc(tr.horaFin) : '') +
@@ -7053,21 +7058,18 @@
         ta.dispatchEvent(new Event('input', { bubbles: true }));
       }
     }, true);
-    // Al escribir la PRIMERA línea de Observaciones (campo vacío), que salga
-    // con "• " al momento, igual que las siguientes (Enter ya mete "\n• ").
-    document.addEventListener('input', function (e) {
+    // Observaciones vacío: al ENFOCAR el campo se siembra "• " y el cursor va
+    // detrás. Así se ve la viñeta desde el primer momento sin reescribir el
+    // valor en cada tecla (eso rompía la escritura en teclados Android con
+    // autocorrección — se comía el primer carácter). El blur normaliza y "• "
+    // a secas vuelve a '' (bulletearObs), así que no deja viñeta huérfana.
+    document.addEventListener('focus', function (e) {
       var ta = e.target;
-      if (!esObsTextarea(ta) || !ta.value) return;
-      var nl = ta.value.indexOf('\n');
-      var primera = nl === -1 ? ta.value : ta.value.slice(0, nl);
-      if (!primera.trim()) return;
-      if (primera.indexOf('•') !== -1) return;                  // ya hay viñeta en esa línea
-      if (/^[A-Z]{2,5}\d{0,2} · /.test(primera)) return;        // línea de telefonema
-      var sel = ta.selectionStart;
-      ta.value = '• ' + ta.value;
-      ta.selectionStart = ta.selectionEnd = (sel || 0) + 2;
-      ta.dispatchEvent(new Event('input', { bubbles: true }));  // que applyBind y el fondo se enteren
-    });
+      if (!esObsTextarea(ta) || ta.value) return;
+      ta.value = '• ';
+      ta.selectionStart = ta.selectionEnd = 2;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }, true);
     // Nombres de estación escritos a mano (servicio manual / parada nueva) →
     // a MAYÚSCULAS, como el resto de la app.
     document.addEventListener('blur', function (e) {

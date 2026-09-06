@@ -964,7 +964,16 @@ input[type=number]::-webkit-inner-spin-button{
 /* Jornada > 8h (turno de un día) o descanso de dormida < 9h → rojo + negrita */
 b.cuad-alto{color:var(--bad); font-weight:800}
 .cuad-row.cuad-alto .cuad-t, .cuad-row.cuad-alto .cuad-t b{color:var(--bad); font-weight:800}
-.cuad-noche{text-align:center; color:var(--fg-dim); font-size:11px; padding:5px 0; letter-spacing:.05em}
+/* Divisor de medianoche en la celda "Turno" — línea + "noche" + línea,
+   centrado y a lo ancho, encajado entre los tramos. */
+.cuad-noche{
+  display:flex; align-items:center; gap:8px;
+  color:var(--fg-dim); font-size:10px; letter-spacing:.08em;
+  text-transform:uppercase; padding:8px 0; border-top:1px solid var(--border);
+}
+.cuad-noche::before, .cuad-noche::after{
+  content:''; flex:1; height:1px; background:var(--border);
+}
 .cuad-sub{margin-top:11px}
 .cuad-sub-t{
   font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;

@@ -38,6 +38,26 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-06 — Paso 52 (Ronda C): divisor "noche" + bullet de Observaciones (enruta-v82, SIN PUBLICAR)
+
+- **Punto 12**: el divisor de medianoche en la celda "Turno" pasa de un
+  "— noche —" centrado que "flotaba" a un divisor de verdad: `NOCHE` en
+  minúsculas mayúsculas, centrado, con línea a cada lado (`::before`/`::after`
+  con `flex:1`) y `border-top` para encajar entre los tramos. Texto del JS
+  "— noche —" → "noche". Solo CSS + un literal.
+- **Punto 13**: el "• " de Observaciones cortaba la escritura en teclados
+  Android. Causa: un listener de `input` reescribía `textarea.value` entero en
+  cada tecla, rompiendo la composición del teclado. **Eliminado.** En su
+  lugar, un listener de `focus` (capture) siembra "• " **una sola vez** al
+  enfocar el campo vacío, antes de escribir. Helper `obsConTexto(txt)`
+  (`/[^•·\s]/`) para que "• " a secas no cuente como dato en `isEmptyServicio`
+  / `tieneDatosDeUsuario` — así un turno con solo la viñeta se descarta igual.
+- Verificado en preview: divisor "noche" con líneas a los lados; al enfocar
+  Observaciones vacío sale "• " y se escribe sin reescrituras; un turno cuya
+  obs es solo "• " se descarta al salir del editor. Sin errores consola.
+- Versiones (pendientes de publicar): `enruta-v82` · `registro.js?v=202609068`
+  · `registro.css?v=202609068` · `CACHE enruta-rv-v80`.
+
 ### 2026-09-06 — Paso 51 (Ronda B): tema — barra de estado + aplicar al abrir (enruta-v81, SIN PUBLICAR)
 
 - **Punto 1**: la barra de estado de Android sigue el tema. `applyTheme()`
