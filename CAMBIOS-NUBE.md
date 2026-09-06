@@ -38,6 +38,35 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-06 — Paso 53 (Ronda D): Estadísticas — retraso solo llegada, turnos >8h, puntualidad, clic para abrir (enruta-v83, SIN PUBLICAR)
+
+- **Punto 9**: "Retraso acumulado" pasa a contar **solo** el retraso de llegada
+  a destino (`s.rLlegDestino`) y solo si es **≥ 5 min** — mismo criterio que la
+  lista desplegable. Fuera el retraso de salida y el de paradas intermedias.
+  `mayorRetraso` sigue igual (ya era solo llegada).
+- **Punto 8 — dos recuadros nuevos** en la cuadrícula:
+  - **Turnos > 8 h**: turnos de UN día (dormidas no) cuya suma de
+    `durMin(hSalida, hDestino)` de sus servicios pasa de 480 min. `data-modo="largos"`
+    → lista los turnos (fecha · códigos · jornada), cada fila abre el turno.
+  - **Puntualidad**: `% de servicios con retraso de llegada < 5 min` (o sin
+    dato). `data-modo="puntualidad"`, abre la misma lista que "Retraso
+    acumulado" (los que llegan tarde) pero con identidad de toggle propia
+    (alias `modoL` interno).
+- **Punto 10**: cada fila de la lista de servicios y de turnos lleva
+  `data-action="open-turno" data-id`. Handler nuevo `open-turno`: `editId = id;
+  renderEditor(); setView('registro')`. El estado de Estadísticas (`statsRange`,
+  `statsListMode`, `statsListLinea`, `statsListOrden`, `statsOtrasAbierta`) son
+  variables de módulo → al volver reaparece la misma pantalla.
+- `serviciosRango` pasa de `[s]` a `[{ s, tid }]` para saber a qué turno
+  pertenece cada servicio.
+- Verificado en preview con turnos sembrados: los 6 números correctos
+  (retraso 0h40 = 12+8; turnos>8h = 1 de un día + 1 viejo cerrado, dormida
+  excluida; puntualidad 57%); toggle Retraso↔Puntualidad limpio; clic en fila
+  abre el turno correcto (incluso uno cerrado → solo lectura); volver a
+  Estadísticas mantiene rango y lista. Turno de schema viejo carga sin errores.
+- Versiones (pendientes de publicar): `enruta-v83` · `registro.js?v=202609069`
+  · `CACHE enruta-rv-v81`.
+
 ### 2026-09-06 — Paso 52 (Ronda C): divisor "noche" + bullet de Observaciones (enruta-v82, SIN PUBLICAR)
 
 - **Punto 12**: el divisor de medianoche en la celda "Turno" pasa de un

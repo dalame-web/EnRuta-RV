@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v82';
+  var APP_VERSION = 'enruta-v83';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -4293,32 +4293,31 @@
       return d && d >= statsRange.desde && d <= statsRange.hasta;
     };
     var nTurnos = 0, nServicios = 0, totalMin = 0, totalRetrasoMin = 0;
-    var serviciosRango = []; // todos los servicios del rango, para el listado desplegable
+    var nPuntuales = 0;      // servicios que llegan con < 5 min de retraso
+    var turnosLargos = [];   // turnos de un día con jornada > 8 h
+    var serviciosRango = []; // { s, tid } — para el listado desplegable
     var porDia = [0, 0, 0, 0, 0, 0, 0]; // servicios por día de la semana, Lunes..Domingo
     var nDormidas = 0;
     var porManiobra = {}; // maniobraNombre -> nº de traslados
     var mayorRetraso = null; // { fecha, num, destino, min }
-    var addRet = function (v) {
-      var n = parseRetraso(v);
-      if (n != null && n > 0) totalRetrasoMin += n;
-    };
     turnos.forEach(function (t) {
       var hit = t.servicios.some(function (s) { return inRange(s.fecha); });
       if (!hit) return;
       nTurnos++;
-      if (isDormida(t)) nDormidas++;
+      var dorm = isDormida(t);
+      if (dorm) nDormidas++;
+      var jornadaTurno = 0; // suma de conducción del turno (para "> 8h")
       t.servicios.forEach(function (s) {
         if (!inRange(s.fecha)) return;
         nServicios++;
-        serviciosRango.push(s);
+        serviciosRango.push({ s: s, tid: t.id });
         var d = durMin(s.hSalida, s.hDestino);
-        if (d != null) totalMin += d;
-        addRet(s.rSalida);
-        addRet(s.rLlegDestino);
-        (s.paradas || []).forEach(function (p) {
-          addRet(p.rLleg);
-          addRet(p.rSal);
-        });
+        if (d != null) { totalMin += d; jornadaTurno += d; }
+        // Retraso acumulado: SOLO llegada a destino y solo si ≥ 5 min
+        // (mismo criterio que la lista desplegable).
+        var rl = parseRetraso(s.rLlegDestino);
+        if (rl != null && rl >= 5) totalRetrasoMin += rl;
+        if (rl == null || rl < 5) nPuntuales++;
         var di = diaSemanaIdx(s.fecha);
         if (di != null) porDia[di]++;
         if (s.esTraslado && s.maniobraNombre) {
@@ -4338,7 +4337,17 @@
             destino: s.destino || '—', min: mLleg };
         }
       });
+      // Turnos de UN día con jornada de conducción > 8 h (las dormidas no).
+      if (!dorm && jornadaTurno > 480) {
+        turnosLargos.push({
+          id: t.id,
+          fecha: (t.servicios[0] && t.servicios[0].fecha) || '',
+          nums: t.servicios.map(function (s) { return s.servicioComercial || s.maniobraNombre || '—'; }).join(' / '),
+          min: jornadaTurno
+        });
+      }
     });
+    var pctPuntual = nServicios ? Math.round(nPuntuales / nServicios * 100) : null;
 
     var h = '<h2>Estadísticas</h2>';
     h += '<div class="card"><div class="field-grid">' +
@@ -4356,6 +4365,11 @@
       '<div class="lbl">Horas de servicio</div></div>' +
       '<div class="stat-box" data-action="stats-open" data-modo="retrasos"><div class="num">' + fmtDur(totalRetrasoMin) + '</div>' +
       '<div class="lbl">Retraso acumulado</div></div>' +
+      '<div class="stat-box" data-action="stats-open" data-modo="largos"><div class="num">' + turnosLargos.length + '</div>' +
+      '<div class="lbl">Turnos &gt; 8 h</div></div>' +
+      '<div class="stat-box" data-action="stats-open" data-modo="puntualidad"><div class="num">' +
+      (pctPuntual == null ? '—' : pctPuntual + '%') + '</div>' +
+      '<div class="lbl">Puntualidad</div></div>' +
       '</div>';
 
     h += '<div class="card">';
@@ -4397,51 +4411,80 @@
     h += '</div>'; // fin card Otras estadísticas
 
     if (statsListMode) {
-      var lista = statsListMode === 'retrasos'
-        ? serviciosRango.filter(function (s) { var m = parseRetraso(s.rLlegDestino); return m != null && m >= 5; })
-        : serviciosRango.slice();
-      if (statsListLinea) {
-        lista = lista.filter(function (s) { return lineaDeServicio(s) === statsListLinea; });
-      }
-      lista.sort(function (a, b) {
-        return statsListOrden === 'asc' ? (a.fecha || '').localeCompare(b.fecha || '') :
-          (b.fecha || '').localeCompare(a.fecha || '');
-      });
+      // 'puntualidad' abre la misma lista que 'retrasos' (los que llegan
+      // tarde) pero con su propia identidad de toggle en la cuadrícula.
+      var modoL = statsListMode === 'puntualidad' ? 'retrasos' : statsListMode;
+      var titulo = modoL === 'retrasos' ? 'Servicios con retraso a destino'
+        : modoL === 'largos' ? 'Turnos de más de 8 h' : 'Todos los servicios';
+      var esLargos = modoL === 'largos';
       h += '<div class="card">' +
         '<div class="card-title" style="display:flex;align-items:center;gap:8px">' +
-        '<span style="flex:1">' + (statsListMode === 'retrasos' ? 'Servicios con retraso a destino' : 'Todos los servicios') + '</span>' +
+        '<span style="flex:1">' + titulo + '</span>' +
         '<button type="button" class="btn ghost" data-action="stats-list-orden" title="' +
         (statsListOrden === 'desc' ? 'Más reciente primero' : 'Más antiguo primero') +
         '" style="padding:4px 9px;min-height:28px;line-height:0">' + sortIconSvg(statsListOrden === 'desc') + '</button>' +
         '<button class="btn ghost" data-action="stats-list-close" style="padding:4px 10px;min-height:28px">✕</button>' +
         '</div>';
-      if (statsListMode === 'retrasos') {
-        h += '<div class="hint" style="margin:-4px 0 8px">Solo se listan los servicios con 5 min o más de retraso a destino.</div>';
-      }
-      h += '<div class="stat-linea-row">' +
-        '<label for="st-list-linea">Línea</label>' +
-        '<select id="st-list-linea">' +
-        '<option value="">— todas —</option>' +
-        ['L10', 'L30', 'L40', 'L42', 'L50'].map(function (l) {
-          return '<option value="' + l + '"' + (statsListLinea === l ? ' selected' : '') + '>' + l + '</option>';
-        }).join('') +
-        '</select></div>';
-      if (!lista.length) {
-        h += '<div class="hint">Sin servicios que cumplan el filtro en este rango.</div>';
+      if (modoL === 'retrasos') {
+        h += '<div class="hint" style="margin:-4px 0 8px">Solo se listan los servicios con 5 min o más de retraso a destino. Toca uno para abrir el turno.</div>';
       } else {
-        h += '<div class="stat-list">';
-        lista.forEach(function (s) {
-          var num = s.servicioComercial || s.maniobraNombre || '—';
-          var hrs = (s.hSalida && s.hDestino) ? (s.hSalida + ' → ' + s.hDestino) : '—';
-          var ruta = (s.origen && s.destino) ? (prettyEstacion(s.origen) + ' → ' + prettyEstacion(s.destino)) : '—';
-          var min = parseRetraso(s.rLlegDestino);
-          var retHtml = (min != null && min > 0) ? '<span class="ret">+' + min + 'm</span>' : '';
-          h += '<div class="stat-row"><span>' + esc(ymdNice(s.fecha)) + ' · <b>' + esc(num) + '</b> · ' +
-            esc(ruta) + ' · ' + esc(hrs) + '</span>' + retHtml + '</div>';
+        h += '<div class="hint" style="margin:-4px 0 8px">Toca uno para abrir el turno.</div>';
+      }
+
+      if (esLargos) {
+        var lL = turnosLargos.slice().sort(function (a, b) {
+          return statsListOrden === 'asc' ? a.fecha.localeCompare(b.fecha) : b.fecha.localeCompare(a.fecha);
         });
+        if (!lL.length) {
+          h += '<div class="hint">Ningún turno de un día pasa de 8 h en este rango.</div>';
+        } else {
+          h += '<div class="stat-list">';
+          lL.forEach(function (tl) {
+            h += '<div class="stat-row" data-action="open-turno" data-id="' + esc(tl.id) + '" style="cursor:pointer">' +
+              '<span>' + esc(ymdNice(tl.fecha)) + ' · <b>' + esc(tl.nums) + '</b></span>' +
+              '<span class="ret">' + fmtDur(tl.min) + '</span></div>';
+          });
+          h += '</div>';
+        }
+        h += '</div>';
+      } else {
+        var lista = modoL === 'retrasos'
+          ? serviciosRango.filter(function (x) { var m = parseRetraso(x.s.rLlegDestino); return m != null && m >= 5; })
+          : serviciosRango.slice();
+        if (statsListLinea) {
+          lista = lista.filter(function (x) { return lineaDeServicio(x.s) === statsListLinea; });
+        }
+        lista.sort(function (a, b) {
+          return statsListOrden === 'asc' ? (a.s.fecha || '').localeCompare(b.s.fecha || '') :
+            (b.s.fecha || '').localeCompare(a.s.fecha || '');
+        });
+        h += '<div class="stat-linea-row">' +
+          '<label for="st-list-linea">Línea</label>' +
+          '<select id="st-list-linea">' +
+          '<option value="">— todas —</option>' +
+          ['L10', 'L30', 'L40', 'L42', 'L50'].map(function (l) {
+            return '<option value="' + l + '"' + (statsListLinea === l ? ' selected' : '') + '>' + l + '</option>';
+          }).join('') +
+          '</select></div>';
+        if (!lista.length) {
+          h += '<div class="hint">Sin servicios que cumplan el filtro en este rango.</div>';
+        } else {
+          h += '<div class="stat-list">';
+          lista.forEach(function (x) {
+            var s = x.s;
+            var num = s.servicioComercial || s.maniobraNombre || '—';
+            var hrs = (s.hSalida && s.hDestino) ? (s.hSalida + ' → ' + s.hDestino) : '—';
+            var ruta = (s.origen && s.destino) ? (prettyEstacion(s.origen) + ' → ' + prettyEstacion(s.destino)) : '—';
+            var min = parseRetraso(s.rLlegDestino);
+            var retHtml = (min != null && min > 0) ? '<span class="ret">+' + min + 'm</span>' : '';
+            h += '<div class="stat-row" data-action="open-turno" data-id="' + esc(x.tid) + '" style="cursor:pointer">' +
+              '<span>' + esc(ymdNice(s.fecha)) + ' · <b>' + esc(num) + '</b> · ' +
+              esc(ruta) + ' · ' + esc(hrs) + '</span>' + retHtml + '</div>';
+          });
+          h += '</div>';
+        }
         h += '</div>';
       }
-      h += '</div>';
     }
 
     pane.innerHTML = h;
@@ -6338,6 +6381,18 @@
     if (act === 'stats-list-orden') {
       statsListOrden = statsListOrden === 'desc' ? 'asc' : 'desc';
       renderStats();
+      return;
+    }
+    // Estadísticas → tocar un servicio/turno de la lista abre ese turno. El
+    // estado de Estadísticas (rango, lista, orden) son variables de módulo y
+    // sobreviven, así que al volver reaparece la misma pantalla.
+    if (act === 'open-turno') {
+      var otId = el.getAttribute('data-id');
+      if (otId && getTurno(otId)) {
+        editId = otId;
+        renderEditor();
+        setView('registro');
+      }
       return;
     }
 
