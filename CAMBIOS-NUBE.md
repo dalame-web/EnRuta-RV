@@ -38,6 +38,14 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-11 — Paso 59: traslado Fuencarral ↔ Valdemoro (enruta-v88, SIN PUBLICAR)
+
+- Nuevo traslado en el desplegable de Servicio Comercial: "Fuencarral -
+  Valdemoro" y "Valdemoro - Fuencarral", mismo patrón que el resto
+  (`window.RV_MANIOBRAS` en `data.js`, sin número ni horas fijas — se
+  rellenan a mano como los demás traslados).
+- `data.js?v=202609014` (no toca `registro.js`, sin bump de ese `?v=`).
+
 ### 2026-09-11 — Paso 58: quitar duplicado de las pastillas de atajo (enruta-v88, SIN PUBLICAR)
 
 - David vio que el atajo salía dos veces: como pastilla Y como línea en el
