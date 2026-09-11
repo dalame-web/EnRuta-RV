@@ -156,6 +156,12 @@
       // Tramo condicional: si no se rellena, no deja ni rastro en el
       // texto final (ni el prefijo ni un hueco vacío).
       { t: 'campoCondicional', id: 'obs', label: 'Observaciones', prefijo: '. Observaciones: ' }
+    ] },
+    { id: 'moova', label: 'MOOVA', partes: [
+      { t: 'text', v: 'Se crea MOOVA con el Nº ' },
+      { t: 'campo', id: 'numero', label: 'Número' },
+      { t: 'text', v: ' por ' },
+      { t: 'campo', id: 'motivo', label: 'Motivo' }
     ] }
   ];
 
@@ -4787,18 +4793,34 @@
     if (esBarcelonaSants(s && s.origen)) return 'origen';
     return null;
   }
+  // ¿Es la misma estación? Compara algo más que la primera palabra: Calendar
+  // a veces manda el nombre truncado o sin el prefijo de ciudad (p.ej.
+  // "JOAQUIN SOROL" en vez de "VALENCIA-JOAQUIN SOROLLA" del Libro de
+  // Horarios) — con solo la primera palabra ("JOAQUIN" vs "VALENCIA") nunca
+  // encajaba y el servicio quedaba sin identificar (turno de Valencia
+  // marcado como "no creado" en cada sincronización aunque ya lo estuviera).
+  // Basta con que compartan una palabra de 4+ letras, una empezando por
+  // la otra (trunca/alarga igual), para darlas por la misma estación.
+  function estacionesCoinciden(a, b) {
+    var na = normalizaEstacion(a), nb = normalizaEstacion(b);
+    if (!na || !nb) return false;
+    if (na === nb) return true;
+    var wa = na.split(' ').filter(function (w) { return w.length >= 4; });
+    var wb = nb.split(' ').filter(function (w) { return w.length >= 4; });
+    return wa.some(function (w) {
+      return wb.some(function (w2) { return w.indexOf(w2) === 0 || w2.indexOf(w) === 0; });
+    });
+  }
   // Adivina el nº de tren buscando en el Libro de Horarios por
-  // origen+destino (primera palabra) + hora de salida aproximada
+  // origen+destino (estacionesCoinciden) + hora de salida aproximada
   // (±20 min). Nunca se aplica sola — siempre se muestra para confirmar.
   function adivinarServicio(origen, destino, hSalida) {
-    var oPal = normalizaEstacion(origen).split(' ')[0];
-    var dPal = normalizaEstacion(destino).split(' ')[0];
     var hMin = hhmmToMin(hSalida);
-    if (!oPal || !dPal || hMin == null) return null;
+    if (!origen || !destino || hMin == null) return null;
     var mejor = null, mejorDiff = Infinity;
     horarios.forEach(function (hr) {
-      if (normalizaEstacion(hr.origen).split(' ')[0] !== oPal) return;
-      if (normalizaEstacion(hr.destino).split(' ')[0] !== dPal) return;
+      if (!estacionesCoinciden(hr.origen, origen)) return;
+      if (!estacionesCoinciden(hr.destino, destino)) return;
       var hrMin = hhmmToMin(hr.hSalida);
       if (hrMin == null) return;
       var diff = Math.abs(hrMin - hMin);

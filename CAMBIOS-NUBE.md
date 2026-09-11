@@ -38,6 +38,25 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-11 — Paso 56: atajo MOOVA + fix estaciones de Calendar (enruta-v86, SIN PUBLICAR)
+
+- Nuevo atajo de Observaciones **MOOVA**: "Se crea MOOVA con el Nº ___ por ___"
+  (número + motivo en texto libre), mismo patrón que el resto de `OBS_ATAJOS`.
+- **Bug turnos de Valencia en Google Calendar**: `adivinarServicio` comparaba
+  estaciones solo por la primera palabra normalizada. Calendar manda la parada
+  de Valencia como "JOAQUIN SOROL" (sin el prefijo de ciudad y truncada),
+  mientras el Libro de Horarios la tiene como "VALENCIA-JOAQUIN SOROLLA" —
+  primera palabra distinta ("JOAQUIN" vs "VALENCIA") → nunca encontraba el
+  servicio → comparaba contra el texto crudo de Calendar en vez del nombre
+  real ya guardado en el turno → `servicioYaExiste` daba siempre `false` →
+  la revisión de sincronización marcaba el servicio como "no creado" en cada
+  chequeo, aunque el turno ya estuviera cerrado y correcto.
+  Fix: nueva `estacionesCoinciden(a, b)` — compara si comparten una palabra de
+  4+ letras donde una empieza por la otra (cubre truncados y prefijos de
+  ciudad omitidos), en vez de solo la primera palabra exacta. Usada en
+  `adivinarServicio`.
+- `registro.js?v=202609072`, `CACHE enruta-rv-v86`.
+
 ### 2026-09-06 — Paso 55 (Ronda F): botón "atrás" de Android (enruta-v85, SIN PUBLICAR — PROBAR EN TABLET)
 
 - **Punto 11**: el botón/gesto "atrás" de Android ahora navega dentro de la
