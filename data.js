@@ -1015,6 +1015,8 @@
     { nombre: 'Fuencarral - Chamartín', origen: 'FUENCARRAL', destino: 'MADRID-CHAMARTIN-CLARA CAMP.', paradas: [] },
     { nombre: 'Fuencarral - Valdemoro', origen: 'FUENCARRAL', destino: 'VALDEMORO', paradas: [] },
     { nombre: 'Valdemoro - Fuencarral', origen: 'VALDEMORO', destino: 'FUENCARRAL', paradas: [] },
+    { nombre: 'Valdemoro - Atocha', origen: 'VALDEMORO', destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', paradas: [] },
+    { nombre: 'Atocha - Valdemoro', origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', destino: 'VALDEMORO', paradas: [] },
     { nombre: 'Barcelona Sants - Sagrera', origen: 'BARCELONA-SANTS', destino: 'SAGRERA', paradas: [] },
     { nombre: 'Sagrera - Barcelona Sants', origen: 'SAGRERA', destino: 'BARCELONA-SANTS', paradas: [] }
   ];

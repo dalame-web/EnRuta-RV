@@ -38,7 +38,15 @@
 
 ## Cambios (más reciente arriba)
 
-### 2026-09-11 — Paso 59: traslado Fuencarral ↔ Valdemoro (enruta-v88, SIN PUBLICAR)
+### 2026-09-11 — Paso 60: traslado Valdemoro ↔ Atocha (enruta-v89)
+
+- Nuevo traslado en el desplegable de Servicio Comercial: "Valdemoro -
+  Atocha" y "Atocha - Valdemoro" (destino/origen "MADRID-P.ATOCHA-ALMUDENA
+  GRANDES", igual que el resto de traslados a/desde Atocha). Mismo patrón en
+  `window.RV_MANIOBRAS` (`data.js`) que Fuencarral-Valdemoro.
+- `data.js?v=202609015`.
+
+### 2026-09-11 — Paso 59: traslado Fuencarral ↔ Valdemoro (enruta-v88)
 
 - Nuevo traslado en el desplegable de Servicio Comercial: "Fuencarral -
   Valdemoro" y "Valdemoro - Fuencarral", mismo patrón que el resto
