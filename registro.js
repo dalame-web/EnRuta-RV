@@ -1759,7 +1759,7 @@
   // Google Calendar, que solo pone servicio/origen/destino/horas del Libro).
   function tieneDatosDeUsuario(t) {
     return (t.servicios || []).some(function (s) {
-      return s.n1 || s.via || s.rama || obsConTexto(s.observaciones) || s.sagrera ||
+      return s.n1 || s.via || s.rama || obsConTexto(s.observaciones) || (s.obsAtajos || []).length || s.sagrera ||
         (s.pmr || []).length ||
         algunaComprob(s) ||
         (s.incidencias || []).length ||
@@ -1776,6 +1776,7 @@
         s.esTraslado || s.servicioManual || s.maniobraNombre ||
         s.origen || s.destino || s.hSalida || s.hDestino ||
         s.rSalida || s.rLlegDestino || s.horaLTV || s.sagrera) return false;
+    if ((s.obsAtajos || []).length) return false;
     if ((s.pmr || []).length) return false;
     if ((s.paradas || []).some(function (p) {
       return p.nombre || p.hora || p.hLleg || p.rLleg || p.rSal ||
@@ -2439,7 +2440,7 @@
       '<div class="field"><label>Descripción de la incidencia</label>' +
       '<div class="hint" style="margin:-2px 0 4px">Se autorrellena con Observaciones durante el trayecto — editable</div>' +
       '<textarea data-bind="' + b + 'descripcion">' +
-      esc(inc.descripcion || s.observaciones) + '</textarea></div>' +
+      esc(inc.descripcion || textoObsCompleto(s)) + '</textarea></div>' +
       '<div class="field"><label>Medidas adoptadas</label>' +
       '<textarea data-bind="' + b + 'medidas">' + esc(inc.medidas) + '</textarea></div>' +
       '<div class="field"><label>Trenes afectados</label>' +
@@ -3371,18 +3372,15 @@
     }
   }
 
-  // ¿La línea de Observaciones es el texto de un telefonema o de un atajo?
-  // Devuelve su color ('rc' verde / 'maquinista' rosa / 'atajo' morado) o
-  // null. Los telefonemas escriben la línea como "<CODIGO> · <hora> — <texto>"
-  // (composeObsLineTelefonema); los atajos como "• <hora> <texto>"
-  // (composeObsLineAtajo) — se comparan tal cual, no por prefijo, porque
-  // las líneas manuales tienen la misma pinta ("• hora texto").
+  // ¿La línea de Observaciones es el texto de un telefonema? Devuelve su color
+  // ('rc' verde / 'maquinista' rosa) o null. Los telefonemas escriben la línea
+  // como "<CODIGO> · <hora> — <texto>" (composeObsLineTelefonema). Los atajos
+  // ya no escriben nada aquí — viven solo como pastilla (s.obsAtajos).
   function obsLineaColor(linea, s) {
     for (var i = 0; i < (s.telefonemas || []).length; i++) {
       var c = s.telefonemas[i].codigo;
       if (c && linea.indexOf(c + ' · ') === 0) return s.telefonemas[i].color || 'rc';
     }
-    if ((s.obsAtajos || []).some(function (oa) { return composeObsLineAtajo(oa) === linea; })) return 'atajo';
     return null;
   }
   // Pinta el fondo de color bajo las líneas de telefonema/atajo en el
@@ -3619,14 +3617,21 @@
       return valores[p.id] || '___';
     }).join('');
   }
-  // Línea reflejada en Observaciones de un atajo ya insertado — se guarda
-  // como texto normal en s.observaciones (así PDF/informe/copia en la nube/
-  // fusión entre dispositivos siguen leyendo el campo de siempre sin tocar
-  // nada). s.obsAtajos es solo el índice que permite reabrir la ventana con
-  // lo escrito y resaltar su línea — mismo patrón que los telefonemas
-  // (composeObsLineTelefonema / tel.obsLineIdx).
+  // Texto de un atajo ya insertado, como línea con viñeta y hora — se usa
+  // para pintarlo en PDF/informe (textoObsCompleto), pero NO se escribe en
+  // s.observaciones: el atajo vive solo como pastilla (s.obsAtajos), sin
+  // duplicar el texto también en el cuadro de escritura libre.
   function composeObsLineAtajo(oa) {
     return '• ' + oa.hora + ' ' + oa.texto + (oa.horaMod ? ' (mod. ' + oa.horaMod + ')' : '');
+  }
+  // Observaciones "completas" de un servicio para PDF/informe/comprobación
+  // de si hay algo escrito: las pastillas de atajos (en el orden en que se
+  // insertaron) + lo escrito a mano. El cuadro de texto libre solo enseña
+  // lo segundo — las pastillas se ven y se editan aparte.
+  function textoObsCompleto(s) {
+    var lineas = (s && s.obsAtajos || []).map(composeObsLineAtajo);
+    if (s && s.observaciones) lineas.push(s.observaciones);
+    return lineas.join('\n');
   }
   // atajoId + si abren uno nuevo; con editIdx se reabre un atajo ya insertado
   // (s.obsAtajos[editIdx]) con sus valores para modificarlos o borrarlo.
@@ -3704,37 +3709,19 @@
       var s = t && t.servicios[si];
       if (!s) return;
       if (!Array.isArray(s.obsAtajos)) s.obsAtajos = [];
-      var lines = s.observaciones ? s.observaciones.split('\n') : [];
 
       if (resultado === 'borrar' && oaExistente) {
-        var lineaVieja = composeObsLineAtajo(oaExistente);
-        var iDel = (oaExistente.obsLineIdx != null && lines[oaExistente.obsLineIdx] === lineaVieja) ?
-          oaExistente.obsLineIdx : lines.indexOf(lineaVieja);
-        if (iDel !== -1) lines.splice(iDel, 1);
         s.obsAtajos.splice(editIdx, 1);
       } else if (resultado !== 'borrar') {
         var texto = componerTextoAtajo(atajo, resultado);
         if (oaExistente) {
-          var lineaAntes = composeObsLineAtajo(oaExistente);
           oaExistente.valores = resultado;
           oaExistente.texto = texto;
           oaExistente.horaMod = horaAhora();
-          var lineaDespues = composeObsLineAtajo(oaExistente);
-          var idx = (oaExistente.obsLineIdx != null && lines[oaExistente.obsLineIdx] === lineaAntes) ?
-            oaExistente.obsLineIdx : lines.indexOf(lineaAntes);
-          if (idx !== -1) lines[idx] = lineaDespues; else { lines.push(lineaDespues); idx = lines.length - 1; }
-          oaExistente.obsLineIdx = idx;
         } else {
-          var nueva = { atajoId: atajoId, valores: resultado, texto: texto, hora: horaAhora(), horaMod: '', obsLineIdx: null };
-          lines.push(composeObsLineAtajo(nueva));
-          nueva.obsLineIdx = lines.length - 1;
-          s.obsAtajos.push(nueva);
+          s.obsAtajos.push({ atajoId: atajoId, valores: resultado, texto: texto, hora: horaAhora(), horaMod: '' });
         }
       }
-      s.observaciones = lines.join('\n');
-      // Los índices de línea del resto de atajos pueden haberse desplazado
-      // al borrar/mover una línea — se recalculan buscando su texto exacto.
-      s.obsAtajos.forEach(function (oa) { oa.obsLineIdx = lines.indexOf(composeObsLineAtajo(oa)); });
       autosave();
       refreshServicioCard(si);
     });
@@ -5746,7 +5733,7 @@
       }
       checkPage();
       line('Observaciones durante el trayecto:', { bold: true, size: 10 });
-      line(s.observaciones || '—', { size: 9, gap: 3 });
+      line(textoObsCompleto(s) || '—', { size: 9, gap: 3 });
     });
   }
 
@@ -6243,8 +6230,9 @@
           body += '</div>';
         }
 
-        if (s.observaciones) {
-          body += '<div class="obs"><b>Observaciones:</b> ' + esc(s.observaciones) + '</div>';
+        var obsHtml = textoObsCompleto(s);
+        if (obsHtml) {
+          body += '<div class="obs"><b>Observaciones:</b> ' + esc(obsHtml) + '</div>';
         }
         body += '</div>';
       });
@@ -6811,7 +6799,7 @@
       var sGen = t && t.servicios[siGen];
       var incGen = sGen && sGen.incidencias[iiGen];
       if (!incGen) return;
-      var descripcionEfectiva = (incGen.descripcion.trim() || sGen.observaciones.trim());
+      var descripcionEfectiva = (incGen.descripcion.trim() || textoObsCompleto(sGen).trim());
       if (!descripcionEfectiva) {
         appModal.alert({
           title: 'Falta la descripción',
@@ -7272,12 +7260,6 @@
         return '• ' + t.charAt(0).toUpperCase() + t.slice(1);
       }).join('\n');
     }
-    function servicioDeObsTextarea(ta) {
-      var m = /^srv\.(\d+)\.observaciones$/.exec(ta.getAttribute('data-bind') || '');
-      if (!m) return null;
-      var t = getTurno(editId);
-      return t && t.servicios[+m[1]];
-    }
     // Compara el valor de Observaciones al ENTRAR vs al SALIR del campo y le
     // pone la hora a cada línea nueva o modificada. Compara por POSICIÓN (la
     // línea i de antes contra la línea i de después): sirve bien para el uso
@@ -7285,12 +7267,11 @@
     // se inserta una línea EN MEDIO de otras ya escritas, las líneas de
     // debajo se desplazan y alguna puede salir marcada como "modificada" sin
     // serlo de verdad — ponytail: limitación aceptada, no hay diff real.
-    function timestamparObsManual(antes, despues, s) {
+    function timestamparObsManual(antes, despues) {
       var hhmm = horaAhora();
-      var atajoLineas = (s.obsAtajos || []).map(composeObsLineAtajo);
       var lineasAntes = String(antes || '').split('\n');
       return String(despues || '').split('\n').map(function (ln, i) {
-        if (!ln || RE_TEL_LINEA.test(ln) || atajoLineas.indexOf(ln) !== -1) return ln;
+        if (!ln || RE_TEL_LINEA.test(ln)) return ln;
         var anterior = lineasAntes[i];
         if (ln === anterior) return ln; // sin cambios
         var m2 = RE_OBS_LINEA.exec(ln);
@@ -7315,8 +7296,7 @@
     document.addEventListener('blur', function (e) {
       if (!esObsTextarea(e.target)) return;
       var ta = e.target, nv = bulletearObs(ta.value);
-      var s = servicioDeObsTextarea(ta);
-      if (s) nv = timestamparObsManual(ta.dataset.obsSnapshot, nv, s);
+      nv = timestamparObsManual(ta.dataset.obsSnapshot, nv);
       if (nv !== ta.value) {
         ta.value = nv;
         ta.dispatchEvent(new Event('input', { bubbles: true }));

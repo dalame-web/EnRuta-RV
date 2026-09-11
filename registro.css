@@ -938,7 +938,6 @@ input[type=number]::-webkit-inner-spin-button{
 }
 .obs-bd-line.obs-hl-rc{background:color-mix(in srgb, var(--ok) 15%, transparent)}
 .obs-bd-line.obs-hl-maquinista{background:color-mix(in srgb, var(--tel-maquinista) 15%, transparent)}
-.obs-bd-line.obs-hl-atajo{background:color-mix(in srgb, #a371f7 15%, transparent)}
 
 /* Pastillas de atajos ya insertados en Observaciones — mismo patrón que
  * .tel-chip: fondo de color para que se note dónde tocar, reabre la

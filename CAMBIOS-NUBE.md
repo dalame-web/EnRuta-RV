@@ -38,6 +38,22 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-11 — Paso 58: quitar duplicado de las pastillas de atajo (enruta-v88, SIN PUBLICAR)
+
+- David vio que el atajo salía dos veces: como pastilla Y como línea en el
+  cuadro de Observaciones. Se quita la línea — el atajo vive SOLO como
+  pastilla (`s.obsAtajos[]`), ya no escribe nada en `s.observaciones`.
+- PDF, informe de incidencia (autorrelleno y su vista de solo lectura) y la
+  comprobación de "¿tiene este servicio algún dato?" (`isEmptyServicio` /
+  `tieneDatosDeUsuario`) ahora usan `textoObsCompleto(s)` — pastillas +
+  texto libre juntos — así el contenido del atajo sigue apareciendo donde
+  hace falta aunque ya no esté en el cuadro editable.
+- Simplificado de paso: ya no hace falta rastrear en qué línea del textarea
+  vivía cada atajo (`obsLineIdx`), ni resaltar su línea en el backdrop
+  (`obs-hl-atajo`) — ambas cosas eran solo para sostener la duplicación que
+  se acaba de quitar.
+- `registro.js?v=202609074`, `registro.css?v=202609074`, `CACHE enruta-rv-v88`.
+
 ### 2026-09-11 — Paso 57 (Ronda H): atajos clicables + hora en Observaciones + fix solape móvil (enruta-v87, SIN PUBLICAR)
 
 - **Atajos de Observaciones clicables**: cada atajo insertado a partir de
