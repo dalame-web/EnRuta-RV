@@ -702,7 +702,13 @@ button.btn:disabled{opacity:.45; cursor:default}
   font-family:Poppins,sans-serif; font-weight:700; font-size:15px;
   margin-bottom:10px; display:flex; align-items:center; gap:8px;
 }
-.field{margin-bottom:11px}
+/* min-width:0: sin esto, dentro de un .field-grid (Fecha/Servicio Comercial,
+ * Toma/Descanso/Deje...) el ancho mínimo de un <input type=date>/type=time>
+ * nativo (grande en iOS/Android) obliga a la columna del grid a crecer por
+ * encima de su 1fr y las casillas se pisan entre sí, aunque el input tenga
+ * width:100%. Con min-width:0 la columna sí se encoge y el input se ajusta
+ * de verdad a su hueco. */
+.field{margin-bottom:11px; min-width:0}
 .field label{
   display:block; font-size:12px; font-weight:600;
   color:var(--fg-dim); margin-bottom:4px;
@@ -932,6 +938,21 @@ input[type=number]::-webkit-inner-spin-button{
 }
 .obs-bd-line.obs-hl-rc{background:color-mix(in srgb, var(--ok) 15%, transparent)}
 .obs-bd-line.obs-hl-maquinista{background:color-mix(in srgb, var(--tel-maquinista) 15%, transparent)}
+.obs-bd-line.obs-hl-atajo{background:color-mix(in srgb, #a371f7 15%, transparent)}
+
+/* Pastillas de atajos ya insertados en Observaciones — mismo patrón que
+ * .tel-chip: fondo de color para que se note dónde tocar, reabre la
+ * ventana del atajo con lo escrito para poder modificarlo o borrarlo. */
+.obs-atajo-list{display:flex; flex-direction:column; gap:8px; margin:0 0 8px}
+.obs-atajo-chip{
+  padding:8px 10px; border-radius:8px; border:1px solid var(--border);
+  border-left-width:4px; border-left-color:#a371f7;
+  background:color-mix(in srgb, #a371f7 10%, var(--panel-2));
+  cursor:pointer; font-size:13px; line-height:1.4;
+}
+.obs-atajo-chip:hover{border-color:var(--accent)}
+.obs-atajo-chip .oa-hora{color:var(--fg-dim); font-size:11px; font-weight:600}
+.obs-atajo-chip .oa-mod{color:var(--fg-dim); font-size:11px}
 
 /* Celda "Turno" — datos del cuadrante (Google Calendar), plegable */
 .cuadrante-card{padding:0; overflow:hidden; border-left:3px solid var(--fg-dim)}

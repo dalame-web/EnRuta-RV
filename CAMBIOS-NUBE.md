@@ -38,6 +38,42 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-11 — Paso 57 (Ronda H): atajos clicables + hora en Observaciones + fix solape móvil (enruta-v87, SIN PUBLICAR)
+
+- **Atajos de Observaciones clicables**: cada atajo insertado a partir de
+  ahora aparece como una "pastilla" con fondo morado (`.obs-atajo-chip`)
+  justo encima del textarea — tocarla reabre la ventana del atajo con los
+  valores ya rellenados, para modificarlos o borrar el punto. Los atajos
+  insertados ANTES de este cambio siguen siendo texto plano suelto (no hay
+  datos que reabrir).
+  - Nuevo `s.obsAtajos[]` por servicio: `{atajoId, valores, texto, hora,
+    horaMod, obsLineIdx}` — es solo el índice para reabrir/resaltar; el
+    texto real sigue viviendo en `s.observaciones` como una línea normal
+    ("• HH:MM texto"), así que PDF, informe de incidencia, copia en la nube
+    y fusión entre dispositivos siguen funcionando sin tocar nada (mismo
+    patrón que los telefonemas: `composeObsLineAtajo` / `tel.obsLineIdx`).
+  - La línea se resalta en el fondo del textarea igual que los telefonemas
+    (`obsLineaColor`, clase `.obs-hl-atajo`).
+  - Migración (`normTurno`) y fusión entre dispositivos (`rellenaHuecosServicio`)
+    incluidas, igual que `telefonemas`.
+- **Hora en cada punto de Observaciones**: al salir del campo (blur), cada
+  línea nueva escrita a mano se sella con la hora ("• HH:MM texto"); si el
+  texto de una línea que ya tenía hora cambia, se le añade "(mod. HH:MM)"
+  sin perder la hora original (`timestamparObsManual`). Compara por posición
+  de línea (antes/después de la sesión de edición, foto tomada al enfocar)
+  — funciona bien para el uso normal (líneas nuevas al final, corregir la
+  última), pero insertar una línea EN MEDIO de otras puede desplazar el
+  resto y marcar alguna como "modificada" sin serlo — limitación aceptada,
+  no hay diff real de texto.
+- **Fix solape en móvil** (Toma/Descanso/Deje, Fecha/Servicio Comercial):
+  dentro de un `.field-grid`, el ancho mínimo intrínseco de un
+  `<input type=date>`/`<input type=time>` nativo (grande en iOS Safari)
+  obligaba a la columna del grid a crecer por encima de su `1fr`, y las
+  casillas se pisaban entre sí aunque el input tuviera `width:100%`. Fix:
+  `min-width:0` en `.field` — con esto la columna sí se encoge y el input se
+  ajusta de verdad a su hueco. Un único cambio de CSS.
+- `registro.js?v=202609073`, `registro.css?v=202609073`, `CACHE enruta-rv-v87`.
+
 ### 2026-09-11 — Paso 56: atajo MOOVA + fix estaciones de Calendar (enruta-v86, SIN PUBLICAR)
 
 - Nuevo atajo de Observaciones **MOOVA**: "Se crea MOOVA con el Nº ___ por ___"

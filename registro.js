@@ -922,6 +922,10 @@
   // ===== Utilidades =====
   function $(id) { return document.getElementById(id); }
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function horaAhora() {
+    var d = new Date();
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
@@ -1590,7 +1594,7 @@
       n1: '', viajeros: '', asistencias: '', asistentes: '', plazasH: '', pmr: [],
       comprobaciones: {},
       observaciones: '', dibujos: [],
-      incidencias: [], telefonemas: []
+      incidencias: [], telefonemas: [], obsAtajos: []
     };
   }
   // ¿Tiene este servicio al menos un informe de incidencia ya generado?
@@ -1656,6 +1660,7 @@
       if (si === 0 && !s.horaLTV && t.horaLTV) s.horaLTV = t.horaLTV;
       if (!s.paradas) s.paradas = [];
       if (!s.telefonemas) s.telefonemas = [];
+      if (!Array.isArray(s.obsAtajos)) s.obsAtajos = [];
       // Recuperar tParada del Libro de Horarios si está a 0 (turnos guardados
       // antes de que autofillServicio lo mapeara). Sin esto, las paradas
       // intermedias comerciales no muestran H. Llegada.
@@ -1855,6 +1860,12 @@
       var js2 = JSON.stringify(tel);
       ds.telefonemas = ds.telefonemas || [];
       if (!ds.telefonemas.some(function (x) { return JSON.stringify(x) === js2; })) ds.telefonemas.push(tel);
+    });
+    // Atajos de Observaciones: igual, añadir los que falten (por contenido).
+    (ss.obsAtajos || []).forEach(function (oa) {
+      var js3 = JSON.stringify(oa);
+      ds.obsAtajos = ds.obsAtajos || [];
+      if (!ds.obsAtajos.some(function (x) { return JSON.stringify(x) === js3; })) ds.obsAtajos.push(oa);
     });
     (ss.paradas || []).forEach(function (sp) {
       var dp = (ds.paradas || []).find(function (p) { return p.nombre === sp.nombre; });
@@ -3046,6 +3057,21 @@
           'data-svc="' + si + '" data-atajo="' + a.id + '">' + esc(a.label) + '</button>';
       }).join('') +
       '</div>' +
+      // Atajos ya insertados en este servicio: una "pastilla" con fondo de
+      // color por cada uno (misma idea que los chips de Telefonemas) — tocarla
+      // reabre la ventana del atajo con lo escrito, para poder modificarlo.
+      // Solo cubre los atajos creados desde este cambio en adelante: los
+      // insertados antes son texto plano suelto, sin datos que reabrir.
+      ((s.obsAtajos || []).length ?
+        '<div class="obs-atajo-list">' +
+        s.obsAtajos.map(function (oa, ai) {
+          return '<div class="obs-atajo-chip" data-action="obs-atajo-edit" ' +
+            'data-svc="' + si + '" data-idx="' + ai + '">' +
+            '<span class="oa-hora">' + esc(oa.hora) + '</span> ' + esc(oa.texto) +
+            (oa.horaMod ? '<span class="oa-mod"> (mod. ' + esc(oa.horaMod) + ')</span>' : '') +
+            '</div>';
+        }).join('') +
+        '</div>' : '') +
       '<div class="obs-wrapper" data-svc="' + si + '">' +
       '<div class="obs-backdrop" data-obs-bd="' + si + '" aria-hidden="true"><div class="obs-bd-inner"></div></div>' +
       '<textarea data-bind="srv.' + si + '.observaciones" data-obs-ta="' + si + '">' + esc(s.observaciones) + '</textarea>' +
@@ -3345,18 +3371,22 @@
     }
   }
 
-  // ¿La línea de Observaciones es el texto de un telefonema? Devuelve su color
-  // ('rc' verde / 'maquinista' rosa) o null. Los telefonemas escriben la línea
-  // como "<CODIGO> · <hora> — <texto>" (composeObsLineTelefonema).
-  function obsLineaColorTelefonema(linea, telefonemas) {
-    for (var i = 0; i < (telefonemas || []).length; i++) {
-      var c = telefonemas[i].codigo;
-      if (c && linea.indexOf(c + ' · ') === 0) return telefonemas[i].color || 'rc';
+  // ¿La línea de Observaciones es el texto de un telefonema o de un atajo?
+  // Devuelve su color ('rc' verde / 'maquinista' rosa / 'atajo' morado) o
+  // null. Los telefonemas escriben la línea como "<CODIGO> · <hora> — <texto>"
+  // (composeObsLineTelefonema); los atajos como "• <hora> <texto>"
+  // (composeObsLineAtajo) — se comparan tal cual, no por prefijo, porque
+  // las líneas manuales tienen la misma pinta ("• hora texto").
+  function obsLineaColor(linea, s) {
+    for (var i = 0; i < (s.telefonemas || []).length; i++) {
+      var c = s.telefonemas[i].codigo;
+      if (c && linea.indexOf(c + ' · ') === 0) return s.telefonemas[i].color || 'rc';
     }
+    if ((s.obsAtajos || []).some(function (oa) { return composeObsLineAtajo(oa) === linea; })) return 'atajo';
     return null;
   }
-  // Pinta el fondo de color bajo las líneas de telefonema en el textarea de
-  // Observaciones del servicio si (el "backdrop" detrás del textarea).
+  // Pinta el fondo de color bajo las líneas de telefonema/atajo en el
+  // textarea de Observaciones del servicio si (el "backdrop" detrás del textarea).
   function pintarObsBackdrop(si) {
     var t = getTurno(editId);
     var s = t && t.servicios[si];
@@ -3365,7 +3395,7 @@
     if (!s || !bd || !ta) return;
     var lineas = (s.observaciones || '').split('\n');
     bd.innerHTML = lineas.map(function (ln) {
-      var col = obsLineaColorTelefonema(ln, s.telefonemas);
+      var col = obsLineaColor(ln, s);
       var safe = ln ? esc(ln) : ' ';
       return '<div class="obs-bd-line' + (col ? ' obs-hl-' + col : '') + '">' + safe + '</div>';
     }).join('');
@@ -3589,9 +3619,23 @@
       return valores[p.id] || '___';
     }).join('');
   }
-  function abrirObsAtajo(atajoId, si) {
+  // Línea reflejada en Observaciones de un atajo ya insertado — se guarda
+  // como texto normal en s.observaciones (así PDF/informe/copia en la nube/
+  // fusión entre dispositivos siguen leyendo el campo de siempre sin tocar
+  // nada). s.obsAtajos es solo el índice que permite reabrir la ventana con
+  // lo escrito y resaltar su línea — mismo patrón que los telefonemas
+  // (composeObsLineTelefonema / tel.obsLineIdx).
+  function composeObsLineAtajo(oa) {
+    return '• ' + oa.hora + ' ' + oa.texto + (oa.horaMod ? ' (mod. ' + oa.horaMod + ')' : '');
+  }
+  // atajoId + si abren uno nuevo; con editIdx se reabre un atajo ya insertado
+  // (s.obsAtajos[editIdx]) con sus valores para modificarlos o borrarlo.
+  function abrirObsAtajo(atajoId, si, editIdx) {
     var atajo = OBS_ATAJOS.find(function (a) { return a.id === atajoId; });
     if (!atajo) return;
+    var t0 = getTurno(editId);
+    var s0 = t0 && t0.servicios[si];
+    var oaExistente = (editIdx != null && s0 && s0.obsAtajos) ? s0.obsAtajos[editIdx] : null;
     appModal.custom({
       className: 'narrow',
       backdropClose: true,
@@ -3612,6 +3656,7 @@
             frase.appendChild(document.createTextNode(p.v));
             return;
           }
+          var valorPrevio = oaExistente ? (oaExistente.valores[p.id] || '') : '';
           var el;
           if (p.options) {
             el = document.createElement('select'); el.className = 'atajo-inline-select';
@@ -3619,9 +3664,11 @@
               var o = document.createElement('option'); o.value = opt; o.textContent = opt;
               el.appendChild(o);
             });
+            if (valorPrevio) el.value = valorPrevio;
           } else {
             el = document.createElement('input'); el.type = 'text'; el.className = 'atajo-inline-input';
             el.placeholder = p.label;
+            if (valorPrevio) el.value = valorPrevio;
             autosizeCh(el, Math.max(6, p.label.length));
           }
           el.title = p.label;
@@ -3631,12 +3678,18 @@
         box.appendChild(frase);
 
         var acts = document.createElement('div'); acts.className = 'modal-actions';
+        if (oaExistente) {
+          var btnDel = document.createElement('button'); btnDel.type = 'button';
+          btnDel.className = 'modal-btn danger'; btnDel.textContent = 'Borrar';
+          btnDel.addEventListener('click', function () { resolveWith('borrar'); });
+          acts.appendChild(btnDel);
+        }
         var btnCancel = document.createElement('button'); btnCancel.type = 'button';
         btnCancel.className = 'modal-btn neutral'; btnCancel.textContent = 'Cancelar';
         btnCancel.addEventListener('click', function () { resolveWith(null); });
         acts.appendChild(btnCancel);
         var btnOk = document.createElement('button'); btnOk.type = 'button';
-        btnOk.className = 'modal-btn primary'; btnOk.textContent = 'Insertar';
+        btnOk.className = 'modal-btn primary'; btnOk.textContent = oaExistente ? 'Guardar' : 'Insertar';
         btnOk.addEventListener('click', function () {
           var valores = {};
           Object.keys(inputs).forEach(function (id) { valores[id] = (inputs[id].value || '').trim(); });
@@ -3645,18 +3698,45 @@
         acts.appendChild(btnOk);
         box.appendChild(acts);
       }
-    }).then(function (valores) {
-      if (!valores) return;
+    }).then(function (resultado) {
+      if (!resultado) return; // cancelado (ESC / backdrop / botón Cancelar)
       var t = getTurno(editId);
       var s = t && t.servicios[si];
       if (!s) return;
-      var linea = componerTextoAtajo(atajo, valores);
-      // Viñeta delante — se nota como "punto aparte" generado por un
-      // atajo, distinto de lo escrito a mano o dictado.
-      s.observaciones = (s.observaciones ? s.observaciones + '\n' : '') + '• ' + linea;
+      if (!Array.isArray(s.obsAtajos)) s.obsAtajos = [];
+      var lines = s.observaciones ? s.observaciones.split('\n') : [];
+
+      if (resultado === 'borrar' && oaExistente) {
+        var lineaVieja = composeObsLineAtajo(oaExistente);
+        var iDel = (oaExistente.obsLineIdx != null && lines[oaExistente.obsLineIdx] === lineaVieja) ?
+          oaExistente.obsLineIdx : lines.indexOf(lineaVieja);
+        if (iDel !== -1) lines.splice(iDel, 1);
+        s.obsAtajos.splice(editIdx, 1);
+      } else if (resultado !== 'borrar') {
+        var texto = componerTextoAtajo(atajo, resultado);
+        if (oaExistente) {
+          var lineaAntes = composeObsLineAtajo(oaExistente);
+          oaExistente.valores = resultado;
+          oaExistente.texto = texto;
+          oaExistente.horaMod = horaAhora();
+          var lineaDespues = composeObsLineAtajo(oaExistente);
+          var idx = (oaExistente.obsLineIdx != null && lines[oaExistente.obsLineIdx] === lineaAntes) ?
+            oaExistente.obsLineIdx : lines.indexOf(lineaAntes);
+          if (idx !== -1) lines[idx] = lineaDespues; else { lines.push(lineaDespues); idx = lines.length - 1; }
+          oaExistente.obsLineIdx = idx;
+        } else {
+          var nueva = { atajoId: atajoId, valores: resultado, texto: texto, hora: horaAhora(), horaMod: '', obsLineIdx: null };
+          lines.push(composeObsLineAtajo(nueva));
+          nueva.obsLineIdx = lines.length - 1;
+          s.obsAtajos.push(nueva);
+        }
+      }
+      s.observaciones = lines.join('\n');
+      // Los índices de línea del resto de atajos pueden haberse desplazado
+      // al borrar/mover una línea — se recalculan buscando su texto exacto.
+      s.obsAtajos.forEach(function (oa) { oa.obsLineIdx = lines.indexOf(composeObsLineAtajo(oa)); });
       autosave();
-      var ta = document.querySelector('[data-bind="srv.' + si + '.observaciones"]');
-      if (ta) ta.value = s.observaciones;
+      refreshServicioCard(si);
     });
   }
 
@@ -6352,7 +6432,7 @@
     var t = editId != null ? getTurno(editId) : null;
     return !!(t && t.estado === 'cerrado');
   }
-  var ACCIONES_RO = /^(volver|reabrir|borrar|svc-toggle|cuadrante-toggle|comprobaciones-toggle|comprobs-info|nube-icono|nube-privacidad|telefonema-abrir)$/;
+  var ACCIONES_RO = /^(volver|reabrir|borrar|svc-toggle|cuadrante-toggle|comprobaciones-toggle|comprobs-info|nube-icono|nube-privacidad|telefonema-abrir|obs-atajo-edit)$/;
 
   function onClick(e) {
     var el = e.target.closest('[data-action]');
@@ -6617,6 +6697,13 @@
     }
     if (act === 'obs-atajo') {
       abrirObsAtajo(el.getAttribute('data-atajo'), +el.getAttribute('data-svc'));
+      return;
+    }
+    if (act === 'obs-atajo-edit') {
+      var oaSi = +el.getAttribute('data-svc'), oaIdx = +el.getAttribute('data-idx');
+      var oaT = getTurno(editId), oaS = oaT && oaT.servicios[oaSi];
+      var oaEnt = oaS && oaS.obsAtajos && oaS.obsAtajos[oaIdx];
+      if (oaEnt) abrirObsAtajo(oaEnt.atajoId, oaSi, oaIdx);
       return;
     }
     if (act === 'telefonema-abrir') {
@@ -7162,20 +7249,59 @@
 
     // Observaciones a mano: cada línea empieza con "• ", igual que los atajos.
     // - Al pulsar Enter se mete "\n• " para que se vea al momento.
-    // - Al salir del campo (blur) se normalizan todas las líneas.
+    // - Al salir del campo (blur) se normalizan todas las líneas y se les
+    //   pone la hora (creación la primera vez, "(mod. HH:MM)" si el texto
+    //   de una línea que ya tenía hora ha cambiado desde que se enfocó el
+    //   campo — ver timestamparObsManual).
     function esObsTextarea(el) {
       return el && el.tagName === 'TEXTAREA' &&
         /^srv\.\d+\.observaciones$/.test(el.getAttribute('data-bind') || '');
     }
+    var RE_TEL_LINEA = /^[A-Z]{2,5}\d{0,2} · /;
+    var RE_OBS_LINEA = /^• (?:(\d{1,2}:\d{2}) )?(.*?)(?: \(mod\. \d{1,2}:\d{2}\))?$/;
     function bulletearObs(txt) {
       return String(txt || '').split('\n').map(function (ln) {
         // Línea de telefonema ("ETC1 · 10:00 — ...") — se deja INTACTA: ni
         // viñeta ni mayúscula, para no romper su detección ni su color.
-        if (/^[A-Z]{2,5}\d{0,2} · /.test(ln)) return ln;
+        if (RE_TEL_LINEA.test(ln)) return ln;
         var t = ln.replace(/^\s*[•·*\-]\s*/, '').trim();
         if (!t) return '';
-        // Primera letra en mayúscula (ortografía).
+        // Primera letra en mayúscula (ortografía). Si la línea ya llevaba
+        // hora puesta ("16:32 texto"), el primer carácter es un dígito y
+        // toUpperCase no hace nada — no rompe el formato ya sellado.
         return '• ' + t.charAt(0).toUpperCase() + t.slice(1);
+      }).join('\n');
+    }
+    function servicioDeObsTextarea(ta) {
+      var m = /^srv\.(\d+)\.observaciones$/.exec(ta.getAttribute('data-bind') || '');
+      if (!m) return null;
+      var t = getTurno(editId);
+      return t && t.servicios[+m[1]];
+    }
+    // Compara el valor de Observaciones al ENTRAR vs al SALIR del campo y le
+    // pone la hora a cada línea nueva o modificada. Compara por POSICIÓN (la
+    // línea i de antes contra la línea i de después): sirve bien para el uso
+    // normal (escribir líneas nuevas al final, corregir la última), pero si
+    // se inserta una línea EN MEDIO de otras ya escritas, las líneas de
+    // debajo se desplazan y alguna puede salir marcada como "modificada" sin
+    // serlo de verdad — ponytail: limitación aceptada, no hay diff real.
+    function timestamparObsManual(antes, despues, s) {
+      var hhmm = horaAhora();
+      var atajoLineas = (s.obsAtajos || []).map(composeObsLineAtajo);
+      var lineasAntes = String(antes || '').split('\n');
+      return String(despues || '').split('\n').map(function (ln, i) {
+        if (!ln || RE_TEL_LINEA.test(ln) || atajoLineas.indexOf(ln) !== -1) return ln;
+        var anterior = lineasAntes[i];
+        if (ln === anterior) return ln; // sin cambios
+        var m2 = RE_OBS_LINEA.exec(ln);
+        var core = m2 ? m2[2] : ln;
+        if (!core) return ln;
+        if (anterior == null || !/^•\s/.test(anterior)) {
+          return '• ' + hhmm + ' ' + core; // línea nueva: hora de creación
+        }
+        var mAntes = RE_OBS_LINEA.exec(anterior);
+        var horaOriginal = (mAntes && mAntes[1]) || hhmm;
+        return '• ' + horaOriginal + ' ' + core + ' (mod. ' + hhmm + ')';
       }).join('\n');
     }
     document.addEventListener('keydown', function (e) {
@@ -7189,19 +7315,25 @@
     document.addEventListener('blur', function (e) {
       if (!esObsTextarea(e.target)) return;
       var ta = e.target, nv = bulletearObs(ta.value);
+      var s = servicioDeObsTextarea(ta);
+      if (s) nv = timestamparObsManual(ta.dataset.obsSnapshot, nv, s);
       if (nv !== ta.value) {
         ta.value = nv;
         ta.dispatchEvent(new Event('input', { bubbles: true }));
       }
     }, true);
-    // Observaciones vacío: al ENFOCAR el campo se siembra "• " y el cursor va
-    // detrás. Así se ve la viñeta desde el primer momento sin reescribir el
-    // valor en cada tecla (eso rompía la escritura en teclados Android con
-    // autocorrección — se comía el primer carácter). El blur normaliza y "• "
-    // a secas vuelve a '' (bulletearObs), así que no deja viñeta huérfana.
+    // Observaciones: al ENFOCAR el campo se guarda una foto del valor (para
+    // comparar al salir y saber qué línea es nueva/se ha modificado) y, si
+    // está vacío, se siembra "• " con el cursor detrás — así se ve la viñeta
+    // desde el primer momento sin reescribir el valor en cada tecla (eso
+    // rompía la escritura en teclados Android con autocorrección — se comía
+    // el primer carácter). El blur normaliza y "• " a secas vuelve a ''
+    // (bulletearObs), así que no deja viñeta huérfana.
     document.addEventListener('focus', function (e) {
       var ta = e.target;
-      if (!esObsTextarea(ta) || ta.value) return;
+      if (!esObsTextarea(ta)) return;
+      ta.dataset.obsSnapshot = ta.value;
+      if (ta.value) return;
       ta.value = '• ';
       ta.selectionStart = ta.selectionEnd = 2;
       ta.dispatchEvent(new Event('input', { bubbles: true }));
