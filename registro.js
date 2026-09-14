@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v96';
+  var APP_VERSION = 'enruta-v97';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1401,6 +1401,25 @@
     if (!na || !na.disponible()) return '';
     return '<button class="cal-toggle" data-action="nube-privacidad" title="Aviso de privacidad" aria-label="Aviso de privacidad">ⓘ</button>';
   }
+  // Ventana para elegir CON QUÉ nube vincular (OneDrive / Google Drive,
+  // mutuamente excluyentes) — mismo diálogo tanto si lo dispara el aviso del
+  // primer arranque como el toque en el icono ☁️ cuando aún no hay ninguna
+  // vinculada. Solo ofrece los botones de las nubes realmente disponibles.
+  function mostrarElegirNube(mensaje) {
+    var botones = [{ label: 'Ahora no', value: null, kind: 'neutral' }];
+    if (window.NUBE && window.NUBE.disponible()) botones.push({ label: 'Vincular con Microsoft', value: 'onedrive', kind: 'primary' });
+    if (window.NUBE_DRIVE) botones.push({ label: 'Vincular con Google', value: 'drive', kind: 'primary' });
+    return appModal.confirm({
+      title: 'Guarda tus turnos en la nube',
+      message: mensaje || 'Elige con qué cuenta quieres guardar una copia de tus turnos y ' +
+        'tenerlos también en el móvil. Los datos son solo tuyos y solo hay que dar permiso una vez.',
+      buttons: botones,
+      dismissValue: null
+    }).then(function (v) {
+      if (v === 'onedrive' && window.NUBE) window.NUBE.vincular();
+      else if (v === 'drive' && window.NUBE_DRIVE) window.NUBE_DRIVE.vincular();
+    });
+  }
   // Aviso para activar la copia en la nube (la ÚNICA copia de seguridad ahora
   // que se ha quitado el guardado local en archivos). Se muestra la 1ª vez y,
   // si el usuario no vincula, se repite cada 8 aperturas hasta que lo haga.
@@ -1414,16 +1433,9 @@
     settings.nubeAvisoContador = n;
     saveSettings();
     if (n !== 1 && n % 8 !== 0) return;
-    appModal.confirm({
-      title: 'Guarda tus turnos en la nube',
-      message: 'Tus turnos solo están guardados en esta tablet. Activa la copia ' +
-        'en tu OneDrive de empresa para no perderlos nunca y tenerlos también ' +
-        'en el móvil. Los datos son solo tuyos y solo hay que dar permiso una vez.',
-      buttons: [
-        { label: 'Ahora no', value: false, kind: 'neutral' },
-        { label: 'Vincular con Microsoft', value: true, kind: 'primary' }
-      ]
-    }).then(function (ok) { if (ok && window.NUBE) window.NUBE.vincular(); });
+    mostrarElegirNube('Tus turnos solo están guardados en esta tablet. Activa la copia ' +
+      'en la nube para no perderlos nunca y tenerlos también en el móvil. Los datos ' +
+      'son solo tuyos y solo hay que dar permiso una vez.');
   }
 
   // ===== Ventana de inicio (carrusel de bienvenida + novedades) =====
@@ -1506,7 +1518,7 @@
       fig: null,
       puntos: [
         'Todo se guarda en este dispositivo. Nadie más lo ve.',
-        'Puedes activar la copia en la nube (Ajustes): guarda una copia en tu OneDrive y mantiene los mismos turnos en el móvil y la tablet.',
+        'Puedes activar la copia en la nube (Ajustes): con OneDrive o con Google Drive (eliges cuál), guarda una copia y mantiene los mismos turnos en el móvil y la tablet.',
         'Cada maquinista gestiona solo sus datos y puede borrarlos cuando quiera.'
       ]
     }
@@ -7195,7 +7207,7 @@
       var naIc = nubeActiva();
       if (!naIc) return;
       var est = naIc.estado();
-      if (est === 'sin') { naIc.vincular(); return; }
+      if (est === 'sin') { mostrarElegirNube(); return; }
       if (est === 'reconectar') { naIc.reconectar(); return; }
       if (est === 'sync') return; // ya está subiendo
       // ok / error → forzar subida ahora

@@ -38,7 +38,24 @@
 
 ## Cambios (más reciente arriba)
 
-### 2026-09-14 — Paso 66: nube-drive.js — copia en Google Drive de verdad (enruta-v96, SIN PUBLICAR)
+### 2026-09-14 — Paso 67: elegir nube al vincular (icono ☁️ y avisos) (enruta-v97)
+
+- David detectó que el icono ☁️ flotante y el aviso de "guarda tus turnos
+  en la nube" del primer arranque solo ofrecían OneDrive — iban derechos a
+  `window.NUBE.vincular()` sin pasar por Drive aunque ya estuviera
+  disponible.
+- Nuevo `mostrarElegirNube()`: diálogo compartido con un botón por cada
+  nube realmente disponible ("Vincular con Microsoft" / "Vincular con
+  Google") — lo usan tanto el icono ☁️ (cuando está en estado "sin
+  vincular") como el aviso del primer arranque.
+- Página "Dónde están tus datos" del carrusel de bienvenida (primera
+  instalación): el texto mencionaba solo OneDrive, ahora dice "con
+  OneDrive o con Google Drive (eliges cuál)".
+- Probado en el preview: el icono sin ninguna nube vinculada abre el
+  diálogo con las dos opciones.
+- `registro.js?v=202609082`, `CACHE enruta-rv-v97`.
+
+### 2026-09-14 — Paso 66: nube-drive.js — copia en Google Drive de verdad (enruta-v96)
 
 - Módulo cliente completo (`nube-drive.js`), mismo diseño y mismas
   garantías que `nube.js` (OneDrive): un archivo por día en la carpeta
