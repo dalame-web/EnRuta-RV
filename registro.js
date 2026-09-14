@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v99';
+  var APP_VERSION = 'enruta-v100';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1575,10 +1575,10 @@
     titulo: 'Novedades',
     fig: null,
     puntos: [
-      'Traslado a/desde La Sagrera CTT dentro del servicio: en Barcelona-Sants, el botón 🅿️ añade el traslado de apartadero con su hora y su nº.',
-      'Estadísticas: nuevos recuadros de «Turnos de más de 8 h» y «Puntualidad»; toca cualquier servicio de la lista para abrir su turno.',
-      'Ajustes: cada sección se pliega para que la pantalla no sea tan larga.',
-      'La barra de estado de Android ahora sigue el tema claro / oscuro de la app.'
+      'Copia en la nube: ahora puedes elegir Google Drive además de OneDrive (Ajustes → icono ☁️) — solo una de las dos a la vez, mismo login único.',
+      'Atajos de Observaciones: cada uno sale como una pastilla de color — tócala para modificarlo o borrarlo. Cada línea escrita lleva su hora entre corchetes.',
+      'Tema claro/oscuro: un toque manual al sol/luna ya no desactiva el automático — solo cambia el tema por ahora, hasta el siguiente cambio real de hora.',
+      'Traslado de La Sagrera: nuevo campo «Vía», y ahora se ve en el Calendario junto al servicio (antes/después según toque).'
     ]
   };
 

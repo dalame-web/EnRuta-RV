@@ -38,6 +38,17 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-14 — Paso 70: Novedades al día (enruta-v100)
+
+- David reclamó que la norma "cada funcionalidad nueva va a Novedades" no
+  se había seguido en todo este bloque de cambios — tenía razón, estaba
+  desactualizado desde el traslado de La Sagrera (v84). `BIENVENIDA_NOVEDADES`
+  puesto al día con los 4 cambios de más peso desde entonces: copia en
+  Google Drive, atajos clicables + hora entre corchetes, tema "por ahora",
+  Vía + Calendario en Sagrera. Norma guardada en memoria para no volver a
+  saltármela.
+- `registro.js?v=202609085`, `CACHE enruta-rv-v100`.
+
 ### 2026-09-14 — Paso 69: aviso de privacidad genérico sin nube vinculada (enruta-v99)
 
 - David vio que el icono ⓘ decía "Tu copia en OneDrive" aunque no hubiera
