@@ -38,6 +38,44 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-14 — Paso 63: sincronización con OneDrive por delta query, no listado completo (enruta-v93) — REVISAR EN TABLET CON CUIDADO
+
+- **Por qué**: David reportó que a veces tarda mucho. Confirmado en el
+  código: cada sincronización, aunque no cambiara nada, listaba TODOS los
+  `turno-*.json` de la carpeta `EnRuta` (uno por cada día usado desde que
+  se activó la copia en la nube) para comparar eTags — con meses de uso,
+  cientos de archivos a listar en cada sincro.
+- **Cambio**: `sincronizarBajar()` usa ahora el *delta query* de Microsoft
+  Graph (`/delta` en vez de `/children`) — Graph lleva la cuenta de qué
+  cambió desde la última vez (`st.deltaLink`, guardado tras cada
+  sincronización) y en las siguientes sincros solo devuelve lo que de
+  verdad cambió, no la carpeta entera.
+  - Primera vez (o si no hay `deltaLink` guardado): listado COMPLETO, igual
+    que antes — es inevitable, no hay "desde cuándo" que comparar.
+  - Si Graph invalida el `deltaLink` guardado (410 Gone — demasiado viejo o
+    demasiados cambios de golpe): se olvida y se reintenta UNA vez desde
+    cero (mismo listado completo de la primera vez).
+  - Detección de archivos borrados en OneDrive: con delta, Graph avisa
+    explícito (`it.deleted`) — ya no se puede detectar "por ausencia" en un
+    listado incremental (solo trae lo que cambió, no lo que sigue igual).
+    La limpieza "por ausencia" del registro de sincro solo corre en un
+    listado COMPLETO; en incremental se usan los avisos explícitos.
+  - `borrarDatosNube()` (Ajustes → "Borrar mis datos de la nube") también
+    olvida el `deltaLink` guardado al vaciar la carpeta, para que la
+    siguiente sincro parta de un listado completo y no de un delta
+    apuntando a un estado que ya no existe.
+- **Sin tocar**: la comparación por eTag antes de descargar el contenido de
+  cada archivo (sigue igual), y toda la lógica de fusión/anti-pérdida de
+  datos (`fusionarDia`, lápidas, `SOLO AÑADE/ACTUALIZA`) — ninguna de esas
+  reglas cambia, solo CÓMO se entera la app de qué archivos mirar.
+- **PENDIENTE — no lo he podido probar contra un OneDrive real** (no tengo
+  cuenta/token aquí): David lo prueba en la tablet. Si algo de la
+  sincronización se comporta raro después de esto, avisar cuanto antes —
+  es el módulo más delicado de la app (pérdida de datos si sale mal). El
+  diseño se apoya en `syncIncompleto`/`listadoCompleto` igual que antes:
+  ante cualquier fallo o duda, no toca nada en vez de arriesgar.
+- `nube.js?v=202609056`, `registro.js?v=202609079`, `CACHE enruta-rv-v93`.
+
 ### 2026-09-14 — Paso 62: tarjeta de Sagrera en una fila + estilo correcto + renombrar etiqueta (enruta-v92)
 
 - **Todo en una fila**: hora + Nº + Vía de la tarjeta "La Sagrera CTT" ya no

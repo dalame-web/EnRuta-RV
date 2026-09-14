@@ -206,6 +206,14 @@
   // (Un listado incompleto de OneDrive por un fallo transitorio hacía que la
   //  app creyera que se habían borrado archivos y vaciara esos días en local
   //  → pérdida de datos. Ya no.)
+  // Listar SOLO lo que cambió desde la sincro anterior (delta query de Graph)
+  // en vez de listar TODOS los turno-*.json cada vez — con meses de uso eso
+  // podía ser cientos de archivos a comparar por eTag aunque casi ninguno
+  // hubiera cambiado. st.deltaLink guarda el punto por donde seguir; sin él
+  // (primera vez, o tras un reset) se pide un listado COMPLETO como antes,
+  // y al final de esa paginación Graph da un deltaLink nuevo para la próxima.
+  // Si Graph invalida el guardado (410 Gone — demasiado viejo o demasiados
+  // cambios) se olvida y se reintenta UNA vez desde cero.
   function sincronizarBajar() {
     return ensureFolder().then(function (fid) {
       // Primero la config (ajustes) y las lápidas de otros dispositivos:
@@ -216,21 +224,40 @@
         .then(function () { aplicarBorrados(); return fid; });
     }).then(function (fid) {
       var archivos = [];
+      var borrados = [];
       var listadoCompleto = true;
-      function pagina(url) {
+      var esCompleta = !st.deltaLink; // ¿esta pasada es la foto COMPLETA de la carpeta?
+      var urlCompleta = '/me/drive/items/' + fid +
+        '/delta?$select=id,name,eTag,file,deleted&$top=200';
+
+      function pagina(url, esReintentoDesdeCero) {
         return graphJson(url).then(function (res) {
           if (!res) { listadoCompleto = false; return; }
           (res.value || []).forEach(function (it) {
-            if (it.file && fechaDeNombre(it.name)) archivos.push(it);
+            if (!fechaDeNombre(it.name)) return; // no es un turno-AAAA-MM-DD.json
+            if (it.deleted) { borrados.push(it.name); return; }
+            if (it.file) archivos.push(it);
           });
           if (res['@odata.nextLink']) {
-            return pagina(res['@odata.nextLink'].replace(GRAPH, ''));
+            return pagina(res['@odata.nextLink'].replace(GRAPH, ''), esReintentoDesdeCero);
           }
-        }).catch(function () { listadoCompleto = false; });
+          if (res['@odata.deltaLink']) {
+            st.deltaLink = res['@odata.deltaLink'].replace(GRAPH, '');
+            persist();
+          }
+        }).catch(function (e) {
+          var es410 = e && e.message && e.message.indexOf('Graph 410') === 0;
+          if (es410 && !esReintentoDesdeCero) {
+            st.deltaLink = null; persist();
+            esCompleta = true;
+            archivos.length = 0; borrados.length = 0;
+            return pagina(urlCompleta, true);
+          }
+          listadoCompleto = false;
+        });
       }
-      return pagina('/me/drive/items/' + fid +
-        '/children?$select=id,name,eTag,file&$top=200').then(function () {
-        return { archivos: archivos, completo: listadoCompleto };
+      return pagina(st.deltaLink || urlCompleta, esCompleta).then(function () {
+        return { archivos: archivos, borrados: borrados, completo: listadoCompleto, esCompleta: esCompleta };
       });
     }).then(function (bundle) {
       var archivos = bundle.archivos;
@@ -290,17 +317,35 @@
       // local. Solo se limpia el registro de sincro; si aquí seguimos
       // teniendo turnos de ese día, el próximo sync-up vuelve a crear el
       // archivo (recupera de un borrado accidental).
-      // SOLO si el listado se descargó ENTERO — con un listado a medias por
-      // mala cobertura no se toca nada del registro de sincro.
+      // Dos formas de detectarlo, según el tipo de listado:
+      //  - Delta incremental: Graph avisa explícito con un "deleted" por cada
+      //    archivo borrado (bundle.borrados) — no hace falta nada más.
+      //  - Listado COMPLETO (primera vez / tras perder el deltaLink): un
+      //    archivo que ya no aparece en la foto entera de la carpeta también
+      //    cuenta como borrado. Con un delta incremental esto NO vale: aquí
+      //    "archivos" solo trae lo que cambió, así que casi todo "falta" sin
+      //    haberse borrado — limpiar por ausencia borraría registro de sincro
+      //    de archivos que simplemente no cambiaron.
+      // Ambas SOLO si el listado se completó sin fallos — con uno a medias
+      // por mala cobertura no se toca nada del registro de sincro.
       if (listadoCompleto) {
-        Object.keys(st.fileEtags).forEach(function (name) {
-          if (nombresRemotos[name]) return;
+        bundle.borrados.forEach(function (name) {
           var fecha = fechaDeNombre(name);
           if (!fecha) return;
           delete st.fileEtags[name];
           delete st.syncedDay[fecha];
           delete st.syncedDayAt[fecha];
         });
+        if (bundle.esCompleta) {
+          Object.keys(st.fileEtags).forEach(function (name) {
+            if (nombresRemotos[name]) return;
+            var fecha = fechaDeNombre(name);
+            if (!fecha) return;
+            delete st.fileEtags[name];
+            delete st.syncedDay[fecha];
+            delete st.syncedDayAt[fecha];
+          });
+        }
       }
       persist();
 
@@ -810,6 +855,7 @@
         st.tombstones = {};
         st.configAt = null;
         st.configFirma = null;
+        st.deltaLink = null;
         st.ultima = 0;
         tombFirma = null;
         persist();
