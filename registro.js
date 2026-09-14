@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v91';
+  var APP_VERSION = 'enruta-v92';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -2815,17 +2815,22 @@
       '<button class="st-del" data-action="sagrera-del" data-svc="' + si +
       '" title="Quitar traslado">🗑</button>' +
       '</div>';
-    h += '<div class="st-body"><div class="st-times">' +
+    // Todo en UNA fila (hora + nº + vía) — así la tarjeta no crece tanto.
+    // Sin el wrapper .st-body (grid a 2 columnas pensado para cuando hay
+    // .st-pax al lado): aquí no lo hay, y dejaba media tarjeta vacía y la
+    // fila comprimida a la mitad del ancho real, envolviendo de más.
+    // En pantallas estrechas .st-row sigue envolviendo solo (flex-wrap).
+    h += '<div class="st-times">' +
       '<div class="st-row"><span class="st-lbl">' + lbl + '</span>' +
       '<div class="st-time-col"><input type="time" data-bind="' + bindH +
-      '" value="' + esc(valH || '') + '"></div>' + horaNowBtnHtml(bindH) + '</div>' +
-      '<div class="st-row"><span class="st-lbl">Nº traslado</span>' +
-      '<input type="text" inputmode="numeric" class="svc-man-num" style="flex:0 0 110px" data-bind="srv.' + si +
+      '" value="' + esc(valH || '') + '"></div>' + horaNowBtnHtml(bindH) +
+      '<span class="st-lbl" style="flex:0 0 auto">Nº</span>' +
+      '<input type="text" inputmode="numeric" style="width:70px" data-bind="srv.' + si +
       '.sagrera.num" value="' + esc(sg.num || '') + '" placeholder="Número">' +
       '<span class="st-lbl" style="flex:0 0 auto">Vía</span>' +
-      '<input type="text" class="svc-man-num" style="flex:0 0 70px" data-bind="srv.' + si +
+      '<input type="text" style="width:50px" data-bind="srv.' + si +
       '.sagrera.via" value="' + esc(sg.via || '') + '"></div>' +
-      '</div></div></div>';
+      '</div></div>';
     return h;
   }
 
@@ -2910,7 +2915,7 @@
       valRetSal: s.rSalida,
       tallerBtn: sagDir === 'origen' && !sagOn,
       sagreraRow: (sagDir === 'origen' && sagOn) ? {
-        label: 'H. Llegada La Sagrera', bind: 'srv.' + si + '.sagrera.hLlegada',
+        label: 'H. Llegada traslado', bind: 'srv.' + si + '.sagrera.hLlegada',
         val: s.sagrera.hLlegada
       } : null,
       pax: esTraslado ? '' : paxBlockOrigen(s, si)
@@ -2957,7 +2962,7 @@
       valRetLleg: s.rLlegDestino,
       tallerBtn: sagDir === 'destino' && !sagOn,
       sagreraRow: (sagDir === 'destino' && sagOn) ? {
-        label: 'H. Salida La Sagrera', bind: 'srv.' + si + '.sagrera.hSalida',
+        label: 'H. Salida traslado', bind: 'srv.' + si + '.sagrera.hSalida',
         val: s.sagrera.hSalida
       } : null,
       pax: ''

@@ -833,7 +833,7 @@ input[type=number]::-webkit-inner-spin-button{
   text-transform:uppercase;
 }
 .st-name-input::placeholder{text-transform:none}
-.st-row input[type=time]{
+.st-row input[type=time], .st-row input[type=text]{
   flex:0 0 auto; min-height:30px; padding:3px 6px; font-size:13px;
   width:auto;
 }

@@ -38,6 +38,24 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-14 — Paso 62: tarjeta de Sagrera en una fila + estilo correcto + renombrar etiqueta (enruta-v92)
+
+- **Todo en una fila**: hora + Nº + Vía de la tarjeta "La Sagrera CTT" ya no
+  ocupan 2 filas (`.st-row`) — ahora es una sola. De paso se quitó el
+  wrapper `.st-body` (grid a 2 columnas pensado para cuando hay `.st-pax` al
+  lado): al no haber nada en la segunda columna, comprimía la fila a la
+  mitad del ancho real de la tarjeta y la hacía envolver de más.
+- **Estilo de las cajas Nº/Vía — bug encontrado**: usaba el tamaño de campo
+  normal (44px de alto) en vez del tamaño compacto que ya usan el resto de
+  cosas dentro de una `.st-row` (30px, como la hora). Arreglado ampliando
+  la regla `.st-row input[type=time]` para que cubra también
+  `input[type=text]` — así cualquier caja de texto dentro de una fila de
+  estación hereda el tamaño correcto sin repetirlo a mano.
+- **Etiqueta renombrada**: "H. Salida La Sagrera" / "H. Llegada La Sagrera"
+  (la fila que aparece en la tarjeta de Barcelona-Sants, no en la de
+  Sagrera) → "H. Salida traslado" / "H. Llegada traslado".
+- `registro.js?v=202609078`, `registro.css?v=202609075`, `CACHE enruta-rv-v92`.
+
 ### 2026-09-14 — Paso 61: tema manual "por ahora", vía en Sagrera, traslados en Calendario, hora entre corchetes (enruta-v91)
 
 - **Tema claro/oscuro — bug encontrado y arreglado**: el botón manual del
