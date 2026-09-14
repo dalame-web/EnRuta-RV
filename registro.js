@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v97';
+  var APP_VERSION = 'enruta-v98';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1404,17 +1404,53 @@
   // Ventana para elegir CON QUÉ nube vincular (OneDrive / Google Drive,
   // mutuamente excluyentes) — mismo diálogo tanto si lo dispara el aviso del
   // primer arranque como el toque en el icono ☁️ cuando aún no hay ninguna
-  // vinculada. Solo ofrece los botones de las nubes realmente disponibles.
+  // vinculada. Ventana propia (no appModal.confirm) para que cada opción sea
+  // su propia franja de color, como el selector de categoría de telefonema
+  // — más clara que dos botones "primary" iguales uno al lado del otro.
+  var NUBE_OPCIONES = [
+    { id: 'onedrive', color: 'onedrive', nombre: 'Microsoft OneDrive',
+      desc: 'El OneDrive de tu cuenta de empresa.' },
+    { id: 'drive', color: 'drive', nombre: 'Google Drive',
+      desc: 'Carpeta privada de la app en tu cuenta de Google — nadie más la ve.' }
+  ];
   function mostrarElegirNube(mensaje) {
-    var botones = [{ label: 'Ahora no', value: null, kind: 'neutral' }];
-    if (window.NUBE && window.NUBE.disponible()) botones.push({ label: 'Vincular con Microsoft', value: 'onedrive', kind: 'primary' });
-    if (window.NUBE_DRIVE) botones.push({ label: 'Vincular con Google', value: 'drive', kind: 'primary' });
-    return appModal.confirm({
-      title: 'Guarda tus turnos en la nube',
-      message: mensaje || 'Elige con qué cuenta quieres guardar una copia de tus turnos y ' +
-        'tenerlos también en el móvil. Los datos son solo tuyos y solo hay que dar permiso una vez.',
-      buttons: botones,
-      dismissValue: null
+    var disponibles = NUBE_OPCIONES.filter(function (o) {
+      return o.id === 'onedrive' ? (window.NUBE && window.NUBE.disponible()) : !!window.NUBE_DRIVE;
+    });
+    if (!disponibles.length) return Promise.resolve();
+    return appModal.custom({
+      className: 'narrow',
+      backdropClose: true,
+      dismissValue: null,
+      render: function (box, resolveWith) {
+        box.innerHTML = '';
+        var ttl = document.createElement('div'); ttl.className = 'modal-title';
+        ttl.style.textAlign = 'center';
+        ttl.textContent = 'Guarda tus turnos en la nube';
+        box.appendChild(ttl);
+        var msg = document.createElement('div'); msg.className = 'modal-msg';
+        msg.textContent = mensaje || 'Elige con qué cuenta — los datos son solo tuyos y solo hay que dar permiso una vez.';
+        box.appendChild(msg);
+
+        var list = document.createElement('div'); list.className = 'tel-picker';
+        disponibles.forEach(function (o) {
+          var b = document.createElement('button'); b.type = 'button';
+          b.className = 'tel-picker-btn color-' + o.color;
+          var nom = document.createElement('div'); nom.className = 'tel-picker-code'; nom.textContent = o.nombre;
+          var desc = document.createElement('div'); desc.className = 'tel-picker-name'; desc.textContent = o.desc;
+          b.appendChild(nom); b.appendChild(desc);
+          b.addEventListener('click', function () { resolveWith(o.id); });
+          list.appendChild(b);
+        });
+        box.appendChild(list);
+
+        var acts = document.createElement('div'); acts.className = 'modal-actions';
+        var btnCancel = document.createElement('button'); btnCancel.type = 'button';
+        btnCancel.className = 'modal-btn neutral'; btnCancel.textContent = 'Ahora no';
+        btnCancel.addEventListener('click', function () { resolveWith(null); });
+        acts.appendChild(btnCancel);
+        box.appendChild(acts);
+      }
     }).then(function (v) {
       if (v === 'onedrive' && window.NUBE) window.NUBE.vincular();
       else if (v === 'drive' && window.NUBE_DRIVE) window.NUBE_DRIVE.vincular();

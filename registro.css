@@ -278,6 +278,8 @@ button.btn.rec:hover{border-color:#fff}
 .tel-picker-btn:hover{border-color:var(--accent)}
 .tel-picker-btn.color-rc{border-left-color:var(--ok)}
 .tel-picker-btn.color-maquinista{border-left-color:var(--tel-maquinista)}
+.tel-picker-btn.color-onedrive{border-left-color:#0078D4}
+.tel-picker-btn.color-drive{border-left-color:#34A853}
 .tel-picker-code{font-weight:700; font-size:14px}
 .tel-picker-name{font-size:12px; color:var(--fg-dim)}
 

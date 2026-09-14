@@ -38,6 +38,22 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-14 — Paso 68: ventana de elegir nube con estilo propio (enruta-v98)
+
+- El diálogo de `mostrarElegirNube()` (Paso 67) usaba `appModal.confirm`
+  con dos botones "primary" iguales uno al lado del otro — David pidió que
+  se viera mejor. Reescrito como ventana propia (`appModal.custom`),
+  mismo patrón que el selector de categoría de telefonema
+  (`abrirTelefonemaCategoria`): cada nube es su propia franja con borde de
+  color (`#0078D4` Microsoft / `#34A853` Google), nombre en negrita y una
+  línea de descripción — en vez de dos botones sueltos.
+- Nuevas clases CSS `.tel-picker-btn.color-onedrive` /
+  `.color-drive` (reutiliza `.tel-picker`/`.tel-picker-btn`, no hace falta
+  nada nuevo salvo el color).
+- Probado en el preview con captura — las dos franjas se ven bien
+  diferenciadas.
+- `registro.js?v=202609083`, `registro.css?v=202609076`, `CACHE enruta-rv-v98`.
+
 ### 2026-09-14 — Paso 67: elegir nube al vincular (icono ☁️ y avisos) (enruta-v97)
 
 - David detectó que el icono ☁️ flotante y el aviso de "guarda tus turnos
