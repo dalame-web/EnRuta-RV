@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v98';
+  var APP_VERSION = 'enruta-v99';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1358,9 +1358,15 @@
       if (!na0 || !na0.estaVinculada()) return;
     }
     nubePrivMostrando = true;
-    var nombreNube = (nubeActiva() === window.NUBE_DRIVE) ? 'Google Drive' : 'OneDrive';
+    var naVinc = nubeActiva();
+    var yaVinculada = naVinc && naVinc.estaVinculada && naVinc.estaVinculada();
+    // Sin ninguna nube vinculada todavía (p.ej. se abre desde el icono ⓘ sin
+    // haber vinculado nada aún): texto genérico, no dar por hecho OneDrive —
+    // nubeActiva() solo elige una de las dos "por defecto" para el resto de
+    // la UI, pero aquí sería engañoso nombrar una nube que no se ha elegido.
+    var nombreNube = yaVinculada ? ((naVinc === window.NUBE_DRIVE) ? 'Google Drive' : 'OneDrive') : 'OneDrive o Google Drive';
     appModal.confirm({
-      title: 'Tu copia en ' + nombreNube,
+      title: yaVinculada ? ('Tu copia en ' + nombreNube) : 'Tu copia en la nube',
       message:
         'EnRuta guarda los turnos en tu ' + nombreNube + '.\n\n' +
         '· Los datos se guardan en tu propio dispositivo y en tu ' + nombreNube + '.\n' +

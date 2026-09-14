@@ -38,6 +38,17 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-14 — Paso 69: aviso de privacidad genérico sin nube vinculada (enruta-v99)
+
+- David vio que el icono ⓘ decía "Tu copia en OneDrive" aunque no hubiera
+  vinculado nada todavía — `nubeActiva()` elige OneDrive "por defecto" para
+  el resto de la UI cuando ninguna está vinculada, pero aquí era engañoso
+  nombrar una nube que el usuario no ha elegido. `maybeNubePrivacidad`
+  ahora distingue: si ya hay una vinculada, nombra la que sea; si no,
+  título y texto genéricos ("Tu copia en la nube" / "OneDrive o Google
+  Drive").
+- `registro.js?v=202609084`, `CACHE enruta-rv-v99`.
+
 ### 2026-09-14 — Paso 68: ventana de elegir nube con estilo propio (enruta-v98)
 
 - El diálogo de `mostrarElegirNube()` (Paso 67) usaba `appModal.confirm`
