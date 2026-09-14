@@ -38,6 +38,37 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-14 — Paso 61: tema manual "por ahora", vía en Sagrera, traslados en Calendario, hora entre corchetes (enruta-v91)
+
+- **Tema claro/oscuro — bug encontrado y arreglado**: el botón manual del
+  sol/luna desactivaba `settings.themeAuto` en cada toque, sin avisar —
+  explica los "se desactiva sola" reportados. Ahora, con el automático
+  activo, un toque manual solo cambia el tema **por ahora** (variable en
+  memoria `themeOverride = {valor, base}`, no persistida): se mantiene
+  mientras `temaSegunHora()` siga devolviendo lo mismo que devolvía al
+  tocar, y en cuanto la hora real cruza el siguiente umbral se descarta
+  sola y manda el automático — sin tocar el interruptor de Ajustes.
+  Sensor de luz ambiental: no viable, Chrome/Android no da acceso práctico
+  desde web (retirado por privacidad).
+- **Campo "Vía" en el traslado de La Sagrera**: nuevo campo junto a "Nº
+  traslado", misma fila (`s.sagrera.via`, migración en `normTurno`).
+- **Traslados en Calendario — pedido por David**:
+  - `renderSvcBlock`: ahora TODOS los traslados enseñan el recorrido debajo
+    del número (antes solo los servicios comerciales lo mostraban).
+  - El tramo de La Sagrera embebido en un servicio (🅿️) ahora SÍ aparece en
+    Calendario (mes y lista) como un bloque "TRASLADO" más, en su posición
+    real: antes del comercial si el tren VIENE de Sagrera, después si SIGUE
+    a Sagrera tras llegar (`renderSagreraBlock` + `renderSvcBlocksCon`,
+    reutiliza `sagreraDir`). Es solo pintura — no crea un servicio ni un
+    turno nuevo.
+- **Hora en Observaciones — formato**: ahora entre corchetes
+  ("• [11:46] texto") para que se note separada del texto, en vez de
+  todo seguido. `RE_OBS_LINEA` sigue leyendo el formato viejo sin
+  corchetes (compatibilidad) y también líneas recién escritas sin hora
+  todavía — bug propio detectado y corregido en la misma ronda (la hora
+  se había vuelto obligatoria en el regex por error, duplicaba la viñeta).
+- `registro.js?v=202609077`, `CACHE enruta-rv-v91`, `APP_VERSION enruta-v91`.
+
 ### 2026-09-11 — Paso 60: traslado Valdemoro ↔ Atocha (enruta-v89)
 
 - Nuevo traslado en el desplegable de Servicio Comercial: "Valdemoro -

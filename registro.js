@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v90';
+  var APP_VERSION = 'enruta-v91';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1649,7 +1649,7 @@
       if (s.asistentes == null) s.asistentes = '';
       // Traslado embebido a/desde La Sagrera CTT (opcional): objeto o nada.
       if (s.sagrera != null && typeof s.sagrera === 'object') {
-        ['hSalida', 'hLlegada', 'num'].forEach(function (k) {
+        ['hSalida', 'hLlegada', 'num', 'via'].forEach(function (k) {
           if (s.sagrera[k] == null) s.sagrera[k] = '';
         });
       } else if (s.sagrera != null) {
@@ -2065,7 +2065,7 @@
     var tag = esTraslado ? '<span class="svc-tag">TRASLADO</span>' :
       (num ? '<span class="svc-tag normal">COMERCIAL</span>' : '');
     var line1 = tag + num + ret;
-    var lineRuta = (!esTraslado && s.origen && s.destino) ?
+    var lineRuta = (s.origen && s.destino) ?
       esc(abreviarEstacion(s.origen) + ' - ' + abreviarEstacion(s.destino)) : '';
     var lineHora = (s.hSalida && s.hDestino) ? esc(s.hSalida + '→' + s.hDestino) : '';
     if (!num && !lineHora && !esTraslado) return '';
@@ -2075,6 +2075,35 @@
     if (lineHora) out += '<span class="svc-hrs">' + lineHora + '</span>';
     out += '</span>';
     return out;
+  }
+  // Bloque del tramo a/desde La Sagrera CTT embebido en un servicio (icono
+  // 🅿️) — se pinta EXACTAMENTE como un traslado normal (misma pinta que
+  // renderSvcBlock con esTraslado), en su propia posición: antes del
+  // comercial si el tren VIENE de Sagrera (dir 'origen'), después si el
+  // tren SIGUE a Sagrera tras llegar (dir 'destino'). Sin turno/servicio
+  // propio — se deriva de s.sagrera, es solo pintura.
+  function renderSagreraBlock(s, dir) {
+    var sg = s.sagrera || {};
+    // "Sagrera CTT" sin el "La" — abreviarEstacion coge la primera palabra,
+    // y "La" abrevia peor que "Sagrera" (→ "Sag").
+    var origen = dir === 'origen' ? 'Sagrera CTT' : 'Barcelona-Sants';
+    var destino = dir === 'origen' ? 'Barcelona-Sants' : 'Sagrera CTT';
+    var hora = dir === 'origen' ? sg.hSalida : sg.hLlegada;
+    var numTxt = (sg.num || '').trim() || 'Traslado';
+    var out = '<span class="svc-block traslado">';
+    out += '<span class="svc-head"><span class="svc-tag">TRASLADO</span><b>' + esc(numTxt) + '</b></span>';
+    out += '<span class="svc-route">' + esc(abreviarEstacion(origen) + ' - ' + abreviarEstacion(destino)) + '</span>';
+    if (hora) out += '<span class="svc-hrs">' + esc(hora) + '</span>';
+    out += '</span>';
+    return out;
+  }
+  // renderSvcBlock + su tramo de Sagrera si lo tiene, en el orden real.
+  function renderSvcBlocksCon(s) {
+    var dir = s.sagrera ? sagreraDir(s) : null;
+    if (!dir) return renderSvcBlock(s);
+    var comercial = renderSvcBlock(s);
+    var sagr = renderSagreraBlock(s, dir);
+    return dir === 'origen' ? (sagr + comercial) : (comercial + sagr);
   }
 
   // En móvil (pantalla estrecha) la rejilla del mes no cabe bien — 7 columnas
@@ -2158,7 +2187,7 @@
         h += '<span class="dnum">' + dn + ' · ' + (dn + 1) + '</span>';
         h += '<span class="dormida-icon" title="Dormida">🌙</span>';
         if (t0) {
-          t0.servicios.forEach(function (s) { h += renderSvcBlock(s); });
+          t0.servicios.forEach(function (s) { h += renderSvcBlocksCon(s); });
           h += '<span class="estado ' + esc(t0.estado) + '">' +
             (t0.estado === 'cerrado' ? 'Cerrado' : 'En curso') + '</span>';
           if (tod.some(turnoConInformeGenerado)) {
@@ -2173,7 +2202,7 @@
         if (t0) {
           t0.servicios.forEach(function (s) {
             if (s.fecha !== ds) return;
-            h += renderSvcBlock(s);
+            h += renderSvcBlocksCon(s);
           });
           h += '<span class="estado ' + esc(t0.estado) + '">' +
             (t0.estado === 'cerrado' ? 'Cerrado' : 'En curso') + '</span>';
@@ -2238,19 +2267,28 @@
         '<span class="lr-chev">›</span>' +
         '</div>';
       h += '<div class="lr-svc-list">';
+      function lrLinea(esTraslado, numTxt, hrs, origen, destino, retHtml) {
+        var ruta = (origen && destino) ? ' · ' + origen + ' → ' + destino : '';
+        var tagHtml = esTraslado ? '<span class="svc-tag">TRASLADO</span> ' : '';
+        return '<div class="lr-svc-line' + (esTraslado ? ' traslado' : ' normal') + '">' +
+          tagHtml + '<b>' + (esTraslado ? 'Traslado ' : 'Comercial ') + esc(numTxt) + '</b> · ' + esc(hrs) + esc(ruta) + (retHtml || '') +
+          '</div>';
+      }
       t.servicios.forEach(function (s) {
         var esTraslado = !!s.esTraslado;
         var num = svcNumCombo(s) || (esTraslado ? (s.maniobraNombre || '—') : '—');
         var hrs = (s.hSalida && s.hDestino) ? (s.hSalida + ' → ' + s.hDestino) : '—';
-        var ruta = (s.origen && s.destino) ? ' · ' + s.origen + ' → ' + s.destino : '';
         var rd = parseInt(String(s.rLlegDestino || '').replace(/^\+/, ''), 10);
-        var retHtml = (!isNaN(rd) && rd > 0)
-          ? ' · <span class="ret">+' + rd + 'm</span>'
-          : '';
-        var tagHtml = esTraslado ? '<span class="svc-tag">TRASLADO</span> ' : '';
-        h += '<div class="lr-svc-line' + (esTraslado ? ' traslado' : ' normal') + '">' +
-          tagHtml + '<b>' + (esTraslado ? 'Traslado ' : 'Comercial ') + esc(num) + '</b> · ' + esc(hrs) + esc(ruta) + retHtml +
-          '</div>';
+        var retHtml = (!isNaN(rd) && rd > 0) ? ' · <span class="ret">+' + rd + 'm</span>' : '';
+        var comercialHtml = lrLinea(esTraslado, num, hrs, s.origen, s.destino, retHtml);
+        var dir = s.sagrera ? sagreraDir(s) : null;
+        if (!dir) { h += comercialHtml; return; }
+        var sg = s.sagrera || {};
+        var sagOrigen = dir === 'origen' ? 'La Sagrera CTT' : 'Barcelona-Sants';
+        var sagDestino = dir === 'origen' ? 'Barcelona-Sants' : 'La Sagrera CTT';
+        var sagHora = dir === 'origen' ? sg.hSalida : sg.hLlegada;
+        var sagHtml = lrLinea(true, (sg.num || '').trim() || 'Traslado', sagHora || '—', sagOrigen, sagDestino, '');
+        h += dir === 'origen' ? (sagHtml + comercialHtml) : (comercialHtml + sagHtml);
       });
       h += '</div>';
       h += '</div>';
@@ -2783,7 +2821,10 @@
       '" value="' + esc(valH || '') + '"></div>' + horaNowBtnHtml(bindH) + '</div>' +
       '<div class="st-row"><span class="st-lbl">Nº traslado</span>' +
       '<input type="text" inputmode="numeric" class="svc-man-num" style="flex:0 0 110px" data-bind="srv.' + si +
-      '.sagrera.num" value="' + esc(sg.num || '') + '" placeholder="Número"></div>' +
+      '.sagrera.num" value="' + esc(sg.num || '') + '" placeholder="Número">' +
+      '<span class="st-lbl" style="flex:0 0 auto">Vía</span>' +
+      '<input type="text" class="svc-man-num" style="flex:0 0 70px" data-bind="srv.' + si +
+      '.sagrera.via" value="' + esc(sg.via || '') + '"></div>' +
       '</div></div></div>';
     return h;
   }
@@ -3431,7 +3472,7 @@
         var inc = s.incidencias[+p[3]];
         if (inc) inc[p[4]] = value;
       } else if (p[2] === 'sagrera') {
-        if (!s.sagrera || typeof s.sagrera !== 'object') s.sagrera = { hSalida: '', hLlegada: '', num: '' };
+        if (!s.sagrera || typeof s.sagrera !== 'object') s.sagrera = { hSalida: '', hLlegada: '', num: '', via: '' };
         s.sagrera[p[3]] = value;
       } else {
         s[p[2]] = value;
@@ -3622,7 +3663,7 @@
   // s.observaciones: el atajo vive solo como pastilla (s.obsAtajos), sin
   // duplicar el texto también en el cuadro de escritura libre.
   function composeObsLineAtajo(oa) {
-    return '• ' + oa.hora + ' ' + oa.texto + (oa.horaMod ? ' (mod. ' + oa.horaMod + ')' : '');
+    return '• [' + oa.hora + '] ' + oa.texto + (oa.horaMod ? ' (mod. ' + oa.horaMod + ')' : '');
   }
   // Observaciones "completas" de un servicio para PDF/informe/comprobación
   // de si hay algo escrito: las pastillas de atajos (en el orden en que se
@@ -5628,8 +5669,23 @@
     if (claro < oscuro) return (m >= claro && m < oscuro) ? 'light' : 'dark';
     return (m >= claro || m < oscuro) ? 'light' : 'dark'; // por si se invierten
   }
+  // Anulación temporal del tema automático por un toque manual del sol/luna:
+  // {valor, base}. Vale mientras temaSegunHora() siga devolviendo lo mismo
+  // que devolvía en el momento del toque (=base) — en cuanto la hora real
+  // cruza el siguiente umbral, se descarta sola y manda el automático otra
+  // vez. Así un toque manual cambia el tema "solo por ahora", sin tocar el
+  // interruptor de Ajustes ni tener que esperar a la siguiente franja.
+  var themeOverride = null;
   function applyTheme() {
-    var t = settings.themeAuto ? temaSegunHora() : settings.theme;
+    var t;
+    if (settings.themeAuto) {
+      var actual = temaSegunHora();
+      if (themeOverride && themeOverride.base !== actual) themeOverride = null;
+      t = themeOverride ? themeOverride.valor : actual;
+    } else {
+      themeOverride = null;
+      t = settings.theme;
+    }
     document.body.classList.toggle('light', t === 'light');
     // La barra de estado de Android sigue el tema (misma --bg de index.html).
     var mt = document.querySelector('meta[name="theme-color"]');
@@ -6887,10 +6943,17 @@
       return;
     }
     if (act === 'theme-toggle') {
-      // Un toque manual manda: desactiva el modo automático.
-      settings.themeAuto = false;
-      settings.theme = (document.body.classList.contains('light')) ? 'dark' : 'light';
-      saveSettings(); applyTheme();
+      var nuevoTema = document.body.classList.contains('light') ? 'dark' : 'light';
+      // Con el automático activo, un toque manual NO lo desactiva — solo
+      // cambia el tema "por ahora" (hasta el próximo cambio real de hora).
+      // Ver themeOverride en applyTheme().
+      if (settings.themeAuto) {
+        themeOverride = { valor: nuevoTema, base: temaSegunHora() };
+      } else {
+        settings.theme = nuevoTema;
+        saveSettings();
+      }
+      applyTheme();
       if (lastSetView === 'ajustes') renderSettings();
       return;
     }
@@ -7246,7 +7309,11 @@
         /^srv\.\d+\.observaciones$/.test(el.getAttribute('data-bind') || '');
     }
     var RE_TEL_LINEA = /^[A-Z]{2,5}\d{0,2} · /;
-    var RE_OBS_LINEA = /^• (?:(\d{1,2}:\d{2}) )?(.*?)(?: \(mod\. \d{1,2}:\d{2}\))?$/;
+    // Hora entre corchetes ("• [16:32] texto") para que se note a simple
+    // vista, separada del texto — sin corchetes también encaja (formato
+    // viejo, para no perder la hora de líneas ya guardadas) y sin hora
+    // tampoco (línea recién escrita, aún sin sellar).
+    var RE_OBS_LINEA = /^• (?:\[?(\d{1,2}:\d{2})\]? )?(.*?)(?: \(mod\. \d{1,2}:\d{2}\))?$/;
     function bulletearObs(txt) {
       return String(txt || '').split('\n').map(function (ln) {
         // Línea de telefonema ("ETC1 · 10:00 — ...") — se deja INTACTA: ni
@@ -7255,7 +7322,7 @@
         var t = ln.replace(/^\s*[•·*\-]\s*/, '').trim();
         if (!t) return '';
         // Primera letra en mayúscula (ortografía). Si la línea ya llevaba
-        // hora puesta ("16:32 texto"), el primer carácter es un dígito y
+        // hora puesta ("[16:32] texto"), el primer carácter es "[" y
         // toUpperCase no hace nada — no rompe el formato ya sellado.
         return '• ' + t.charAt(0).toUpperCase() + t.slice(1);
       }).join('\n');
@@ -7278,11 +7345,11 @@
         var core = m2 ? m2[2] : ln;
         if (!core) return ln;
         if (anterior == null || !/^•\s/.test(anterior)) {
-          return '• ' + hhmm + ' ' + core; // línea nueva: hora de creación
+          return '• [' + hhmm + '] ' + core; // línea nueva: hora de creación
         }
         var mAntes = RE_OBS_LINEA.exec(anterior);
         var horaOriginal = (mAntes && mAntes[1]) || hhmm;
-        return '• ' + horaOriginal + ' ' + core + ' (mod. ' + hhmm + ')';
+        return '• [' + horaOriginal + '] ' + core + ' (mod. ' + hhmm + ')';
       }).join('\n');
     }
     document.addEventListener('keydown', function (e) {
