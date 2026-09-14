@@ -38,6 +38,19 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-14 — Paso 64: cinturón de seguridad — listado completo cada 7 días aunque el delta vaya bien (enruta-v94)
+
+- David pidió asegurar al máximo que el cambio de delta query no pueda
+  perder nada. Análisis: ningún camino del delta toca `fusionarDia` ni el
+  borrado de turnos — el peor caso posible es un retraso en ver un cambio,
+  o una re-subida de más, nunca una pérdida. Aun así, cinturón de
+  seguridad añadido: `st.deltaLinkAt` guarda cuándo se obtuvo el
+  `deltaLink` — si pasan más de 7 días, se ignora y se fuerza un listado
+  COMPLETO igualmente (como si no hubiera deltaLink guardado), sin esperar
+  a que Graph lo invalide con un 410. Revisión de fondo periódica, no
+  depende para siempre de que el delta incremental vaya fino.
+- `nube.js?v=202609057`, `CACHE enruta-rv-v94`.
+
 ### 2026-09-14 — Paso 63: sincronización con OneDrive por delta query, no listado completo (enruta-v93) — REVISAR EN TABLET CON CUIDADO
 
 - **Por qué**: David reportó que a veces tarda mucho. Confirmado en el

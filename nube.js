@@ -226,7 +226,11 @@
       var archivos = [];
       var borrados = [];
       var listadoCompleto = true;
-      var esCompleta = !st.deltaLink; // ¿esta pasada es la foto COMPLETA de la carpeta?
+      // Cinturón de seguridad: aunque el deltaLink siga vigente, cada 7 días
+      // se fuerza igualmente un listado COMPLETO (como antes de este cambio)
+      // — no depender para siempre de que el delta incremental vaya fino.
+      var deltaCaducado = !!(st.deltaLinkAt && (Date.now() - st.deltaLinkAt) > 7 * 24 * 60 * 60 * 1000);
+      var esCompleta = !st.deltaLink || deltaCaducado; // ¿esta pasada es la foto COMPLETA de la carpeta?
       var urlCompleta = '/me/drive/items/' + fid +
         '/delta?$select=id,name,eTag,file,deleted&$top=200';
 
@@ -243,12 +247,13 @@
           }
           if (res['@odata.deltaLink']) {
             st.deltaLink = res['@odata.deltaLink'].replace(GRAPH, '');
+            st.deltaLinkAt = Date.now();
             persist();
           }
         }).catch(function (e) {
           var es410 = e && e.message && e.message.indexOf('Graph 410') === 0;
           if (es410 && !esReintentoDesdeCero) {
-            st.deltaLink = null; persist();
+            st.deltaLink = null; st.deltaLinkAt = null; persist();
             esCompleta = true;
             archivos.length = 0; borrados.length = 0;
             return pagina(urlCompleta, true);
@@ -256,7 +261,7 @@
           listadoCompleto = false;
         });
       }
-      return pagina(st.deltaLink || urlCompleta, esCompleta).then(function () {
+      return pagina(esCompleta ? urlCompleta : st.deltaLink, esCompleta).then(function () {
         return { archivos: archivos, borrados: borrados, completo: listadoCompleto, esCompleta: esCompleta };
       });
     }).then(function (bundle) {
@@ -856,6 +861,7 @@
         st.configAt = null;
         st.configFirma = null;
         st.deltaLink = null;
+        st.deltaLinkAt = null;
         st.ultima = 0;
         tombFirma = null;
         persist();
