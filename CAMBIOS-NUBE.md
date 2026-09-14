@@ -38,6 +38,49 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-14 — Paso 66: nube-drive.js — copia en Google Drive de verdad (enruta-v96, SIN PUBLICAR)
+
+- Módulo cliente completo (`nube-drive.js`), mismo diseño y mismas
+  garantías que `nube.js` (OneDrive): un archivo por día en la carpeta
+  privada de la app en Drive (`appDataFolder` — no hace falta crearla ni
+  aparece en el Drive normal del usuario), fusión SOLO-AÑADE/ACTUALIZA
+  (nunca borra un turno local), lápidas para propagar borrados entre
+  dispositivos, sincronización de ajustes (`_config.json`).
+  - Diferencia con OneDrive: Drive no tiene concurrencia condicional tipo
+    If-Match/412 — la unión con lo remoto ANTES de escribir (que ya existía
+    como blindaje extra en nube.js) es aquí la única red de seguridad
+    contra pisar un archivo que otro dispositivo tocó a la vez. Sin delta
+    query todavía (Drive empieza vacío — se añadirá si hace falta cuando
+    haya volumen, misma lección que con OneDrive).
+  - Token: `getToken()` llama a `api/drive-refresh` bajo demanda: sin
+    interacción del usuario, como `acquireTokenSilent` de MSAL.
+  - Vinculación: `procesarVueltaOAuth()` lee `#gdrive_refresh=...&gdrive_email=...`
+    del fragmento de la URL al volver de Google, lo guarda en
+    `localStorage` (`rviryo_nube_drive_v1`) y limpia la URL.
+- **Mutuamente excluyente con OneDrive** (pedido explícito): `vincular()`
+  en cada módulo comprueba si el otro está vinculado y, si lo está, pide
+  confirmar el cambio (desvincula el otro automáticamente antes de
+  seguir). Cada tarjeta de Ajustes avisa si la otra nube está activa.
+- `registro.js`: tarjeta nueva en Ajustes (`renderNubeDriveCard`,
+  paralela a `renderNubeCard`), nuevas acciones `nube-drive-*`, engancha
+  `window.NUBE_DRIVE` en los mismos puntos que `window.NUBE`
+  (`onTurnosSaved`/`onConfigSaved`/`onTurnoBorrado`/`init()`) SIN tocar
+  ninguna de las llamadas existentes a OneDrive — solo se añaden en
+  paralelo. El icono/aviso flotantes de nube (calendario y editor) ahora
+  usan `nubeActiva()`, que sigue apuntando a OneDrive por defecto si
+  ninguna está vinculada — cero cambio de comportamiento para quien no
+  toque Drive.
+- `api/drive-callback.js`: ahora también decodifica el `id_token` (scope
+  `openid email` añadido) para mandar el correo junto al refresh_token.
+- **Probado en el preview** (sin cuenta real): construcción de la URL de
+  autorización, lectura/guardado del fragmento `#gdrive_refresh`, las dos
+  tarjetas de Ajustes renderizando y avisándose la una a la otra, y el
+  manejo de un token inválido (no revienta, pasa a "Reconectar" sin
+  perder nada). **NO probado contra una cuenta de Drive real** — antes
+  de publicar, probarlo end-to-end en la tablet con el botón "Vincular
+  con Google" de verdad.
+- `nube-drive.js?v=202609001`, `registro.js?v=202609081`, `CACHE enruta-rv-v96`.
+
 ### 2026-09-14 — Paso 65: Google Drive — piezas de servidor para el login único (opción B)
 
 - David pidió una alternativa a OneDrive con Google Drive, con login único

@@ -67,7 +67,19 @@ module.exports = async function handler(req, res) {
       res.end();
       return;
     }
-    res.writeHead(302, { Location: retorno + '#gdrive_refresh=' + encodeURIComponent(data.refresh_token) });
+    // El email va en el id_token (JWT, viene si se pidió scope "openid
+    // email") — se decodifica aquí SOLO para pasarlo a la URL, sin verificar
+    // la firma (no hace falta: es un dato de pantalla, no de acceso).
+    var email = '';
+    try {
+      if (data.id_token) {
+        var payload = data.id_token.split('.')[1];
+        email = JSON.parse(Buffer.from(payload, 'base64').toString('utf8')).email || '';
+      }
+    } catch (e) {}
+    var destino = retorno + '#gdrive_refresh=' + encodeURIComponent(data.refresh_token) +
+      (email ? '&gdrive_email=' + encodeURIComponent(email) : '');
+    res.writeHead(302, { Location: destino });
     res.end();
   } catch (e) {
     res.writeHead(302, { Location: retorno + '#gdrive_error=' + encodeURIComponent('excepcion') });

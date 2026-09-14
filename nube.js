@@ -797,12 +797,33 @@
     // Fecha de la última sincronización VERIFICADA (ciclo entero sin cortes).
     ultimoSyncOk: function () { return st.ultimoSyncOk || 0; },
 
-    // Vincular (toque real del usuario)
+    // Vincular (toque real del usuario). Con Google Drive ya vinculado, pide
+    // confirmar el cambio primero — solo una nube activa a la vez.
     vincular: function () {
       if (!configurada()) return;
-      initMsal().then(function () {
-        msalApp.loginRedirect({ scopes: SCOPES, prompt: 'select_account' });
-      });
+      function ir() {
+        initMsal().then(function () {
+          msalApp.loginRedirect({ scopes: SCOPES, prompt: 'select_account' });
+        });
+      }
+      if (window.NUBE_DRIVE && window.NUBE_DRIVE.estaVinculada && window.NUBE_DRIVE.estaVinculada()) {
+        if (window.appModal) {
+          appModal.confirm({
+            title: 'Cambiar de nube',
+            message: 'Ya tienes Google Drive vinculado. Solo puede haber una copia en la nube activa — ¿desvincular Google Drive y usar OneDrive?',
+            buttons: [
+              { label: 'Cancelar', value: false, kind: 'neutral' },
+              { label: 'Cambiar a OneDrive', value: true, kind: 'primary' }
+            ]
+          }).then(function (ok) {
+            if (!ok) return;
+            window.NUBE_DRIVE.desvincular();
+            ir();
+          });
+        }
+        return;
+      }
+      ir();
     },
     // Reconectar tras caducar la sesión (toque real)
     reconectar: function () {

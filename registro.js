@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v95';
+  var APP_VERSION = 'enruta-v96';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1063,10 +1063,17 @@
     }
     // Único punto por el que pasan TODAS las escrituras de turnos (las
     // debounced de autosave() y las directas) — enganchar aquí basta para
-    // que la copia en la nube (OneDrive) cubra cualquier cambio. Capa
-    // opcional: si no hay sesión o nube.js no cargó, no hace nada.
-    if (k === K_TURNOS && window.NUBE) window.NUBE.onTurnosSaved(out);
-    if ((k === K_SETTINGS || k === K_GCAL_CACHE) && window.NUBE && window.NUBE.onConfigSaved) window.NUBE.onConfigSaved();
+    // que la copia en la nube cubra cualquier cambio. Capa opcional: si no
+    // hay sesión vinculada en ninguna de las dos (OneDrive/Drive, mutuamente
+    // excluyentes), su propio guard interno hace que no pase nada.
+    if (k === K_TURNOS) {
+      if (window.NUBE) window.NUBE.onTurnosSaved(out);
+      if (window.NUBE_DRIVE) window.NUBE_DRIVE.onTurnosSaved(out);
+    }
+    if (k === K_SETTINGS || k === K_GCAL_CACHE) {
+      if (window.NUBE && window.NUBE.onConfigSaved) window.NUBE.onConfigSaved();
+      if (window.NUBE_DRIVE && window.NUBE_DRIVE.onConfigSaved) window.NUBE_DRIVE.onConfigSaved();
+    }
   }
   var saveTimer = null;
   function autosave() {
@@ -1315,6 +1322,14 @@
     turnos = turnos.filter(function (t) { return !set[t.id]; });
     if (turnos.length !== antes) { save(K_TURNOS, turnos); nubeReRender(); }
   }
+  // Cuál de las dos nubes (OneDrive / Drive, mutuamente excluyentes) está
+  // vinculada ahora mismo, si alguna — o window.NUBE por defecto si ninguna
+  // lo está (mismo comportamiento de siempre para quien no ha tocado Drive).
+  function nubeActiva() {
+    if (window.NUBE && window.NUBE.estaVinculada && window.NUBE.estaVinculada()) return window.NUBE;
+    if (window.NUBE_DRIVE && window.NUBE_DRIVE.estaVinculada && window.NUBE_DRIVE.estaVinculada()) return window.NUBE_DRIVE;
+    return window.NUBE || window.NUBE_DRIVE || null;
+  }
   function nubeReRender() {
     if (lastSetView === 'calendario') renderCalendar();
     else if (lastSetView === 'ajustes') renderSettings();
@@ -1339,17 +1354,19 @@
     if (nubePrivMostrando) return;
     if (!forzar) {
       if (settings.nubePrivacidadVista) return;
-      if (!window.NUBE || !window.NUBE.estaVinculada()) return;
+      var na0 = nubeActiva();
+      if (!na0 || !na0.estaVinculada()) return;
     }
     nubePrivMostrando = true;
+    var nombreNube = (nubeActiva() === window.NUBE_DRIVE) ? 'Google Drive' : 'OneDrive';
     appModal.confirm({
-      title: 'Tu copia en OneDrive',
+      title: 'Tu copia en ' + nombreNube,
       message:
-        'EnRuta guarda los turnos en tu OneDrive de empresa.\n\n' +
-        '· Los datos se guardan en tu propio dispositivo y en tu OneDrive.\n' +
+        'EnRuta guarda los turnos en tu ' + nombreNube + '.\n\n' +
+        '· Los datos se guardan en tu propio dispositivo y en tu ' + nombreNube + '.\n' +
         '· Solo tú tienes acceso. EnRuta no tiene servidor ni base de datos común.\n' +
         '· Con esto, tienes los turnos en el móvil y en la tablet.\n' +
-        '· Puedes borrarlos cuando quieras, desde Ajustes o desde OneDrive.',
+        '· Puedes borrarlos cuando quieras, desde Ajustes o desde ' + nombreNube + '.',
       buttons: [{ label: 'Entendido', value: 'ok', kind: 'primary' }],
       dismissValue: null
     }).then(function (v) {
@@ -1365,11 +1382,12 @@
   //   error subida  → ⚠️ rojo   · toca = reintentar
   //   al día        → ☁️ verde  · toca = forzar subida ahora
   function nubeIconoBtn() {
-    if (!window.NUBE || !window.NUBE.disponible()) return '';
-    var e = window.NUBE.estado();
+    var na = nubeActiva();
+    if (!na || !na.disponible()) return '';
+    var e = na.estado();
     var M = {
       sin:        { ic: '☁️', cls: 'nb-sin',   t: 'Copia en la nube desactivada — toca para activar' },
-      reconectar: { ic: '⚠️', cls: 'nb-error', t: 'Sesión de Microsoft caducada — toca para reconectar' },
+      reconectar: { ic: '⚠️', cls: 'nb-error', t: 'Sesión caducada — toca para reconectar' },
       sync:       { ic: '⏳', cls: 'nb-sync',  t: 'Guardando en la nube…' },
       error:      { ic: '⚠️', cls: 'nb-error', t: 'Error al subir a la nube — toca para reintentar' },
       ok:         { ic: '☁️', cls: 'nb-ok',    t: 'Copia en la nube al día — toca para subir ahora' }
@@ -1379,7 +1397,8 @@
       m.t + '" aria-label="' + m.t + '">' + m.ic + '</button>';
   }
   function nubeInfoBtn() {
-    if (!window.NUBE || !window.NUBE.disponible()) return '';
+    var na = nubeActiva();
+    if (!na || !na.disponible()) return '';
     return '<button class="cal-toggle" data-action="nube-privacidad" title="Aviso de privacidad" aria-label="Aviso de privacidad">ⓘ</button>';
   }
   // Aviso para activar la copia en la nube (la ÚNICA copia de seguridad ahora
@@ -1387,8 +1406,10 @@
   // si el usuario no vincula, se repite cada 8 aperturas hasta que lo haga.
   function maybeFirstRunNubePrompt() {
     if (bienvenidaMostradaEsteArranque) return; // no apilar dos modales el primer día
-    if (!window.NUBE || !window.NUBE.disponible()) return;
-    if (window.NUBE.estaVinculada()) return;
+    var odDisp = window.NUBE && window.NUBE.disponible();
+    if (!odDisp && !window.NUBE_DRIVE) return;
+    if ((window.NUBE && window.NUBE.estaVinculada()) ||
+        (window.NUBE_DRIVE && window.NUBE_DRIVE.estaVinculada())) return; // ya hay una nube activa
     var n = (settings.nubeAvisoContador || 0) + 1;
     settings.nubeAvisoContador = n;
     saveSettings();
@@ -1946,6 +1967,9 @@
     save(K_TURNOS, turnos);
     if (window.NUBE && window.NUBE.onTurnoBorrado) {
       fuera.forEach(function (id) { window.NUBE.onTurnoBorrado(id); });
+    }
+    if (window.NUBE_DRIVE && window.NUBE_DRIVE.onTurnoBorrado) {
+      fuera.forEach(function (id) { window.NUBE_DRIVE.onTurnoBorrado(id); });
     }
     return n0 - turnos.length;
   }
@@ -5403,7 +5427,10 @@
     if (!setOpen.nube) { h += '</div>'; return h; }
     h += '<div style="margin-top:10px"></div>';
     if (!window.NUBE.estaVinculada()) {
-      h += '<div class="hint">Guarda una copia de tus turnos en tu OneDrive y ten los mismos datos en el móvil y la tablet. Solo la primera vez hay que dar permiso.</div>' +
+      var otraDrive = window.NUBE_DRIVE && window.NUBE_DRIVE.estaVinculada && window.NUBE_DRIVE.estaVinculada();
+      h += '<div class="hint">Guarda una copia de tus turnos en tu OneDrive y ten los mismos datos en el móvil y la tablet. Solo la primera vez hay que dar permiso.' +
+        (otraDrive ? ' Ahora mismo tienes Google Drive vinculado — solo puede haber una nube activa, así que vincular esto la sustituirá.' : '') +
+        '</div>' +
         '<div class="btn-row"><button class="btn primary" data-action="nube-vincular">Vincular con Microsoft</button></div>';
       h += '</div>';
       return h;
@@ -5426,6 +5453,44 @@
     }
     h += '<div class="btn-row"><button class="btn ghost" data-action="nube-desvincular">Desvincular</button>' +
       '<button class="btn danger" data-action="nube-borrar">Borrar mis datos de la nube</button></div>';
+    h += '</div>';
+    return h;
+  }
+
+  // Alternativa a OneDrive — mutuamente excluyentes (ver vincular() en
+  // nube.js/nube-drive.js), mismo patrón de tarjeta, punto por punto.
+  function renderNubeDriveCard() {
+    if (!window.NUBE_DRIVE) return '';
+    var h = '<div class="card">' + cardToggleHead('nubeDrive', 'Copia en la nube (Google Drive)');
+    if (!setOpen.nubeDrive) { h += '</div>'; return h; }
+    h += '<div style="margin-top:10px"></div>';
+    if (!window.NUBE_DRIVE.estaVinculada()) {
+      var otraOD = window.NUBE && window.NUBE.estaVinculada && window.NUBE.estaVinculada();
+      h += '<div class="hint">Guarda una copia de tus turnos en tu Google Drive (carpeta privada de la app) y ten los mismos datos en el móvil y la tablet. Solo la primera vez hay que dar permiso.' +
+        (otraOD ? ' Ahora mismo tienes OneDrive vinculado — solo puede haber una nube activa, así que vincular esto la sustituirá.' : '') +
+        '</div>' +
+        '<div class="btn-row"><button class="btn primary" data-action="nube-drive-vincular">Vincular con Google</button></div>';
+      h += '</div>';
+      return h;
+    }
+    h += '<div class="hint">Vinculada como <b>' + esc(window.NUBE_DRIVE.correo() || '(cuenta de Google)') + '</b>.<br>' +
+      'Última copia: ' + esc(nubeHaceX(window.NUBE_DRIVE.ultimaCopia())) + '.';
+    var okAt2 = window.NUBE_DRIVE.ultimoSyncOk ? window.NUBE_DRIVE.ultimoSyncOk() : 0;
+    if (okAt2) h += '<br>Sincronización completa verificada: ' + esc(nubeHaceX(okAt2)) + '.';
+    if (window.NUBE_DRIVE.estado() === 'error' && !window.NUBE_DRIVE.necesitaReconectar()) {
+      h += '<br><span style="color:var(--warn)">La última sincronización no se completó del todo ' +
+        '(cobertura). Nada se ha estropeado; se reintenta sola o toca «Sincronizar ahora».</span>';
+    }
+    h += '</div>';
+    if (window.NUBE_DRIVE.necesitaReconectar()) {
+      h += '<div class="hint" style="color:var(--warn)">La sesión de Google ha caducado. Un toque y sigue.</div>' +
+        '<div class="btn-row"><button class="btn primary" data-action="nube-drive-reconectar">Reconectar</button></div>';
+    } else {
+      h += '<div class="btn-row"><button class="btn primary" data-action="nube-drive-sync">' +
+        (window.NUBE_DRIVE.sincronizando() ? 'Sincronizando…' : 'Sincronizar ahora') + '</button></div>';
+    }
+    h += '<div class="btn-row"><button class="btn ghost" data-action="nube-drive-desvincular">Desvincular</button>' +
+      '<button class="btn danger" data-action="nube-drive-borrar">Borrar mis datos de la nube</button></div>';
     h += '</div>';
     return h;
   }
@@ -5597,8 +5662,9 @@
     }
     h += '</div>';
 
-    // 7b. Copia en la nube (OneDrive) — para todos los usuarios
+    // 7b. Copia en la nube — OneDrive y Google Drive, mutuamente excluyentes
     h += renderNubeCard();
+    h += renderNubeDriveCard();
 
     // 7c. Sincronizar Google Calendar (solo modo desarrollador)
     if (settings.telDevMode) h += renderGcalCard();
@@ -6810,6 +6876,7 @@
         // Lápida para la nube: que el borrado se propague a los demás
         // dispositivos y no reaparezca al sincronizar.
         if (window.NUBE && window.NUBE.onTurnoBorrado) window.NUBE.onTurnoBorrado(t.id);
+        if (window.NUBE_DRIVE && window.NUBE_DRIVE.onTurnoBorrado) window.NUBE_DRIVE.onTurnoBorrado(t.id);
         editId = null;
         renderCalendar(); setView('calendario');
       });
@@ -7125,13 +7192,14 @@
     if (act === 'nube-privacidad') { maybeNubePrivacidad(true); return; }
     if (act === 'nube-reconectar') { window.NUBE && window.NUBE.reconectar(); return; }
     if (act === 'nube-icono') {
-      if (!window.NUBE) return;
-      var est = window.NUBE.estado();
-      if (est === 'sin') { window.NUBE.vincular(); return; }
-      if (est === 'reconectar') { window.NUBE.reconectar(); return; }
+      var naIc = nubeActiva();
+      if (!naIc) return;
+      var est = naIc.estado();
+      if (est === 'sin') { naIc.vincular(); return; }
+      if (est === 'reconectar') { naIc.reconectar(); return; }
       if (est === 'sync') return; // ya está subiendo
       // ok / error → forzar subida ahora
-      window.NUBE.sincronizarAhora().then(function () {
+      naIc.sincronizarAhora().then(function () {
         nubeReRender();
         if (lastSetView === 'ajustes') renderSettings();
         flashSaved();
@@ -7173,6 +7241,50 @@
       }).then(function (ok) {
         if (!ok || !window.NUBE) return;
         window.NUBE.borrarDatosNube().then(function () {
+          renderSettings();
+          appModal.alert({ title: 'Hecho', message: 'Datos de la nube borrados.' });
+        });
+      });
+      return;
+    }
+    // Copia en Google Drive — mismas acciones que OneDrive de arriba, mismo
+    // patrón, apuntando a window.NUBE_DRIVE en vez de window.NUBE.
+    if (act === 'nube-drive-vincular') { window.NUBE_DRIVE && window.NUBE_DRIVE.vincular(); return; }
+    if (act === 'nube-drive-reconectar') { window.NUBE_DRIVE && window.NUBE_DRIVE.reconectar(); return; }
+    if (act === 'nube-drive-sync') {
+      if (window.NUBE_DRIVE) window.NUBE_DRIVE.sincronizarAhora().then(function () {
+        if (lastSetView === 'ajustes') renderSettings();
+        flashSaved();
+      });
+      renderSettings();
+      return;
+    }
+    if (act === 'nube-drive-desvincular') {
+      appModal.confirm({
+        title: 'Desvincular la nube',
+        message: 'Dejará de sincronizarse. NO se borra nada de tu Google Drive ni de la app.',
+        buttons: [
+          { label: 'Cancelar', value: false, kind: 'neutral' },
+          { label: 'Desvincular', value: true, kind: 'danger' }
+        ]
+      }).then(function (ok) {
+        if (ok && window.NUBE_DRIVE) { window.NUBE_DRIVE.desvincular(); renderSettings(); }
+      });
+      return;
+    }
+    if (act === 'nube-drive-borrar') {
+      appModal.confirm({
+        title: 'Borrar mis datos de la nube',
+        message: 'Se borrarán todos los archivos de turnos de la carpeta privada de la app en tu Google Drive.\n\n' +
+          'Sigues vinculado y tus turnos de esta tablet NO se tocan: la carpeta se quedará vacía hasta que edites un turno o pulses «Sincronizar ahora».\n\n' +
+          'Para dejar de sincronizar del todo, usa «Desvincular».',
+        buttons: [
+          { label: 'Cancelar', value: false, kind: 'neutral' },
+          { label: 'Borrar de la nube', value: true, kind: 'danger' }
+        ]
+      }).then(function (ok) {
+        if (!ok || !window.NUBE_DRIVE) return;
+        window.NUBE_DRIVE.borrarDatosNube().then(function () {
           renderSettings();
           appModal.alert({ title: 'Hecho', message: 'Datos de la nube borrados.' });
         });
@@ -7437,8 +7549,12 @@
     // Copia en la nube (OneDrive): arranca MSAL, procesa la vuelta del login
     // por redirect y, si ya hay sesión, sincroniza. Si no está configurada
     // (sin CLIENT_ID) o msal-browser.min.js no cargó, no hace nada.
-    if (window.NUBE) {
-      window.NUBE.init();
+    if (window.NUBE) window.NUBE.init();
+    // Google Drive: mismo patrón, alternativa mutuamente excluyente a
+    // OneDrive — procesa la vuelta del login (fragmento #gdrive_refresh de
+    // la URL) y, si ya hay sesión, sincroniza.
+    if (window.NUBE_DRIVE) window.NUBE_DRIVE.init();
+    if (window.NUBE || window.NUBE_DRIVE) {
       setTimeout(maybeFirstRunNubePrompt, 1200);
       // Si ya está vinculada pero el aviso de privacidad no llegó a verse
       // (p.ej. el SW recargó la app justo al volver del login), mostrarlo ahora.
