@@ -38,6 +38,40 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-14 — Paso 65: Google Drive — piezas de servidor para el login único (opción B)
+
+- David pidió una alternativa a OneDrive con Google Drive, con login único
+  de verdad (no como Google Calendar, que a veces vuelve a pedir sesión).
+  Eso exige el flujo de Google con `refresh_token` (offline), que Google
+  SOLO da a través de un intercambio con Client Secret — no se puede hacer
+  desde el navegador puro. Única pieza de servidor de todo el proyecto:
+  - `api/drive-callback.js` — recibe la vuelta de Google tras el
+    consentimiento, cambia el `code` por tokens (con el Client Secret, que
+    vive SOLO en la variable de entorno de Vercel
+    `GOOGLE_DRIVE_CLIENT_SECRET`, nunca en el repo) y redirige al navegador
+    con el `refresh_token` en el FRAGMENTO de la URL (`#gdrive_refresh=...`)
+    — los fragmentos no se mandan a ningún servidor, es el sitio seguro
+    para pasarlo a localStorage sin que quede guardado en ningún sitio
+    intermedio. El retorno (GitHub Pages o Vercel) se valida contra una
+    lista fija — nunca redirige a donde diga el parámetro `state` sin
+    comprobar antes.
+  - `api/drive-refresh.js` — cambia un `refresh_token` guardado por un
+    `access_token` nuevo de ~1h, bajo demanda, sin que el usuario lo note
+    (equivalente a lo que hace MSAL con `acquireTokenSilent` para
+    OneDrive). CORS restringido a los dos orígenes reales de la app
+    (GitHub Pages + Vercel), no abierto a cualquiera.
+  - Zero-config: Vercel publica solo estos archivos como endpoints al
+    hacer push — no hace falta crear ni conectar ningún proyecto nuevo.
+- **Pendiente**: falta el módulo cliente (`nube-drive.js`, la parte que de
+  verdad sube/baja los turnos — mismo patrón que `nube.js` para OneDrive:
+  un archivo por día, fusión sin borrar nunca nada en local, lápidas para
+  los borrados). Antes de construirlo, probar que el enlazado en sí
+  funciona de verdad (ver mensaje al usuario con la URL de prueba) —
+  mismo criterio que con el cambio de delta query: no apilar una pieza
+  grande sin probada encima de otra sin probar.
+- Client ID (público): `574775051169-...apps.googleusercontent.com`.
+  Redirect URI registrado en Google Cloud: `https://enruta-rv.vercel.app/api/drive-callback`.
+
 ### 2026-09-14 — Paso 64: cinturón de seguridad — listado completo cada 7 días aunque el delta vaya bien (enruta-v94)
 
 - David pidió asegurar al máximo que el cambio de delta query no pueda
