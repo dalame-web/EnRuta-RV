@@ -38,6 +38,20 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-09-24 — Paso 71: tope de ancho en los campos libres de un atajo (enruta-v101)
+
+- David reportó que un campo de texto largo dentro de la ventana de un
+  atajo (p.ej. "Detalle" en LTV) hacía crecer el input sin límite y
+  descuadraba/sacaba la ventana. Encontrado: `autosizeCh()` ponía
+  `el.style.width = (valor.length + 1) + 'ch'` sin ningún tope.
+- Fix: tope en 30ch — pasado eso, el propio `<input>` hace scroll
+  horizontal por dentro (nativo del navegador), se sigue viendo y editando
+  bien sin romper el layout. `max-width:100%` en CSS como red de
+  seguridad, y `overflow-wrap:break-word` en `.atajo-frase` por si acaso.
+- Probado en el preview con un texto largo: el input queda dentro de la
+  ventana (no se sale), sin errores de consola.
+- `registro.js?v=202609086`, `registro.css?v=202609077`, `CACHE enruta-rv-v101`.
+
 ### 2026-09-14 — Paso 70: Novedades al día (enruta-v100)
 
 - David reclamó que la norma "cada funcionalidad nueva va a Novedades" no

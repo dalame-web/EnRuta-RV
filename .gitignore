@@ -7,6 +7,7 @@ tools/__pycache__/
 # Credenciales OAuth (nunca en el repo)
 *credenciales*.json
 *crecenciales*.json
+client_secret_*.json
 
 # Output generado por /graphify (no es código fuente del proyecto)
 graphify-out/

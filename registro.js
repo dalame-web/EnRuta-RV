@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v100';
+  var APP_VERSION = 'enruta-v101';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -3915,8 +3915,12 @@
   }
   // Ensancha un input en línea con lo que se escribe — como si fuera texto
   // normal, no un campo de formulario con ancho fijo.
+  // Tope en 30ch: sin límite, un campo de texto largo (p.ej. "Detalle" de un
+  // atajo) hacía crecer el input hasta salirse de la ventana del modal y
+  // descuadrarla. Pasado el tope, el propio input hace scroll horizontal
+  // por dentro (comportamiento nativo) — se sigue viendo/editando bien.
   function autosizeCh(el, minCh) {
-    function resize() { el.style.width = Math.max(minCh || 4, el.value.length + 1) + 'ch'; }
+    function resize() { el.style.width = Math.min(30, Math.max(minCh || 4, el.value.length + 1)) + 'ch'; }
     el.addEventListener('input', resize);
     resize();
   }
