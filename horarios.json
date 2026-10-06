@@ -16,6 +16,10 @@
         "hora": "12:41",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -40,6 +44,10 @@
         "hora": "8:26",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -59,6 +67,10 @@
         "hora": "10:49",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -73,6 +85,10 @@
         "hora": "14:51",
         "tParada": 3
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -92,6 +108,10 @@
         "hora": "14:48",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -106,6 +126,10 @@
         "hora": "18:45",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -125,6 +149,10 @@
         "hora": "22:10",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -139,6 +167,10 @@
         "hora": "17:09",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -153,6 +185,10 @@
         "hora": "10:11",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -167,6 +203,10 @@
         "hora": "14:27",
         "tParada": 3
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -186,6 +226,10 @@
         "hora": "12:53",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -200,6 +244,10 @@
         "hora": "16:51",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -219,6 +267,10 @@
         "hora": "17:29",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -233,6 +285,10 @@
         "hora": "12:28",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206",
+      "306"
     ]
   },
   {
@@ -247,6 +303,9 @@
         "hora": "7:13",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -261,6 +320,9 @@
         "hora": "7:50",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -275,6 +337,9 @@
         "hora": "8:35",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -283,7 +348,10 @@
     "destino": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
     "hSalida": "7:05",
     "hDestino": "10:07",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6071",
@@ -291,7 +359,10 @@
     "destino": "BARCELONA-SANTS",
     "hSalida": "7:22",
     "hDestino": "10:24",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6072",
@@ -299,7 +370,10 @@
     "destino": "VALENCIA-JOAQUIN SOROLLA",
     "hSalida": "7:45",
     "hDestino": "9:39",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6076",
@@ -323,6 +397,9 @@
         "hora": "9:53",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -337,6 +414,9 @@
         "hora": "9:22",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -356,6 +436,9 @@
         "hora": "9:26",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -364,7 +447,10 @@
     "destino": "BARCELONA-SANTS",
     "hSalida": "8:22",
     "hDestino": "11:24",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6083",
@@ -372,7 +458,10 @@
     "destino": "MADRID-CHAMARTIN-CLARA CAMP.",
     "hSalida": "8:12",
     "hDestino": "10:08",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6084",
@@ -391,6 +480,9 @@
         "hora": "10:22",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -405,6 +497,9 @@
         "hora": "8:54",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -419,6 +514,9 @@
         "hora": "10:41",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -433,6 +531,9 @@
         "hora": "8:54",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -447,6 +548,9 @@
         "hora": "10:11",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -461,6 +565,9 @@
         "hora": "10:48",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -475,6 +582,9 @@
         "hora": "10:34",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -489,6 +599,9 @@
         "hora": "9:46",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -503,6 +616,9 @@
         "hora": "11:49",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -511,7 +627,10 @@
     "destino": "MADRID-CHAMARTIN-CLARA CAMP.",
     "hSalida": "10:57",
     "hDestino": "12:53",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6106",
@@ -525,6 +644,9 @@
         "hora": "12:15",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -539,6 +661,9 @@
         "hora": "11:11",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -553,6 +678,9 @@
         "hora": "11:36",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -561,7 +689,10 @@
     "destino": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
     "hSalida": "10:45",
     "hDestino": "13:49",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6111",
@@ -575,6 +706,9 @@
         "hora": "12:58",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -594,6 +728,9 @@
         "hora": "13:20",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -608,6 +745,9 @@
         "hora": "13:40",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -622,6 +762,9 @@
         "hora": "13:41",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -636,6 +779,9 @@
         "hora": "13:58",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -644,7 +790,10 @@
     "destino": "MADRID-CHAMARTIN-CLARA CAMP.",
     "hSalida": "12:27",
     "hDestino": "14:23",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6125",
@@ -663,6 +812,9 @@
         "hora": "13:50",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -677,6 +829,9 @@
         "hora": "14:10",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -691,6 +846,9 @@
         "hora": "13:08",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -705,6 +863,9 @@
         "hora": "14:34",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -713,7 +874,10 @@
     "destino": "VALENCIA-JOAQUIN SOROLLA",
     "hSalida": "13:30",
     "hDestino": "15:24",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6136",
@@ -727,6 +891,9 @@
         "hora": "15:40",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -741,6 +908,9 @@
         "hora": "13:44",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -755,6 +925,9 @@
         "hora": "15:40",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -763,7 +936,10 @@
     "destino": "VALENCIA-JOAQUIN SOROLLA",
     "hSalida": "15:15",
     "hDestino": "17:09",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6143",
@@ -771,7 +947,10 @@
     "destino": "MADRID-CHAMARTIN-CLARA CAMP.",
     "hSalida": "13:57",
     "hDestino": "15:53",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6147",
@@ -785,6 +964,9 @@
         "hora": "14:43",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -799,6 +981,9 @@
         "hora": "14:44",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -807,7 +992,10 @@
     "destino": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
     "hSalida": "14:50",
     "hDestino": "17:52",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6151",
@@ -815,7 +1003,10 @@
     "destino": "BARCELONA-SANTS",
     "hSalida": "15:52",
     "hDestino": "18:54",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6154",
@@ -834,6 +1025,9 @@
         "hora": "17:22",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -848,6 +1042,9 @@
         "hora": "18:04",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -862,6 +1059,9 @@
         "hora": "16:20",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -870,7 +1070,10 @@
     "destino": "BARCELONA-SANTS",
     "hSalida": "16:37",
     "hDestino": "19:39",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6162",
@@ -884,6 +1087,9 @@
         "hora": "17:49",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -892,7 +1098,10 @@
     "destino": "MADRID-CHAMARTIN-CLARA CAMP.",
     "hSalida": "16:12",
     "hDestino": "18:08",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6164",
@@ -911,6 +1120,9 @@
         "hora": "18:22",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -925,6 +1137,9 @@
         "hora": "16:30",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -939,6 +1154,9 @@
         "hora": "18:41",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -953,6 +1171,9 @@
         "hora": "18:58",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -967,6 +1188,9 @@
         "hora": "18:51",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -975,7 +1199,10 @@
     "destino": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
     "hSalida": "17:20",
     "hDestino": "20:22",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6181",
@@ -989,6 +1216,9 @@
         "hora": "21:02",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -997,7 +1227,10 @@
     "destino": "MADRID-CHAMARTIN-CLARA CAMP.",
     "hSalida": "17:57",
     "hDestino": "19:53",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6189",
@@ -1011,6 +1244,9 @@
         "hora": "19:29",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -1025,6 +1261,9 @@
         "hora": "20:21",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -1033,7 +1272,10 @@
     "destino": "VALENCIA-JOAQUIN SOROLLA",
     "hSalida": "19:30",
     "hDestino": "21:24",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6195",
@@ -1052,6 +1294,9 @@
         "hora": "20:20",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -1066,6 +1311,9 @@
         "hora": "20:50",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -1080,6 +1328,9 @@
         "hora": "20:47",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -1088,7 +1339,10 @@
     "destino": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
     "hSalida": "19:40",
     "hDestino": "22:42",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6201",
@@ -1102,6 +1356,9 @@
         "hora": "22:00",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -1110,7 +1367,10 @@
     "destino": "VALENCIA-JOAQUIN SOROLLA",
     "hSalida": "20:45",
     "hDestino": "22:39",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "306"
+    ]
   },
   {
     "servicio": "6203",
@@ -1124,6 +1384,9 @@
         "hora": "20:50",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -1143,6 +1406,9 @@
         "hora": "21:36",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -1157,6 +1423,9 @@
         "hora": "21:20",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -1171,6 +1440,9 @@
         "hora": "22:41",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -1185,6 +1457,9 @@
         "hora": "21:29",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -1204,6 +1479,9 @@
         "hora": "22:03",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -1212,7 +1490,10 @@
     "destino": "BARCELONA-SANTS",
     "hSalida": "20:56",
     "hDestino": "23:58",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6217",
@@ -1236,6 +1517,9 @@
         "hora": "22:07",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "306"
     ]
   },
   {
@@ -1255,6 +1539,9 @@
         "hora": "8:52",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -1263,7 +1550,10 @@
     "destino": "BARCELONA-SANTS",
     "hSalida": "8:50",
     "hDestino": "11:52",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6291",
@@ -1282,6 +1572,9 @@
         "hora": "12:03",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -1290,7 +1583,10 @@
     "destino": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
     "hSalida": "12:14",
     "hDestino": "15:16",
-    "paradas": []
+    "paradas": [],
+    "_horarios": [
+      "206"
+    ]
   },
   {
     "servicio": "6341",
@@ -1309,6 +1605,9 @@
         "hora": "16:47",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -1323,6 +1622,9 @@
         "hora": "15:40",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -1342,6 +1644,9 @@
         "hora": "17:27",
         "tParada": 1
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   },
   {
@@ -1361,6 +1666,9 @@
         "hora": "21:02",
         "tParada": 2
       }
+    ],
+    "_horarios": [
+      "206"
     ]
   }
 ]

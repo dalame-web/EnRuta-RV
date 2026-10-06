@@ -40,6 +40,7 @@ Requiere: pip install pymupdf
 """
 import argparse
 import json
+import os
 import re
 import sys
 
@@ -78,6 +79,22 @@ def locate_bands(words):
         # encima de Com hasta justo debajo de Sit/Km
         "dep": (com_hi + margin, sitkm_lo - margin),
     }
+
+
+RELACION_RE = re.compile(r"(\d{4})\s+([A-Z][^\n]*?)\s*\((\d+)p\)")
+
+
+def relacion_marchas(doc):
+    """Marchas que el propio documento declara en su 'Relacion de marchas'
+    ({numero: recorrido}). Es la lista oficial: sirve para detectar marchas
+    que faltan o sobran frente a lo que se ha extraido."""
+    out = {}
+    for pi in range(min(doc.page_count, 10)):
+        t = doc[pi].get_text()
+        if "DE MARCHAS" in t:
+            for num, recorrido, _ in RELACION_RE.findall(t):
+                out[num] = recorrido.strip()
+    return out
 
 
 def marcha_num_in(words):
@@ -276,7 +293,20 @@ def main():
             dedup.append(p)
         servicios.extend(build_servicios(num, dedup, warnings))
 
-    resultado = {"servicios": servicios, "avisos": warnings}
+    # Contraste con la "Relacion de marchas" que declara el propio documento.
+    rel = relacion_marchas(doc)
+    if rel:
+        for n in sorted(set(rel) - set(order)):
+            warnings.append(f"{n}: figura en la Relacion de marchas pero no se encontro su ficha en el PDF")
+        for n in sorted(set(order) - set(rel)):
+            warnings.append(f"{n}: tiene ficha en el PDF pero no figura en la Relacion de marchas")
+
+    resultado = {
+        "documento": os.path.basename(pdf_path),
+        "relacion": sorted(rel),
+        "servicios": servicios,
+        "avisos": warnings,
+    }
     texto = json.dumps(resultado, ensure_ascii=False, indent=2)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as f:

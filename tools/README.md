@@ -109,6 +109,16 @@ que lo que ya tienes cargado:**
   mismo, el resto de PDF que vayan llegando son actualizaciones** — usa
   `python tools/merge_horario.py --force` con ellos.
 
+**Contraste automático al fusionar.** Al terminar, `merge_horario.py` compara
+el maestro con la "Relación de marchas" que trae el propio documento y avisa de:
+- **POSIBLES ANULADAS**: marchas del maestro (de ese mismo Horario, 206 o 306)
+  que el documento ya no lista. No borra nada; si confirmas que están anuladas,
+  quítalas de `horarios.json` a mano y regenera `data.js`.
+- **FALTAN EN EL MAESTRO**: marchas de la relación que no tienen servicio.
+
+Cada servicio del maestro lleva un campo `_horarios` (p. ej. `["206","306"]`) que
+se rellena solo al fusionar; la app lo ignora.
+
 ## 6. Regenerar data.js
 
 ```
