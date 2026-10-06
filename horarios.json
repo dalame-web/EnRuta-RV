@@ -76,34 +76,6 @@
     ]
   },
   {
-    "servicio": "6013",
-    "origen": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
-    "destino": "BARCELONA-SANTS",
-    "hSalida": "19:29",
-    "hDestino": "22:46",
-    "paradas": [
-      {
-        "nombre": "ZARAGOZA-DELICIAS",
-        "hora": "21:05",
-        "tParada": 1
-      }
-    ]
-  },
-  {
-    "servicio": "6013",
-    "origen": "SEVILLA-SANTA JUSTA",
-    "destino": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
-    "hSalida": "16:26",
-    "hDestino": "19:04",
-    "paradas": [
-      {
-        "nombre": "CORDOBA-JULIO ANGUITA",
-        "hora": "17:09",
-        "tParada": 2
-      }
-    ]
-  },
-  {
     "servicio": "6014",
     "origen": "BARCELONA-SANTS",
     "destino": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
@@ -889,20 +861,6 @@
         "nombre": "CORDOBA-JULIO ANGUITA",
         "hora": "16:20",
         "tParada": 2
-      }
-    ]
-  },
-  {
-    "servicio": "6160",
-    "origen": "BARCELONA-SANTS",
-    "destino": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
-    "hSalida": "15:55",
-    "hDestino": "19:12",
-    "paradas": [
-      {
-        "nombre": "ZARAGOZA-DELICIAS",
-        "hora": "17:23",
-        "tParada": 1
       }
     ]
   },
