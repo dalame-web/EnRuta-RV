@@ -137,8 +137,17 @@ def index_halves(doc):
     halves = []
     for pi in range(doc.page_count):
         pg = doc[pi]
-        H = pg.mediabox.height
         words = pg.get_text("words")
+        if pg.rotation == 0:
+            # Hojas guardadas "tal como se ven" (columnas en X, filas en Y, dos
+            # fichas lado a lado). Se traspone al sistema de las hojas rotadas
+            # (fila=X, columna=Y descendente de izquierda a derecha) para
+            # reutilizar el resto del extractor tal cual.
+            W = pg.mediabox.width
+            words = [(w[1], W - w[2], w[3], W - w[0]) + tuple(w[4:]) for w in words]
+            H = W
+        else:
+            H = pg.mediabox.height
         wa = [w for w in words if w[1] > H / 2]
         wb = [w for w in words if w[1] <= H / 2]
         for tag, w in (("a", wa), ("b", wb)):

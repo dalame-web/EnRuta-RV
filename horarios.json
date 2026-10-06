@@ -1149,12 +1149,12 @@
     "servicio": "6206",
     "origen": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
     "destino": "SEVILLA-SANTA JUSTA",
-    "hSalida": "20:40",
-    "hDestino": "23:21",
+    "hSalida": "19:35",
+    "hDestino": "22:14",
     "paradas": [
       {
         "nombre": "CORDOBA-JULIO ANGUITA",
-        "hora": "22:28",
+        "hora": "21:20",
         "tParada": 2
       }
     ]
