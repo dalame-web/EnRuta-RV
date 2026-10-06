@@ -46,17 +46,17 @@
     "servicio": "6012",
     "origen": "BARCELONA-SANTS",
     "destino": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
-    "hSalida": "8:45",
-    "hDestino": "12:16",
+    "hSalida": "9:12",
+    "hDestino": "12:40",
     "paradas": [
       {
         "nombre": "CAMP DE TARRAGONA",
-        "hora": "9:19",
+        "hora": "9:44",
         "tParada": 1
       },
       {
         "nombre": "ZARAGOZA-DELICIAS",
-        "hora": "10:25",
+        "hora": "10:49",
         "tParada": 1
       }
     ]
@@ -65,22 +65,12 @@
     "servicio": "6012",
     "origen": "MADRID-P.ATOCHA-ALMUDENA GRANDES",
     "destino": "SEVILLA-SANTA JUSTA",
-    "hSalida": "12:46",
-    "hDestino": "15:34",
+    "hSalida": "13:05",
+    "hDestino": "15:46",
     "paradas": [
       {
-        "nombre": "CIUDAD REAL",
-        "hora": "13:41",
-        "tParada": 2
-      },
-      {
-        "nombre": "PUERTOLLANO",
-        "hora": "13:56",
-        "tParada": 2
-      },
-      {
         "nombre": "CORDOBA-JULIO ANGUITA",
-        "hora": "14:40",
+        "hora": "14:51",
         "tParada": 3
       }
     ]

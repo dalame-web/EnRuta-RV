@@ -35,23 +35,21 @@
       servicio: '6012',
       origen: 'BARCELONA-SANTS',
       destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '8:45',
-      hDestino: '12:16',
+      hSalida: '9:12',
+      hDestino: '12:40',
       paradas: [
-        { nombre: 'CAMP DE TARRAGONA', hora: '9:19', tParada: 1 },
-        { nombre: 'ZARAGOZA-DELICIAS', hora: '10:25', tParada: 1 },
+        { nombre: 'CAMP DE TARRAGONA', hora: '9:44', tParada: 1 },
+        { nombre: 'ZARAGOZA-DELICIAS', hora: '10:49', tParada: 1 },
       ]
     },
     {
       servicio: '6012',
       origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
       destino: 'SEVILLA-SANTA JUSTA',
-      hSalida: '12:46',
-      hDestino: '15:34',
+      hSalida: '13:05',
+      hDestino: '15:46',
       paradas: [
-        { nombre: 'CIUDAD REAL', hora: '13:41', tParada: 2 },
-        { nombre: 'PUERTOLLANO', hora: '13:56', tParada: 2 },
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '14:40', tParada: 3 },
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '14:51', tParada: 3 },
       ]
     },
     {
@@ -1000,24 +998,5 @@
         { nombre: 'CAMP DE TARRAGONA', hora: '21:02', tParada: 2 },
       ]
     }
-  ];
-
-  // Traslados / recorridos sin horario oficial de Adif (no forman parte del
-  // Libro de Horarios, por eso van aparte de RV_HORARIOS y no se regeneran
-  // con tools/build_data_js.py). Sin número de servicio ni horas fijas —
-  // se rellenan a mano en registro.js.
-  window.RV_MANIOBRAS = [
-    { nombre: 'Atocha - Cerro Negro', origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', destino: 'CERRO NEGRO', paradas: [] },
-    { nombre: 'Cerro Negro - Atocha', origen: 'CERRO NEGRO', destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', paradas: [] },
-    { nombre: 'Chamartín - Atocha', origen: 'MADRID-CHAMARTIN-CLARA CAMP.', destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', paradas: [{ nombre: 'VALDEMORO' }] },
-    { nombre: 'Atocha - Chamartín', origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', destino: 'MADRID-CHAMARTIN-CLARA CAMP.', paradas: [{ nombre: 'VALDEMORO' }] },
-    { nombre: 'Chamartín - Fuencarral', origen: 'MADRID-CHAMARTIN-CLARA CAMP.', destino: 'FUENCARRAL', paradas: [] },
-    { nombre: 'Fuencarral - Chamartín', origen: 'FUENCARRAL', destino: 'MADRID-CHAMARTIN-CLARA CAMP.', paradas: [] },
-    { nombre: 'Fuencarral - Valdemoro', origen: 'FUENCARRAL', destino: 'VALDEMORO', paradas: [] },
-    { nombre: 'Valdemoro - Fuencarral', origen: 'VALDEMORO', destino: 'FUENCARRAL', paradas: [] },
-    { nombre: 'Valdemoro - Atocha', origen: 'VALDEMORO', destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', paradas: [] },
-    { nombre: 'Atocha - Valdemoro', origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', destino: 'VALDEMORO', paradas: [] },
-    { nombre: 'Barcelona Sants - Sagrera', origen: 'BARCELONA-SANTS', destino: 'SAGRERA', paradas: [] },
-    { nombre: 'Sagrera - Barcelona Sants', origen: 'SAGRERA', destino: 'BARCELONA-SANTS', paradas: [] }
   ];
 })();
