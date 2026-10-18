@@ -3,6 +3,7 @@
  * las fichas de circulacion Adif. Este fichero se genera con
  * tools/build_data_js.py a partir de horarios.json — para cambiar datos,
  * edita horarios.json (via tools/merge_horario.py) y vuelve a generar.
+ * Los traslados (RV_MANIOBRAS) salen de maniobras.json.
  */
 (function () {
   'use strict';
@@ -968,5 +969,24 @@
         { nombre: 'CAMP DE TARRAGONA', hora: '21:02', tParada: 2 },
       ]
     }
+  ];
+
+  // Traslados / recorridos sin horario oficial de Adif (no forman parte del
+  // Libro de Horarios, por eso van aparte de RV_HORARIOS). Sin numero de
+  // servicio ni horas fijas — se rellenan a mano en registro.js.
+  // Fuente: maniobras.json (se regeneran junto con RV_HORARIOS).
+  window.RV_MANIOBRAS = [
+    { nombre: 'Atocha - Cerro Negro', origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', destino: 'CERRO NEGRO', paradas: [] },
+    { nombre: 'Cerro Negro - Atocha', origen: 'CERRO NEGRO', destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', paradas: [] },
+    { nombre: 'Chamartín - Atocha', origen: 'MADRID-CHAMARTIN-CLARA CAMP.', destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', paradas: [{ nombre: 'VALDEMORO' }] },
+    { nombre: 'Atocha - Chamartín', origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', destino: 'MADRID-CHAMARTIN-CLARA CAMP.', paradas: [{ nombre: 'VALDEMORO' }] },
+    { nombre: 'Chamartín - Fuencarral', origen: 'MADRID-CHAMARTIN-CLARA CAMP.', destino: 'FUENCARRAL', paradas: [] },
+    { nombre: 'Fuencarral - Chamartín', origen: 'FUENCARRAL', destino: 'MADRID-CHAMARTIN-CLARA CAMP.', paradas: [] },
+    { nombre: 'Fuencarral - Valdemoro', origen: 'FUENCARRAL', destino: 'VALDEMORO', paradas: [] },
+    { nombre: 'Valdemoro - Fuencarral', origen: 'VALDEMORO', destino: 'FUENCARRAL', paradas: [] },
+    { nombre: 'Valdemoro - Atocha', origen: 'VALDEMORO', destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', paradas: [] },
+    { nombre: 'Atocha - Valdemoro', origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES', destino: 'VALDEMORO', paradas: [] },
+    { nombre: 'Barcelona Sants - Sagrera', origen: 'BARCELONA-SANTS', destino: 'SAGRERA', paradas: [] },
+    { nombre: 'Sagrera - Barcelona Sants', origen: 'SAGRERA', destino: 'BARCELONA-SANTS', paradas: [] }
   ];
 })();

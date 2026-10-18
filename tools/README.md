@@ -130,6 +130,13 @@ Reescribe `data.js` entero a partir de `horarios.json`. **No edites
 Si necesitas corregir un dato, edita `horarios.json` directamente o vuelve
 a fusionar con `--force`.
 
+**Traslados (`RV_MANIOBRAS`).** Los traslados sin horario oficial (Atocha - Cerro
+Negro, Chamartín - Fuencarral, Sagrera...) **no salen de los PDF**: viven en
+`maniobras.json` (en la raíz de `rv-export`) y `build_data_js.py` los escribe
+en `data.js` junto a los servicios. Para añadir, quitar o cambiar un traslado,
+edita `maniobras.json` y vuelve a lanzar `build_data_js.py`. Si ese fichero no
+existe, el script avisa de que `data.js` saldrá sin traslados.
+
 ## 7. Comprobar y subir
 
 ```
