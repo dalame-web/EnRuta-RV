@@ -295,10 +295,10 @@
       servicio: '6089',
       origen: 'MALAGA MARIA ZAMBRANO',
       destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '8:00',
-      hDestino: '10:48',
+      hSalida: '8:52',
+      hDestino: '11:40',
       paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '8:54', tParada: 2 },
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '9:46', tParada: 2 },
       ]
     },
     {
@@ -335,10 +335,10 @@
       servicio: '6097',
       origen: 'SEVILLA-SANTA JUSTA',
       destino: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
-      hSalida: '9:03',
-      hDestino: '11:40',
+      hSalida: '8:11',
+      hDestino: '10:48',
       paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '9:46', tParada: 2 },
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '8:54', tParada: 2 },
       ]
     },
     {
@@ -509,10 +509,10 @@
       servicio: '6136',
       origen: 'MADRID-P.ATOCHA-ALMUDENA GRANDES',
       destino: 'SEVILLA-SANTA JUSTA',
-      hSalida: '13:55',
-      hDestino: '16:34',
+      hSalida: '14:50',
+      hDestino: '17:29',
       paradas: [
-        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '15:40', tParada: 2 },
+        { nombre: 'CORDOBA-JULIO ANGUITA', hora: '16:36', tParada: 2 },
       ]
     },
     {
