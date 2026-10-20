@@ -38,6 +38,17 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-10-20 — Paso 72: tiempo de conducción por servicio, parte 1 (enruta-v102)
+
+- Nuevo campo "Conducción Xh YYm" centrado en la cabecera de cada tarjeta
+  de servicio (entre "Servicio NNNN" y la Hora LTV).
+- Cálculo (`conduccionMin`): duración hSalida→hDestino (cruza medianoche)
+  + retraso de llegada − retraso de salida. Se actualiza en vivo al teclear.
+  Solo cuenta lo que David pone en la app; vacío si faltan horas.
+- Pendiente: parte 2 (avisos 5:00 / 5:30 con reloj interno) y parte 3
+  (comparar con Calendar). Los traslados con horas cuentan como conducción
+  (a confirmar).
+
 ### 2026-09-24 — Paso 71: tope de ancho en los campos libres de un atajo (enruta-v101)
 
 - David reportó que un campo de texto largo dentro de la ventana de un

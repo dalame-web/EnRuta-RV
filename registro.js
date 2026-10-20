@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v101';
+  var APP_VERSION = 'enruta-v102';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -954,6 +954,18 @@
   function fmtDur(m) {
     if (m == null || m === 0) return '0h 00m';
     return Math.floor(m / 60) + 'h ' + pad2(m % 60) + 'm';
+  }
+  // Minutos de conducción de un servicio: duración programada + (retraso de
+  // llegada − retraso de salida). null si faltan las horas.
+  function conduccionMin(s) {
+    var d = durMin(s.hSalida, s.hDestino);
+    if (d == null) return null;
+    var rs = parseRetraso(s.rSalida) || 0, rl = parseRetraso(s.rLlegDestino) || 0;
+    return Math.max(0, d + rl - rs);
+  }
+  function condHtml(s) {
+    var c = conduccionMin(s);
+    return c == null ? '' : 'Conducción <b>' + fmtDur(c) + '</b>';
   }
   // Parser flexible de retraso: '5' (min), '9:25' (HH:MM), '925'/'0925' (HHMM)
   // Orden de detección: HH:MM con dos puntos > 3-4 dígitos (HHMM) > entero suelto.
@@ -3070,6 +3082,7 @@
     if (svcConInformeGenerado(s)) {
       h += '<span class="inc-badge" title="Informe de incidencia generado">📋</span>';
     }
+    h += '<div class="cond-inline" id="svc-cond-' + si + '">' + condHtml(s) + '</div>';
     // Hora LTV: se puede ocultar desde Ajustes. Si este servicio ya la tiene
     // puesta, sigue saliendo para no perderla de vista.
     if (!settings.regLtvOculta || s.horaLTV) {
@@ -6509,6 +6522,12 @@
     if (mNum) {
       var titEl = $('svc-titulo-' + mNum[1]);
       if (titEl) titEl.textContent = el.value || String(+mNum[1] + 1);
+    }
+    // Conducción en vivo al teclear horas/retrasos del servicio.
+    var mCond = bind.match(/^srv\.(\d+)\.(hSalida|hDestino|rSalida|rLlegDestino)$/);
+    if (mCond) {
+      var cEl = $('svc-cond-' + mCond[1]), cT = getTurno(editId);
+      if (cEl && cT && cT.servicios[mCond[1]]) cEl.innerHTML = condHtml(cT.servicios[mCond[1]]);
     }
     // Observaciones: repintar el fondo de color de las líneas de telefonema.
     var mObs = bind.match(/^srv\.(\d+)\.observaciones$/);
