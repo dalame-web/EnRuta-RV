@@ -13,6 +13,7 @@
   var K_TURNOS = 'rviryo_turnos_v1';
   var K_SETTINGS = 'rviryo_settings_v1';
   var K_GCAL_CACHE = 'rviryo_gcal_cache_v1';
+  var K_GCAL_IGN = 'rviryo_gcal_ignorados_v1';
   // Solo el access token de Google (vida corta, ~1h, lo emite Google — no
   // es la contraseña de la cuenta ni nada permanente) + su caducidad, para
   // no tener que volver a autenticar en cada apertura de la app dentro de
@@ -20,7 +21,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v104';
+  var APP_VERSION = 'enruta-v105';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -917,6 +918,7 @@
   // todavía — puramente informativa (Calendario) hasta que el usuario
   // cree el turno a mano, momento en que se usa para autorrellenarlo.
   var gcalCache = {};
+  var gcalModalBox = null; // caja del modal de revisión, para repintarla al ignorar un aviso
   var gcalModalResolve = null; // resolveWith del modal de revisión abierto desde Calendario, si hay uno
 
   // ===== Utilidades =====
@@ -5327,8 +5329,22 @@
   // crear el turno, ver openDay). Si ese día YA tiene un turno creado,
   // ADEMÁS entra en la lista de revisión (huecos / aviso de cambio) — los
   // días sin turno no aparecen ahí, no hay nada que "aplicar" para ellos.
+  // Aviso descartado a mano: se recuerda su "firma" (día + lo que falta + el
+  // cambio de horario). Mientras Calendar y el turno sigan igual no vuelve a
+  // salir; si algo cambia, la firma cambia y reaparece.
+  function gcalFirma(prop) {
+    var ch = prop.cambioHorario;
+    return [prop.fecha, prop.fechaFin, prop.codigo, (prop.faltan || []).join('|'),
+      ch ? [ch.tomaNuevo, ch.dejeNuevo, ch.descansoNuevoMin].join(',') : ''].join('#');
+  }
+  function gcalIgnorar(lista) {
+    var ign = load(K_GCAL_IGN, {});
+    lista.forEach(function (p) { ign[gcalFirma(p)] = 1; });
+    save(K_GCAL_IGN, ign);
+  }
   function gcalProcesarEventos(eventos) {
     var props = [];
+    var ignorados = load(K_GCAL_IGN, {});
     eventos.forEach(function (ev) {
       var fechaInicio = (ev.start && (ev.start.date || (ev.start.dateTime || '').slice(0, 10))) || '';
       if (!fechaInicio) return;
@@ -5393,6 +5409,7 @@
         (!existente.descanso && parsed.descansoMin);
       var faltaServicio = parsed.servicios.some(function (sv) { return !servicioYaExiste(existente, sv); });
       if (!faltaHorario && !faltaServicio && !prop.cambioHorario) return;
+      if (ignorados[gcalFirma(prop)]) return;
       props.push(prop);
     });
     save(K_GCAL_CACHE, gcalCache);
@@ -5558,12 +5575,14 @@
           'Actualizar en el turno' + (prop.existente && prop.existente.estado === 'cerrado' ? ' (aunque esté cerrado)' : '') +
           '</label>';
       }
+      h += '<button class="btn ghost" data-action="gcal-ignorar" data-gi="' + gi +
+        '" style="margin-top:8px">No volver a avisar de este</button>';
       h += '</div>';
     });
     h += '</div>';
     h += '<div class="btn-row" style="margin-top:10px">' +
       '<button class="btn primary" data-action="gcal-aplicar">Aplicar</button>' +
-      '<button class="btn ghost" data-action="gcal-descartar">Descartar</button></div>';
+      '<button class="btn ghost" data-action="gcal-descartar">Descartar todos</button></div>';
     return h;
   }
   // Modal de revisión lanzado desde el botón 🔄 del Calendario — reusa
@@ -5576,6 +5595,7 @@
       dismissValue: null,
       render: function (box, resolveWith) {
         gcalModalResolve = resolveWith;
+        gcalModalBox = box;
         box.innerHTML = '<div class="modal-title">Revisar turnos de Google Calendar</div>' +
           renderGcalPropuestasHtml() +
           '<div class="btn-row" style="margin-top:10px">' +
@@ -5585,7 +5605,7 @@
       // Se cierre como se cierre (Cerrar, Aplicar, backdrop o ESC) — evita
       // dejar una referencia colgada que resuelva un modal distinto que
       // esté abierto más tarde (appModal.resolveWith es un singleton).
-      gcalModalResolve = null;
+      gcalModalResolve = null; gcalModalBox = null;
     });
   }
   function nubeHaceX(ts) {
@@ -7369,7 +7389,29 @@
       });
       return;
     }
-    if (act === 'gcal-descartar') { gcalPropuestas = null; renderSettings(); return; }
+    if (act === 'gcal-descartar') {
+      if (gcalPropuestas) gcalIgnorar(gcalPropuestas);
+      gcalPropuestas = null; renderSettings();
+      if (gcalModalResolve) { gcalModalResolve(null); gcalModalResolve = null; }
+      return;
+    }
+    if (act === 'gcal-ignorar') {
+      var gIg = +el.getAttribute('data-gi');
+      if (gcalPropuestas && gcalPropuestas[gIg]) {
+        gcalIgnorar([gcalPropuestas[gIg]]);
+        gcalPropuestas.splice(gIg, 1);
+      }
+      renderSettings();
+      if (gcalModalBox) {
+        if (gcalPropuestas && gcalPropuestas.length) {
+          gcalModalBox.innerHTML = '<div class="modal-title">Revisar turnos de Google Calendar</div>' +
+            renderGcalPropuestasHtml() +
+            '<div class="btn-row" style="margin-top:10px">' +
+            '<button class="btn ghost" data-action="gcal-modal-cerrar">Cerrar</button></div>';
+        } else if (gcalModalResolve) { gcalModalResolve(null); gcalModalResolve = null; }
+      }
+      return;
+    }
     if (act === 'gcal-aplicar') { gcalAplicarPropuestas(); return; }
     if (act === 'export-backup') { exportBackup(); return; }
     if (act === 'import-backup') { $('file-backup').click(); return; }

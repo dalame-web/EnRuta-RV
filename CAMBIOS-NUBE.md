@@ -38,6 +38,15 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-10-20 — Paso 75: descartar avisos de la revisión de Calendar (enruta-v105)
+
+- Antes "Descartar" solo vaciaba la lista en memoria (y ni cerraba el modal):
+  al volver a sincronizar el mismo aviso salía otra vez.
+- Ahora cada aviso tiene «No volver a avisar de este» y «Descartar todos»
+  guarda la firma (día + lo que falta + cambio de horario) en
+  `rviryo_gcal_ignorados_v1`. Si Calendar o el turno cambian, la firma
+  cambia y el aviso reaparece.
+
 ### 2026-10-20 — Paso 74: comparar conducción con Calendar y descanso entre turnos, parte 3 (enruta-v104)
 
 - Cuadrante (modo desarrollador): suma Train + Condotta del Calendar y la
