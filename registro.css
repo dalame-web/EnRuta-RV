@@ -1221,3 +1221,6 @@ b.cuad-alto{color:var(--bad); font-weight:800}
   .bienv-nav .modal-btn{flex:1 1 100%}
   .bienv-dots{order:-1;width:100%;justify-content:center;margin-bottom:6px}
 }
+.cond-aviso{margin:0 0 10px;padding:6px 10px;border-radius:6px;font-size:13px;font-weight:600;
+  background:rgba(240,136,62,.18);color:var(--warn);border:1px solid var(--warn)}
+.cond-aviso.grave{background:rgba(248,81,73,.18);color:var(--bad);border-color:var(--bad)}

@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v102';
+  var APP_VERSION = 'enruta-v103';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -963,6 +963,73 @@
     var rs = parseRetraso(s.rSalida) || 0, rl = parseRetraso(s.rLlegDestino) || 0;
     return Math.max(0, d + rl - rs);
   }
+  // Conducción continuada: servicios encadenados con menos de 45 min entre la
+  // llegada real y la salida real siguiente suman; ≥45 min de pausa la corta.
+  // Devuelve un tramo por servicio con conducción: {si, ini, fin, cad}, y por
+  // cadena su total previsto (con retrasos) y su fin.
+  var COND_PAUSA = 45, COND_AVISO1 = 300, COND_AVISO2 = 330, COND_MAX = 360;
+  function cadenasConduccion(t) {
+    var tr = [], cads = [], prevFin = null, prevIni = 0;
+    (t.servicios || []).forEach(function (s, si) {
+      var c = conduccionMin(s), h0 = hhmmToMin(s.hSalida);
+      if (c == null || h0 == null) return;
+      var ini = h0 + (parseRetraso(s.rSalida) || 0);
+      while (ini < prevIni) ini += 1440;
+      var fin = ini + c, cad = cads[cads.length - 1];
+      if (prevFin == null || ini - prevFin >= COND_PAUSA || !cad) {
+        cad = { total: 0, ini: ini, fin: fin, tr: [] };
+        cads.push(cad);
+      }
+      cad.total += c; cad.fin = fin; cad.tr.push({ si: si, ini: ini, fin: fin });
+      tr[si] = cad;
+      prevFin = fin; prevIni = ini;
+    });
+    return { porSvc: tr, cads: cads };
+  }
+  function condAvisoHtml(t, si) {
+    var cad = cadenasConduccion(t).porSvc[si];
+    if (!cad || cad.total < COND_AVISO1) return '';
+    var n = cad.tr.length > 1 ? ' (servicios encadenados)' : '';
+    var tot = fmtDur(cad.total);
+    if (cad.total >= COND_MAX) return '<div class="cond-aviso grave">⛔ Conducción continuada ' + tot + n + ': SUPERA las 6h</div>';
+    if (cad.total >= COND_AVISO2) return '<div class="cond-aviso grave">⚠ Conducción continuada ' + tot + n + ': cerca de las 6h, pausa de 45 min</div>';
+    return '<div class="cond-aviso">⚠ Conducción continuada ' + tot + n + ': llegando a las 5h</div>';
+  }
+  function refrescarCondEnVivo(t) {
+    (t.servicios || []).forEach(function (s, si) {
+      var a = $('svc-cond-' + si), b = $('svc-aviso-' + si);
+      if (a) a.innerHTML = condHtml(s);
+      if (b) b.innerHTML = condAvisoHtml(t, si);
+    });
+  }
+  // Reloj interno: cada 30 s mira el turno en curso; si la conducción REAL
+  // acumulada en la cadena actual cruza 5:00 / 5:30, avisa una vez.
+  var condAvisados = {};
+  function condRelojTick() {
+    var t = turnos.filter(function (x) { return x.estado === 'en_curso'; })[0];
+    if (!t) return;
+    var d = new Date(), now = d.getHours() * 60 + d.getMinutes();
+    var cads = cadenasConduccion(t).cads;
+    cads.forEach(function (cad, ci) {
+      var n = now; while (n < cad.ini - 60) n += 1440;
+      if (n < cad.ini || n > cad.fin) return;
+      var el = 0;
+      cad.tr.forEach(function (x) { el += Math.max(0, Math.min(n, x.fin) - x.ini); });
+      [[COND_AVISO2, '5:30'], [COND_AVISO1, '5:00']].some(function (lv) {
+        var k = t.id + ':' + ci + ':' + lv[0];
+        if (el < lv[0] || condAvisados[k]) return false;
+        condAvisados[k] = true;
+        condAvisados[t.id + ':' + ci + ':' + COND_AVISO1] = true;
+        try { if (navigator.vibrate) navigator.vibrate([300, 150, 300]); } catch (e) {}
+        appModal.alert({
+          title: 'Conducción continuada ' + lv[1],
+          message: 'Llevas ' + fmtDur(el) + ' conduciendo sin pausa de 45 min. Máximo 6h.'
+        });
+        return true;
+      });
+      if (editId === t.id) refrescarCondEnVivo(t);
+    });
+  }
   function condHtml(s) {
     var c = conduccionMin(s);
     return c == null ? '' : 'Conducción <b>' + fmtDur(c) + '</b>';
@@ -1589,7 +1656,7 @@
     puntos: [
       'Copia en la nube: ahora puedes elegir Google Drive además de OneDrive (Ajustes → icono ☁️) — solo una de las dos a la vez, mismo login único.',
       'Atajos de Observaciones: cada uno sale como una pastilla de color — tócala para modificarlo o borrarlo. Cada línea escrita lleva su hora entre corchetes.',
-      'Tema claro/oscuro: un toque manual al sol/luna ya no desactiva el automático — solo cambia el tema por ahora, hasta el siguiente cambio real de hora.',
+      'Conducción: cada servicio muestra su tiempo de conducción (con tus retrasos) y avisa al llegar a 5:00 y 5:30 de conducción continuada — en la tarjeta y con un aviso en pantalla.',
       'Traslado de La Sagrera: nuevo campo «Vía», y ahora se ve en el Calendario junto al servicio (antes/después según toque).'
     ]
   };
@@ -3083,6 +3150,7 @@
       h += '<span class="inc-badge" title="Informe de incidencia generado">📋</span>';
     }
     h += '<div class="cond-inline" id="svc-cond-' + si + '">' + condHtml(s) + '</div>';
+    var condAv = '<div id="svc-aviso-' + si + '">' + condAvisoHtml(t, si) + '</div>';
     // Hora LTV: se puede ocultar desde Ajustes. Si este servicio ya la tiene
     // puesta, sigue saliendo para no perderla de vista.
     if (!settings.regLtvOculta || s.horaLTV) {
@@ -3092,7 +3160,7 @@
         horaLtvOptions(s.horaLTV) + '</select>' +
         '</div>';
     }
-    h += '</div>';
+    h += '</div>' + condAv;
 
     // Toma/Deje/Descanso ya NO van aquí — están en su propia card al principio
     // del editor (ver renderTurnoHorarioCard). Dato de todo el turno, uno solo.
@@ -6526,8 +6594,8 @@
     // Conducción en vivo al teclear horas/retrasos del servicio.
     var mCond = bind.match(/^srv\.(\d+)\.(hSalida|hDestino|rSalida|rLlegDestino)$/);
     if (mCond) {
-      var cEl = $('svc-cond-' + mCond[1]), cT = getTurno(editId);
-      if (cEl && cT && cT.servicios[mCond[1]]) cEl.innerHTML = condHtml(cT.servicios[mCond[1]]);
+      var cT = getTurno(editId);
+      if (cT) refrescarCondEnVivo(cT);
     }
     // Observaciones: repintar el fondo de color de las líneas de telefonema.
     var mObs = bind.match(/^srv\.(\d+)\.observaciones$/);
@@ -7440,6 +7508,7 @@
     window.addEventListener('beforeunload', flushAutosave);
     // Modo tema automático: revisar la hora cada minuto.
     setInterval(function () { if (settings.themeAuto) applyTheme(); }, 60000);
+    setInterval(condRelojTick, 30000);
 
     // Botón/gesto "atrás" de Android. Entrada base = Calendario.
     if (window.history && window.history.replaceState) {

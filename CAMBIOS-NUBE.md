@@ -38,6 +38,17 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-10-20 — Paso 73: avisos de conducción continuada 5:00 / 5:30, parte 2 (enruta-v103)
+
+- Confirmado por David: los traslados con horas cuentan como conducción.
+- `cadenasConduccion(t)`: encadena servicios cuyo hueco real (llegada con
+  retraso → salida con retraso) es < 45 min; ≥45 min corta la cadena.
+- Banner en la tarjeta (ámbar ≥5h, rojo ≥5h30, "supera 6h" ≥6h) con el total
+  previsto de la cadena; se refresca en vivo al teclear.
+- Reloj interno (cada 30 s): si la conducción real acumulada en la cadena
+  actual cruza 5:00 o 5:30, aviso modal una vez + vibración.
+- Novedades: sustituido el punto del tema por el de Conducción.
+
 ### 2026-10-20 — Paso 72: tiempo de conducción por servicio, parte 1 (enruta-v102)
 
 - Nuevo campo "Conducción Xh YYm" centrado en la cabecera de cada tarjeta
