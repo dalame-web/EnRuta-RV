@@ -38,6 +38,14 @@
 
 ## Cambios (más reciente arriba)
 
+### 2026-10-20 — Paso 74: comparar conducción con Calendar y descanso entre turnos, parte 3 (enruta-v104)
+
+- Cuadrante (modo desarrollador): suma Train + Condotta del Calendar y la
+  compara con la conducción de la app; si difieren ≥1 min sale una alerta.
+- Card Toma/Descanso/Deje: aviso del descanso desde el deje del turno anterior
+  (<14h ámbar, <12h rojo), en vivo al cambiar la toma/deje.
+- Tarjeta de servicio colapsada: muestra su conducción (y ⚠ si hay aviso).
+
 ### 2026-10-20 — Paso 73: avisos de conducción continuada 5:00 / 5:30, parte 2 (enruta-v103)
 
 - Confirmado por David: los traslados con horas cuentan como conducción.

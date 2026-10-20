@@ -20,7 +20,7 @@
   // plano (ver init) — habría que pedir un popup sin gesto del usuario,
   // que el navegador bloquea.
   var K_GCAL_TOKEN = 'rviryo_gcal_token_v1';
-  var APP_VERSION = 'enruta-v103';
+  var APP_VERSION = 'enruta-v104';
 
   // Lista de comprobaciones de fábrica. El usuario puede editarla en Ajustes
   // (settings.comprobaciones). Cada servicio guarda sus marcas por CLAVE
@@ -1029,6 +1029,27 @@
       });
       if (editId === t.id) refrescarCondEnVivo(t);
     });
+  }
+  // Descanso en residencia entre el deje del turno anterior y la toma de este:
+  // <14h aviso, <12h grave (convenio). Solo si ambos turnos tienen deje/toma.
+  function descansoAvisoHtml(t) {
+    var f = (t.servicios || []).map(function (s) { return s.fecha; }).filter(Boolean).sort()[0];
+    var tm = hhmmToMin(t.toma);
+    if (!f || tm == null) return '';
+    var prev = null, prevFin = -1;
+    turnos.forEach(function (o) {
+      if (o === t || !o.deje || hhmmToMin(o.deje) == null) return;
+      var fs = (o.servicios || []).map(function (s) { return s.fecha; }).filter(Boolean).sort();
+      var ult = fs[fs.length - 1];
+      if (!ult || ult > f) return;
+      var fin = Date.parse(ult + 'T00:00:00Z') / 60000 + hhmmToMin(o.deje);
+      if (fin > prevFin && fin <= Date.parse(f + 'T00:00:00Z') / 60000 + tm) { prevFin = fin; prev = o; }
+    });
+    if (!prev) return '';
+    var m = Date.parse(f + 'T00:00:00Z') / 60000 + tm - prevFin;
+    if (m >= 840) return '';
+    return '<div class="cond-aviso' + (m < 720 ? ' grave' : '') + '">' + (m < 720 ? '⛔' : '⚠') +
+      ' Descanso desde el turno anterior: ' + fmtDur(m) + (m < 720 ? ' (menos de 12h)' : ' (menos de 14h)') + '</div>';
   }
   function condHtml(s) {
     var c = conduccionMin(s);
@@ -3420,6 +3441,20 @@
     if (cuadDeje && t.deje && !mismaHora(cuadDeje, t.deje)) avisos.push('El deje del turno (' + t.deje + ') no coincide con el cuadrante (' + cuadDeje + ').');
     if (cuadToma && !t.toma) avisos.push('Falta la toma en el turno (cuadrante: ' + cuadToma + ').');
     if (cuadDeje && !t.deje) avisos.push('Falta el deje en el turno (cuadrante: ' + cuadDeje + ').');
+    // Conducción: lo del cuadrante (Train + Condotta) vs lo que has puesto en la app.
+    var condCal = 0, condApp = 0, hayApp = false;
+    full.tramos.forEach(function (tr) {
+      if (tr.k !== 'conduce' && tr.k !== 'retraso') return;
+      var dm = durMin(tr.hora, tr.horaFin);
+      if (dm != null) condCal += dm;
+    });
+    (t.servicios || []).forEach(function (s) {
+      var c = conduccionMin(s);
+      if (c != null) { condApp += c; hayApp = true; }
+    });
+    if (hayApp && condCal > 0 && Math.abs(condCal - condApp) >= 1) {
+      avisos.push('Conducción distinta: en la app ' + fmtDur(condApp) + ', en el cuadrante ' + fmtDur(condCal) + '.');
+    }
     avisos.forEach(function (a) { h += '<div class="cuad-alerta">⚠️ ' + esc(a) + '</div>'; });
     // Línea de tiempo — todos los tramos del cuadrante, en orden, tal cual.
     h += '<div class="cuad-tl">';
@@ -3517,7 +3552,7 @@
         '<div class="field"><label>Toma</label><input type="time" data-bind="toma" value="' + esc(t.toma) + '"></div>' +
         '<div class="field"><label>Descanso</label><input type="time" data-bind="descanso" value="' + esc(t.descanso) + '"></div>' +
         '<div class="field"><label>Deje</label><input type="time" data-bind="deje" value="' + esc(t.deje) + '"></div>' +
-        '</div></div>';
+        '</div><div id="rest-aviso" style="margin-top:8px">' + descansoAvisoHtml(t) + '</div></div>';
     }
 
     // Servicios — acordeón: solo expandedSvc abierto.
@@ -3535,6 +3570,7 @@
         h += '<button type="button" class="svc-collapsed" data-action="svc-toggle" data-svc="' + si + '">' +
           '<span class="svc-c-num">Servicio ' + num + '</span>' +
           '<span class="svc-c-ruta">' + ruta + '</span>' +
+          (condHtml(s) ? '<span class="cond-inline" style="margin-left:0">' + condHtml(s) + (condAvisoHtml(t, si) ? ' ⚠' : '') + '</span>' : '') +
           (svcConInformeGenerado(s) ? '<span class="inc-badge" title="Informe de incidencia generado">📋</span>' : '') +
           '<span class="chev">▾</span>' +
           '</button>';
@@ -6590,6 +6626,10 @@
     if (mNum) {
       var titEl = $('svc-titulo-' + mNum[1]);
       if (titEl) titEl.textContent = el.value || String(+mNum[1] + 1);
+    }
+    if (bind === 'toma' || bind === 'deje') {
+      var rT = getTurno(editId), rEl = $('rest-aviso');
+      if (rT && rEl) rEl.innerHTML = descansoAvisoHtml(rT);
     }
     // Conducción en vivo al teclear horas/retrasos del servicio.
     var mCond = bind.match(/^srv\.(\d+)\.(hSalida|hDestino|rSalida|rLlegDestino)$/);
